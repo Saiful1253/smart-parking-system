@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartPark - Admin Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts (Poppins) -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen flex overflow-hidden">
+
+    <!-- Sidebar (Left) -->
+    <aside class="w-64 bg-slate-950 text-slate-400 flex flex-col justify-between flex-shrink-0 border-r border-slate-800 z-20 transition-all duration-300 md:translate-x-0 -translate-x-full fixed md:relative h-screen" id="sidebar">
+        <div>
+            <!-- Brand Logo -->
+            <div class="p-6 flex items-center gap-3 border-b border-slate-900">
+                <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                    <i class="fa-solid fa-car text-white text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-white tracking-wider">SmartPark</h1>
+                    <p class="text-[10px] text-slate-500 font-semibold tracking-widest uppercase">Parking System</p>
+                </div>
+            </div>
+
+            <!-- Navigation Menu -->
+            <nav class="p-4 space-y-1.5">
+                <a href="#" onclick="switchAdminTab('dashboard', this)" class="flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-500/20 transition-all duration-300 admin-nav-item">
+                    <i class="fa-solid fa-table-columns text-lg"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" onclick="switchAdminTab('zones', this)" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300 admin-nav-item">
+                    <i class="fa-solid fa-location-dot text-lg"></i>
+                    <span>Parking Zones</span>
+                </a>
+                <a href="#" onclick="switchAdminTab('sessions', this)" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300 admin-nav-item">
+                    <i class="fa-solid fa-car-side text-lg"></i>
+                    <span>Active Sessions</span>
+                </a>
+                <a href="#" onclick="switchAdminTab('history', this)" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300 admin-nav-item">
+                    <i class="fa-solid fa-clock-rotate-left text-lg"></i>
+                    <span>History</span>
+                </a>
+                <a href="#" onclick="switchAdminTab('map', this)" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300 admin-nav-item">
+                    <i class="fa-solid fa-map-location-dot text-lg"></i>
+                    <span>Live Map</span>
+                </a>
+                <a href="#" onclick="switchAdminTab('customer', this)" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300 admin-nav-item">
+                    <i class="fa-solid fa-user-gear text-lg"></i>
+                    <span>Customer View</span>
+                </a>
+                <a href="#" onclick="switchAdminTab('cash', this)" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300 admin-nav-item">
+                    <i class="fa-solid fa-money-bill-transfer text-lg"></i>
+                    <span>Cash Verify</span>
+                </a>
+                <a href="#" onclick="switchAdminTab('settings', this)" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300 admin-nav-item">
+                    <i class="fa-solid fa-sliders text-lg"></i>
+                    <span>Settings</span>
+                </a>
+            </nav>
+        </div>
+
+        <!-- Bottom Sign Out -->
+        <div class="p-4 border-t border-slate-900">
+            <a href="index.html" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-red-500/10 hover:text-red-400 transition-all duration-300">
+                <i class="fa-solid fa-right-from-bracket text-lg"></i>
+                <span>Sign Out</span>
+            </a>
+        </div>
+    </aside>
+    <!-- Main Content Area -->
+    <main class="flex-grow flex flex-col overflow-y-auto h-screen relative">
+        
+        <!-- Top Header -->
+        <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
+            <div class="flex items-center gap-3">
+                <!-- Mobile Menu Toggle -->
+                <button onclick="toggleSidebar()" class="md:hidden text-slate-600 hover:text-slate-900 text-xl">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-900" id="page-title">Dashboard</h2>
+                    <p class="text-xs text-slate-500" id="page-subtitle">Overview of your parking system</p>
+                </div>
+            </div>
+
+            <!-- Admin Profile / Quick Actions -->
+            <div class="flex items-center gap-4">
+                <button onclick="triggerRefresh()" class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors" title="Refresh Data">
+                    <i class="fa-solid fa-rotate animate-spin-hover"></i>
+                </button>
+                <div class="flex items-center gap-3 border-l border-slate-200 pl-4">
+                    <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
+                        AD
+                    </div>
+                    <div class="hidden sm:block">
+                        <p class="text-sm font-semibold text-slate-800">Admin User</p>
+                        <p class="text-[10px] text-slate-500 font-medium">System Administrator</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dashboard Content View -->
+        <div id="dashboard-view" class="p-6 space-y-6">
+            
+            <!-- Slot Anomaly Detected Alert Box -->
+            <div id="anomaly-alert" class="bg-red-50 border border-red-200 rounded-2xl p-5 shadow-sm transition-all duration-500">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
+                            <i class="fa-solid fa-triangle-exclamation text-lg animate-pulse"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-red-900">Slot Anomaly Detected (4 alerts)</h3>
+                            <p class="text-xs text-red-600 font-medium">Unregistered vehicles or sensor mismatches found in active zones.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="refreshAnomalies()" class="px-3.5 py-1.5 text-xs font-semibold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg shadow-sm transition-colors flex items-center gap-1.5">
+                            <i class="fa-solid fa-rotate text-[10px]"></i> Refresh
+                        </button>
+                        <button onclick="dismissAnomalies()" class="px-3.5 py-1.5 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-sm transition-colors flex items-center gap-1.5">
+                            <i class="fa-solid fa-check text-[10px]"></i> Dismiss All
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Alert Items -->
+                <div class="space-y-2.5" id="anomaly-list">
+                    <div class="bg-white/80 border border-red-100 rounded-xl p-3.5 flex items-start gap-3 shadow-sm">
+                        <span class="px-2.5 py-1 text-xs font-bold bg-red-100 text-red-700 rounded-lg">Zone C</span>
+                        <p class="text-xs text-slate-700 font-medium mt-0.5">98 spot(s) marked occupied but no active session found — possible unregistered vehicle detected!</p>
+                    </div>
+                    <div class="bg-white/80 border border-red-100 rounded-xl p-3.5 flex items-start gap-3 shadow-sm">
+                        <span class="px-2.5 py-1 text-xs font-bold bg-red-100 text-red-700 rounded-lg">Zone A</span>
+                        <p class="text-xs text-slate-700 font-medium mt-0.5">27 spot(s) marked occupied but no active session found — possible unregistered vehicle detected!</p>
+                    </div>
+                    <div class="bg-white/80 border border-red-100 rounded-xl p-3.5 flex items-start gap-3 shadow-sm">
+                        <span class="px-2.5 py-1 text-xs font-bold bg-red-100 text-red-700 rounded-lg">Zone D</span>
+                        <p class="text-xs text-slate-700 font-medium mt-0.5">12 spot(s) marked occupied but no active session found — possible unregistered vehicle detected!</p>
+                    </div>
+                    <div class="bg-white/80 border border-red-100 rounded-xl p-3.5 flex items-start gap-3 shadow-sm">
+                        <span class="px-2.5 py-1 text-xs font-bold bg-red-100 text-red-700 rounded-lg">Zone B</span>
+                        <p class="text-xs text-slate-700 font-medium mt-0.5">45 spot(s) marked occupied but no active session found — possible unregistered vehicle detected!</p>
+                    </div>
+                </div>
+            </div>
+            <!-- Stats Cards Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                <!-- Card 1: Total Zones -->
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow duration-300">
+                    <div class="space-y-1">
+                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Zones</p>
+                        <h4 class="text-3xl font-extrabold text-slate-900">5</h4>
+                        <p class="text-[10px] text-slate-500 font-medium">Active parking sectors</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl shadow-inner">
+                        <i class="fa-solid fa-location-dot"></i>
+                    </div>
+                </div>
+
+                <!-- Card 2: Total Spots -->
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow duration-300">
+                    <div class="space-y-1">
+                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Spots</p>
+                        <h4 class="text-3xl font-extrabold text-slate-900">320</h4>
+                        <p class="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                            <i class="fa-solid fa-circle text-[6px]"></i> 182 occupied
+                        </p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shadow-inner">
+                        <i class="fa-solid fa-square-p"></i>
+                    </div>
+                </div>
+
+                <!-- Card 3: Active Sessions -->
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow duration-300">
+                    <div class="space-y-1">
+                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Sessions</p>
+                        <h4 class="text-3xl font-extrabold text-slate-900" id="active-sessions-count">0</h4>
+                        <p class="text-[10px] text-slate-500 font-medium">Live parking sessions</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center text-xl shadow-inner">
+                        <i class="fa-solid fa-car-side"></i>
+                    </div>
+                </div>
+
+                <!-- Card 4: Revenue -->
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow duration-300">
+                    <div class="space-y-1">
+                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Revenue</p>
+                        <h4 class="text-3xl font-extrabold text-slate-900">৳145.70</h4>
+                        <p class="text-[10px] text-slate-500 font-medium">From completed sessions</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl shadow-inner">
+                        <span class="font-bold text-lg">৳</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Grid: Chart & Recent Activity -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Left: Zone Occupancy Chart (7 cols) -->
+                <div class="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900">Zone Occupancy</h3>
+                            <p class="text-xs text-slate-500">Real-time occupancy percentage per zone</p>
+                        </div>
+                        <span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-semibold border border-slate-200">
+                            Live Status
+                        </span>
+                    </div>
+                    <div class="h-72 relative">
+                        <canvas id="occupancyChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Right: Recent Activity (5 cols) -->
+                <div class="lg:col-span-5 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 class="text-base font-bold text-slate-900">Recent Activity</h3>
+                                <p class="text-xs text-slate-500">Latest parking events across all zones</p>
+                            </div>
+                            <button onclick="clearActivity()" class="text-xs font-semibold text-blue-600 hover:text-blue-500 transition-colors">
+                                Clear All
+                            </button>
+                        </div>
+
+                        <!-- Activity List -->
+                        <div class="space-y-4" id="activity-list">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-sm">
+                                        <i class="fa-solid fa-motorcycle"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-bold text-slate-800">123 Zone A</p>
+                                        <p class="text-[10px] text-slate-500 font-medium">Completed Session</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs font-semibold text-slate-400">15:21</span>
+                            </div>
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm">
+                                        <i class="fa-solid fa-car"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-bold text-slate-800">456 Zone B</p>
+                                        <p class="text-[10px] text-slate-500 font-medium">New Check-In</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs font-semibold text-slate-400">15:18</span>
+                            </div>
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-sm">
+                                        <i class="fa-solid fa-car"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-bold text-slate-800">789 Zone C</p>
+                                        <p class="text-[10px] text-slate-500 font-medium">Completed Session</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs font-semibold text-slate-400">15:10</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="viewAllActivity()" class="w-full mt-4 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all duration-300">
+                        View All Activity
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- OTHER VIEWS (Hidden by default) -->
+        <!-- Parking Zones View -->
+        <div id="zones-view" class="p-6 space-y-6 hidden">
+            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Parking Zones Management</h3>
+                <p class="text-sm text-slate-500 mb-6">Configure and monitor parking zones, rates, and sensor statuses.</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="border border-slate-200 rounded-xl p-4 bg-slate-50">
+                        <div class="flex justify-between items-start mb-3">
+                            <span class="px-2.5 py-1 text-xs font-bold bg-blue-100 text-blue-700 rounded-lg">Zone A</span>
+                            <span class="text-xs font-semibold text-emerald-600">Active</span>
+                        </div>
+                        <p class="text-xs text-slate-600 mb-1">Total Spots: 80</p>
+                        <p class="text-xs text-slate-600 mb-3">Occupied: 53</p>
+                        <div class="w-full bg-slate-200 rounded-full h-2">
+                            <div class="bg-blue-600 h-2 rounded-full" style="width: 66%"></div>
+                        </div>
+                    </div>
+                    <div class="border border-slate-200 rounded-xl p-4 bg-slate-50">
+                        <div class="flex justify-between items-start mb-3">
+                            <span class="px-2.5 py-1 text-xs font-bold bg-blue-100 text-blue-700 rounded-lg">Zone B</span>
+                            <span class="text-xs font-semibold text-emerald-600">Active</span>
+                        </div>
+                        <p class="text-xs text-slate-600 mb-1">Total Spots: 60</p>
+                        <p class="text-xs text-slate-600 mb-3">Occupied: 45</p>
+                        <div class="w-full bg-slate-200 rounded-full h-2">
+                            <div class="bg-blue-600 h-2 rounded-full" style="width: 75%"></div>
+                        </div>
+                    </div>
+                    <div class="border border-slate-200 rounded-xl p-4 bg-slate-50">
+                        <div class="flex justify-between items-start mb-3">
+                            <span class="px-2.5 py-1 text-xs font-bold bg-blue-100 text-blue-700 rounded-lg">Zone C</span>
+                            <span class="text-xs font-semibold text-emerald-600">Active</span>
+                        </div>
+                        <p class="text-xs text-slate-600 mb-1">Total Spots: 100</p>
+                        <p class="text-xs text-slate-600 mb-3">Occupied: 98</p>
+                        <div class="w-full bg-slate-200 rounded-full h-2">
+                            <div class="bg-blue-600 h-2 rounded-full" style="width: 98%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Sessions View -->
+        <div id="sessions-view" class="p-6 space-y-6 hidden">
+            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Active Parking Sessions</h3>
+                <p class="text-sm text-slate-500 mb-6">Real-time list of vehicles currently parked in the system.</p>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-200 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                                <th class="pb-3">Vehicle Plate</th>
+                                <th class="pb-3">Zone</th>
+                                <th class="pb-3">Spot</th>
+                                <th class="pb-3">Check-In Time</th>
+                                <th class="pb-3">Duration</th>
+                                <th class="pb-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-xs text-slate-700 font-medium divide-y divide-slate-100" id="sessions-table-body">
+                            <tr>
+                                <td class="py-3.5 font-bold text-slate-900">DHK-METRO-1234</td>
+                                <td class="py-3.5">Zone A</td>
+                                <td class="py-3.5">A-12</td>
+                                <td class="py-3.5">14:30</td>
+                                <td class="py-3.5">1h 15m</td>
+                                <td class="py-3.5"><span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold">Parked</span></td>
+                            </tr>
+                            <tr>
+                                <td class="py-3.5 font-bold text-slate-900">DHK-METRO-5678</td>
+                                <td class="py-3.5">Zone B</td>
+                                <td class="py-3.5">B-04</td>
+                                <td class="py-3.5">15:05</td>
+                                <td class="py-3.5">40m</td>
+                                <td class="py-3.5"><span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold">Parked</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <!-- History View -->
+        <div id="history-view" class="p-6 space-y-6 hidden">
+            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Parking History</h3>
+                <p class="text-sm text-slate-500 mb-6">Historical log of all completed parking sessions and payments.</p>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-200 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                                <th class="pb-3">Vehicle Plate</th>
+                                <th class="pb-3">Zone</th>
+                                <th class="pb-3">Spot</th>
+                                <th class="pb-3">Duration</th>
+                                <th class="pb-3">Fee Paid</th>
+                                <th class="pb-3">Payment Method</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-xs text-slate-700 font-medium divide-y divide-slate-100">
+                            <tr>
+                                <td class="py-3.5 font-bold text-slate-900">DHK-METRO-9999</td>
+                                <td class="py-3.5">Zone C</td>
+                                <td class="py-3.5">C-05</td>
+                                <td class="py-3.5">2h 30m</td>
+                                <td class="py-3.5">৳50.00</td>
+                                <td class="py-3.5">bKash</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3.5 font-bold text-slate-900">DHK-METRO-8888</td>
+                                <td class="py-3.5">Zone A</td>
+                                <td class="py-3.5">A-02</td>
+                                <td class="py-3.5">1h 05m</td>
+                                <td class="py-3.5">৳20.00</td>
+                                <td class="py-3.5">Nagad</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Map View -->
+        <div id="map-view" class="p-6 space-y-6 hidden">
+            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Live Parking Map</h3>
+                <p class="text-sm text-slate-500 mb-6">Visual representation of the parking lot layout and real-time occupancy.</p>
+                <div class="border border-slate-200 rounded-xl p-12 bg-slate-50 flex flex-col items-center justify-center text-center">
+                    <div class="w-16 h-16 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-2xl mb-4">
+                        <i class="fa-solid fa-map-location-dot"></i>
+                    </div>
+                    <h4 class="text-base font-bold text-slate-800 mb-1">Interactive Map Loading...</h4>
+                    <p class="text-xs text-slate-500 max-w-xs">Connecting to live camera feeds and ultrasonic sensor arrays.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customer View -->
+        <div id="customer-view" class="p-6 space-y-6 hidden">
+            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Customer View</h3>
+                <p class="text-sm text-slate-500 mb-6">Simulate the customer-facing mobile app or booking portal.</p>
+                <a href="index.html" class="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/20 transition-all duration-300">
+                    <i class="fa-solid fa-arrow-left"></i> Go to Customer Login
+                </a>
+            </div>
+        </div>
+
+        <!-- Cash Verify View -->
+        <div id="cash-view" class="p-6 space-y-6 hidden">
+            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Cash Verification</h3>
+                <p class="text-sm text-slate-500 mb-6">Verify manual cash payments collected by parking attendants.</p>
+                <div class="border border-slate-200 rounded-xl p-8 bg-slate-50 text-center">
+                    <p class="text-xs text-slate-500">No pending cash verifications at this time.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings View -->
+        <div id="settings-view" class="p-6 space-y-6 hidden">
+            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                <h3 class="text-lg font-bold text-slate-900 mb-2">System Settings</h3>
+                <p class="text-sm text-slate-500 mb-6">Configure system parameters, sensor thresholds, and admin accounts.</p>
+                <div class="space-y-4 max-w-md">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <div>
+                            <p class="text-xs font-bold text-slate-800">Auto-Refresh Interval</p>
+                            <p class="text-[10px] text-slate-500">Refresh dashboard data automatically</p>
+                        </div>
+                        <select class="bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs font-semibold text-slate-700 outline-none">
+                            <option>Every 10s</option>
+                            <option>Every 30s</option>
+                            <option>Every 1m</option>
+                            <option>Manual Only</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
+
+    <!-- JavaScript -->
+    <script src="admin.js"></script>
+</body>
+</html>

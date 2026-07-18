@@ -1,0 +1,137 @@
+/* Custom Styles for SmartPark Login Page */
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #020617;
+}
+::-webkit-scrollbar-thumb {
+    background: #1e293b;
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #334155;
+}
+
+/* Parking Slot Animations & Styles */
+.parking-slot {
+    position: relative;
+    overflow: hidden;
+}
+
+.parking-slot::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px 2px 0 0;
+}
+
+.parking-slot.occupied::before {
+    background: #ef4444;
+    box-shadow: 0 2px 10px rgba(239, 68, 68, 0.5);
+}
+
+.parking-slot.available::before {
+    background: #10b981;
+    box-shadow: 0 2px 10px rgba(16, 185, 129, 0.5);
+}
+
+.parking-slot.reserved::before {
+    background: #3b82f6;
+    box-shadow: 0 2px 10px rgba(59, 130, 246, 0.5);
+}
+
+/* Custom pulse for occupied slots */
+.parking-slot.occupied i {
+    animation: carPulse 2s infinite ease-in-out;
+}
+
+@keyframes carPulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 0.8;
+    }
+    50% {
+        transform: scale(1.08);
+        opacity: 1;
+        filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6));
+    }
+}
+
+/* Reserved slot animation */
+.parking-slot.reserved {
+    border-color: rgba(59, 130, 246, 0.5);
+    background: rgba(59, 130, 246, 0.1);
+    animation: reservePulse 1.5s infinite ease-in-out;
+}
+
+@keyframes reservePulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 12px 2px rgba(59, 130, 246, 0.2);
+    }
+}
+
+/* Form Transitions */
+#login-form, #register-form {
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Toast Notification Animation */
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+.toast-enter {
+    animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.toast-exit {
+    animation: fadeOut 0.3s ease forwards;
+}
+
+/* Custom Input Focus Ring Glow */
+input:focus {
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.15);
+}
+
+#register-form input:focus {
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.15);
+}
+
+/* Custom Checkbox Styling */
+input[type="checkbox"] {
+    accent-color: #3b82f6;
+}
+
+#register-form input[type="checkbox"] {
+    accent-color: #10b981;
+}
+
+/* Admin Key Container Smooth Slide Transition */
+#admin-key-container {
+    transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease-in-out, margin 0.4s ease-in-out;
+}

@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartPark - Smart Parking System</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts (Poppins) -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-950 text-slate-100 font-['Poppins'] min-h-screen flex items-center justify-center overflow-x-hidden relative">
+    <!-- Background Decorative Elements -->
+    <div class="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+        <div class="absolute -top-40 -left-40 w-96 h-96 bg-blue-600 rounded-full filter blur-[120px] opacity-20 animate-pulse"></div>
+        <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-emerald-500 rounded-full filter blur-[120px] opacity-20 animate-pulse" style="animation-delay: 2s;"></div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container mx-auto max-w-6xl p-4 md:p-8 z-10">
+        <div class="bg-slate-900/60 backdrop-blur-xl rounded-3xl border border-slate-800 shadow-2xl overflow-hidden grid lg:grid-cols-12 min-h-[650px]">
+            
+            <!-- Left Side: Interactive Visuals (5 cols) -->
+            <div class="lg:col-span-5 bg-gradient-to-br from-slate-900 via-slate-950 to-blue-950 p-8 flex flex-col justify-between border-r border-slate-800 relative overflow-hidden">
+                <!-- Decorative grid lines -->
+                <div class="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-30"></div>
+                
+                <!-- Top Brand -->
+                <div class="relative z-10 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                        <i class="fa-solid fa-square-p text-white text-xl animate-bounce"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-extrabold tracking-wider bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">SmartPark</h1>
+                        <p class="text-xs text-slate-400 font-medium">Next-Gen Parking Solutions</p>
+                    </div>
+                </div>
+
+                <!-- Middle: Interactive Parking Grid Simulation -->
+                <div class="relative z-10 my-8">
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-inner">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                                <i class="fa-solid fa-circle-dot text-emerald-500 animate-ping text-[8px]"></i>
+                                Live Parking Lot Status
+                            </h3>
+                            <span class="text-xs bg-blue-500/10 text-blue-400 px-2.5 py-1 rounded-full border border-blue-500/20 font-medium" id="available-counter">
+                                3/6 Spots Free
+                            </span>
+                        </div>
+
+                        <!-- Parking Grid -->
+                        <div class="grid grid-cols-3 gap-3 mb-4">
+                            <!-- Slot 1 (Occupied) -->
+                            <div class="parking-slot occupied border border-red-500/30 bg-red-500/5 rounded-xl p-3 flex flex-col items-center justify-between h-24 transition-all duration-300">
+                                <span class="text-[10px] font-bold text-red-400">A-01</span>
+                                <i class="fa-solid fa-car text-red-500 text-2xl my-1 animate-pulse"></i>
+                                <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-red-500/20 text-red-300">OCCUPIED</span>
+                            </div>
+                            <!-- Slot 2 (Available) -->
+                            <div class="parking-slot available border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 rounded-xl p-3 flex flex-col items-center justify-between h-24 cursor-pointer transition-all duration-300 hover:scale-105" onclick="toggleSlot(this, 'A-02')">
+                                <span class="text-[10px] font-bold text-emerald-400">A-02</span>
+                                <i class="fa-solid fa-square-p text-emerald-500 text-2xl my-1"></i>
+                                <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 slot-status">FREE</span>
+                            </div>
+                            <!-- Slot 3 (Occupied) -->
+                            <div class="parking-slot occupied border border-red-500/30 bg-red-500/5 rounded-xl p-3 flex flex-col items-center justify-between h-24 transition-all duration-300">
+                                <span class="text-[10px] font-bold text-red-400">A-03</span>
+                                <i class="fa-solid fa-car text-red-500 text-2xl my-1"></i>
+                                <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-red-500/20 text-red-300">OCCUPIED</span>
+                            </div>
+                            <!-- Slot 4 (Available) -->
+                            <div class="parking-slot available border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 rounded-xl p-3 flex flex-col items-center justify-between h-24 cursor-pointer transition-all duration-300 hover:scale-105" onclick="toggleSlot(this, 'A-04')">
+                                <span class="text-[10px] font-bold text-emerald-400">A-04</span>
+                                <i class="fa-solid fa-square-p text-emerald-500 text-2xl my-1"></i>
+                                <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 slot-status">FREE</span>
+                            </div>
+                            <!-- Slot 5 (Occupied) -->
+                            <div class="parking-slot occupied border border-red-500/30 bg-red-500/5 rounded-xl p-3 flex flex-col items-center justify-between h-24 transition-all duration-300">
+                                <span class="text-[10px] font-bold text-red-400">A-05</span>
+                                <i class="fa-solid fa-car text-red-500 text-2xl my-1"></i>
+                                <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-red-500/20 text-red-300">OCCUPIED</span>
+                            </div>
+                            <!-- Slot 6 (Available) -->
+                            <div class="parking-slot available border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 rounded-xl p-3 flex flex-col items-center justify-between h-24 cursor-pointer transition-all duration-300 hover:scale-105" onclick="toggleSlot(this, 'A-06')">
+                                <span class="text-[10px] font-bold text-emerald-400">A-06</span>
+                                <i class="fa-solid fa-square-p text-emerald-500 text-2xl my-1"></i>
+                                <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 slot-status">FREE</span>
+                            </div>
+                        </div>
+                        <p class="text-[11px] text-slate-400 text-center italic">Click on any <span class="text-emerald-400 font-semibold">FREE</span> spot to simulate a reservation!</p>
+                    </div>
+                </div>
+
+                <!-- Bottom Features -->
+                <div class="relative z-10 space-y-3">
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <div class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-blue-400">
+                            <i class="fa-solid fa-bolt"></i>
+                        </div>
+                        <span class="text-xs font-medium">Reserve spots in under 10 seconds</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <div class="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-emerald-400">
+                            <i class="fa-solid fa-location-crosshairs"></i>
+                        </div>
+                        <span class="text-xs font-medium">Real-time GPS navigation to your spot</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Right Side: Forms (7 cols) -->
+            <div class="lg:col-span-7 p-8 md:p-12 flex flex-col justify-center relative">
+                <!-- Tab Switcher -->
+                <div class="flex bg-slate-950/80 p-1 rounded-xl border border-slate-800 max-w-xs mx-auto mb-8 w-full">
+                    <button id="tab-login" class="flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/20" onclick="switchTab('login')">
+                        <i class="fa-solid fa-lock-open mr-2"></i>Sign In
+                    </button>
+                    <button id="tab-register" class="flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 text-slate-400 hover:text-slate-200" onclick="switchTab('register')">
+                        <i class="fa-solid fa-user-plus mr-2"></i>Sign Up
+                    </button>
+                </div>
+
+                <!-- LOGIN FORM -->
+                <form id="login-form" class="space-y-5 transition-all duration-500 opacity-100 transform translate-x-0" onsubmit="handleLogin(event)">
+                    <div class="text-center lg:text-left mb-4">
+                        <h2 id="login-welcome-title" class="text-2xl font-bold text-white">Welcome Back!</h2>
+                        <p id="login-welcome-desc" class="text-sm text-slate-400 mt-1">Enter your credentials to access your parking dashboard.</p>
+                    </div>
+
+                    <!-- Role Selector -->
+                    <div class="grid grid-cols-2 gap-2 bg-slate-950/80 p-1 rounded-xl border border-slate-800/80 mb-4">
+                        <button type="button" id="role-customer" class="flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-all duration-300 bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md shadow-blue-500/10" onclick="setRole('customer')">
+                            <i class="fa-solid fa-car"></i> Customer
+                        </button>
+                        <button type="button" id="role-admin" class="flex items-center justify-center gap-2 py-2 text-xs font-semibold rounded-lg transition-all duration-300 text-slate-400 hover:text-slate-200" onclick="setRole('admin')">
+                            <i class="fa-solid fa-user-shield"></i> Admin Portal
+                        </button>
+                    </div>
+
+                    <!-- Email Input -->
+                    <div class="space-y-2">
+                        <label class="text-xs font-semibold text-slate-300 tracking-wider uppercase">Email Address</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                                <i class="fa-solid fa-envelope"></i>
+                            </div>
+                            <input type="email" id="login-email" required class="w-full bg-slate-950/50 border border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-3 pl-11 pr-4 text-sm text-white placeholder-slate-500 outline-none transition-all duration-300" placeholder="name@example.com">
+                        </div>
+                    </div>
+
+                    <!-- Password Input -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs font-semibold text-slate-300 tracking-wider uppercase">Password</label>
+                            <a href="#" onclick="openModal('forgot-modal')" class="text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors">Forgot Password?</a>
+                        </div>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                                <i class="fa-solid fa-key"></i>
+                            </div>
+                            <input type="password" id="login-password" required class="w-full bg-slate-950/50 border border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-3 pl-11 pr-12 text-sm text-white placeholder-slate-500 outline-none transition-all duration-300" placeholder="••••••••">
+                            <button type="button" onclick="togglePassword('login-password', this)" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Admin Security Key (Hidden by default, shown only for Admin role) -->
+                    <div id="admin-key-container" class="space-y-2 hidden opacity-0 max-h-0 overflow-hidden transition-all duration-500">
+                        <label class="text-xs font-semibold text-slate-300 tracking-wider uppercase">Admin Security Key</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                                <i class="fa-solid fa-shield-halved"></i>
+                            </div>
+                            <input type="password" id="login-admin-key" class="w-full bg-slate-950/50 border border-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl py-3 pl-11 pr-12 text-sm text-white placeholder-slate-500 outline-none transition-all duration-300" placeholder="Enter Admin Key">
+                            <button type="button" onclick="togglePassword('login-admin-key', this)" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Remember Me -->
+                    <div class="flex items-center justify-between pt-1">
+                        <label class="flex items-center gap-2.5 cursor-pointer group">
+                            <input type="checkbox" id="remember-me" class="w-4.5 h-4.5 rounded border-slate-800 bg-slate-950/50 text-blue-600 focus:ring-blue-500/20 focus:ring-offset-0 transition-all duration-300">
+                            <span class="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">Remember my account</span>
+                        </label>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" id="login-submit-btn" class="w-full bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 text-white font-semibold py-3.5 px-4 rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all duration-300 flex items-center justify-center gap-2 group relative overflow-hidden">
+                        <span id="login-submit-text" class="relative z-10 flex items-center gap-2">
+                            <i class="fa-solid fa-right-to-bracket group-hover:translate-x-1 transition-transform"></i>
+                            Secure Sign In
+                        </span>
+                        <div id="login-submit-bg" class="absolute inset-0 bg-gradient-to-r from-emerald-500 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    </button>
+                    <!-- Social Logins -->
+                    <div class="relative my-6">
+                        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-800/80"></div></div>
+                        <div class="relative flex justify-center text-xs uppercase"><span class="bg-slate-900/60 px-3 text-slate-500 font-medium">Or continue with</span></div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <button type="button" onclick="socialLogin('Google')" class="flex items-center justify-center gap-2 bg-slate-950/40 hover:bg-slate-950/80 border border-slate-800 hover:border-slate-700 rounded-xl py-2.5 text-xs font-semibold text-slate-300 transition-all duration-300">
+                            <i class="fa-brands fa-google text-red-500 text-sm"></i> Google
+                        </button>
+                        <button type="button" onclick="socialLogin('Apple')" class="flex items-center justify-center gap-2 bg-slate-950/40 hover:bg-slate-950/80 border border-slate-800 hover:border-slate-700 rounded-xl py-2.5 text-xs font-semibold text-slate-300 transition-all duration-300">
+                            <i class="fa-brands fa-apple text-white text-sm"></i> Apple
+                        </button>
+                    </div>
+                </form>
+
+                <!-- REGISTER FORM (Hidden by default) -->
+                <form id="register-form" class="space-y-4 hidden opacity-0 transform translate-x-8 transition-all duration-500" onsubmit="handleRegister(event)">
+                    <div class="text-center lg:text-left mb-4">
+                        <h2 class="text-2xl font-bold text-white">Create Account</h2>
+                        <p class="text-sm text-slate-400 mt-1">Join SmartPark to reserve and manage your parking spots.</p>
+                    </div>
+
+                    <!-- Full Name -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-semibold text-slate-300 tracking-wider uppercase">Full Name</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                                <i class="fa-solid fa-user"></i>
+                            </div>
+                            <input type="text" id="reg-name" required class="w-full bg-slate-950/50 border border-slate-800 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl py-2.5 pl-11 pr-4 text-sm text-white placeholder-slate-500 outline-none transition-all duration-300" placeholder="John Doe">
+                        </div>
+                    </div>
+
+                    <!-- Email -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-semibold text-slate-300 tracking-wider uppercase">Email Address</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                                <i class="fa-solid fa-envelope"></i>
+                            </div>
+                            <input type="email" id="reg-email" required class="w-full bg-slate-950/50 border border-slate-800 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl py-2.5 pl-11 pr-4 text-sm text-white placeholder-slate-500 outline-none transition-all duration-300" placeholder="name@example.com">
+                        </div>
+                    </div>
+
+                    <!-- License Plate Number -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-semibold text-slate-300 tracking-wider uppercase">License Plate Number</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                                <i class="fa-solid fa-car-rear"></i>
+                            </div>
+                            <input type="text" id="reg-plate" required class="w-full bg-slate-950/50 border border-slate-800 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl py-2.5 pl-11 pr-4 text-sm text-white placeholder-slate-500 outline-none transition-all duration-300" placeholder="e.g. ABC-1234">
+                        </div>
+                    </div>
+
+                    <!-- Password -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-semibold text-slate-300 tracking-wider uppercase">Password</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                                <i class="fa-solid fa-key"></i>
+                            </div>
+                            <input type="password" id="reg-password" required class="w-full bg-slate-950/50 border border-slate-800 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl py-2.5 pl-11 pr-12 text-sm text-white placeholder-slate-500 outline-none transition-all duration-300" placeholder="••••••••">
+                            <button type="button" onclick="togglePassword('reg-password', this)" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Terms -->
+                    <div class="flex items-center gap-2.5 pt-1">
+                        <input type="checkbox" id="reg-terms" required class="w-4.5 h-4.5 rounded border-slate-800 bg-slate-950/50 text-emerald-600 focus:ring-emerald-500/20 focus:ring-offset-0 transition-all duration-300">
+                        <label for="reg-terms" class="text-xs text-slate-400 cursor-pointer hover:text-slate-300 transition-colors">I agree to the <a href="#" class="text-emerald-400 hover:underline">Terms of Service</a> and <a href="#" class="text-emerald-400 hover:underline">Privacy Policy</a></label>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="w-full bg-gradient-to-r from-emerald-500 to-blue-600 hover:from-emerald-400 hover:to-blue-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-all duration-300 flex items-center justify-center gap-2 group relative overflow-hidden">
+                        <span class="relative z-10 flex items-center gap-2">
+                            <i class="fa-solid fa-user-plus group-hover:scale-110 transition-transform"></i>
+                            Create Free Account
+                        </span>
+                        <div class="absolute inset-0 bg-gradient-to-r from-blue-600 to-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- FORGOT PASSWORD MODAL -->
+    <div id="forgot-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl transform scale-95 transition-all duration-300" id="forgot-modal-card">
+            <div class="flex justify-between items-start mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
+                        <i class="fa-solid fa-key"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white">Reset Password</h3>
+                </div>
+                <button onclick="closeModal('forgot-modal')" class="text-slate-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <p class="text-sm text-slate-400 mb-5">Enter your registered email address and we'll send you instructions to reset your password.</p>
+            <form onsubmit="handleForgotPassword(event)" class="space-y-4">
+                <div class="space-y-2">
+                    <label class="text-xs font-semibold text-slate-300 tracking-wider uppercase">Email Address</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                            <i class="fa-solid fa-envelope"></i>
+                        </div>
+                        <input type="email" id="forgot-email" required class="w-full bg-slate-950/50 border border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-3 pl-11 pr-4 text-sm text-white placeholder-slate-500 outline-none transition-all duration-300" placeholder="name@example.com">
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl shadow-lg shadow-blue-500/20 transition-all duration-300">
+                    Send Reset Link
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
+
+    <!-- JavaScript -->
+    <script src="script.js"></script>
+</body>
+</html>
