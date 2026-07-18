@@ -10,14 +10,20 @@ let zonesData = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize Chart.js
-    initOccupancyChart();
+    // Initialize Chart.js if element exists
+    if (document.getElementById('occupancyChart')) {
+        initOccupancyChart();
+    }
     
-    // Simulate live active sessions counter
-    simulateLiveCounter();
+    // Simulate live active sessions counter if element exists
+    if (document.getElementById('active-sessions-count')) {
+        simulateLiveCounter();
+    }
 
-    // Render dynamic zones grid
-    renderZonesGrid();
+    // Render dynamic zones grid if element exists
+    if (document.getElementById('zones-grid')) {
+        renderZonesGrid();
+    }
 });
 
 // Render Zones Grid Dynamically

@@ -45,35 +45,35 @@
 
             <!-- Navigation Menu -->
             <nav class="p-4 space-y-1.5">
-                <a href="#" onclick="switchAdminTab('dashboard', this)" class="flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-500/20 transition-all duration-300 admin-nav-item">
+                <a href="admin.html" class="flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-500/20 transition-all duration-300">
                     <i class="fa-solid fa-table-columns text-lg"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="#" onclick="switchAdminTab('zones', this)" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300 admin-nav-item">
+                <a href="admin-zones.html" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300">
                     <i class="fa-solid fa-location-dot text-lg"></i>
                     <span>Parking Zones</span>
                 </a>
-                <a href="#" onclick="switchAdminTab('sessions', this)" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300 admin-nav-item">
+                <a href="admin-sessions.html" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300">
                     <i class="fa-solid fa-car-side text-lg"></i>
                     <span>Active Sessions</span>
                 </a>
-                <a href="#" onclick="switchAdminTab('history', this)" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300 admin-nav-item">
+                <a href="admin-history.html" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300">
                     <i class="fa-solid fa-clock-rotate-left text-lg"></i>
                     <span>History</span>
                 </a>
-                <a href="#" onclick="switchAdminTab('map', this)" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300 admin-nav-item">
+                <a href="admin-map.html" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300">
                     <i class="fa-solid fa-map-location-dot text-lg"></i>
                     <span>Live Map</span>
                 </a>
-                <a href="#" onclick="switchAdminTab('customer', this)" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300 admin-nav-item">
+                <a href="admin-customer.html" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300">
                     <i class="fa-solid fa-user-gear text-lg"></i>
                     <span>Customer View</span>
                 </a>
-                <a href="#" onclick="switchAdminTab('cash', this)" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300 admin-nav-item">
+                <a href="admin-cash.html" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300">
                     <i class="fa-solid fa-money-bill-transfer text-lg"></i>
                     <span>Cash Verify</span>
                 </a>
-                <a href="#" onclick="switchAdminTab('settings', this)" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300 admin-nav-item">
+                <a href="admin-settings.html" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300">
                     <i class="fa-solid fa-sliders text-lg"></i>
                     <span>Settings</span>
                 </a>
@@ -297,251 +297,7 @@
                 </div>
             </div>
         </div>
-        <!-- OTHER VIEWS (Hidden by default) -->
-        <!-- Parking Zones View -->
-        <div id="zones-view" class="p-6 space-y-6 hidden">
-            <!-- Header Row -->
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
-                <div>
-                    <h3 class="text-2xl font-bold text-slate-900">Parking Zones</h3>
-                    <p class="text-sm text-slate-500">Manage your parking areas and capacity</p>
-                </div>
-                <button onclick="showToast('info', 'Add Zone feature coming soon!')" class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/20 transition-all duration-300">
-                    <i class="fa-solid fa-plus"></i> Add Zone
-                </button>
-            </div>
-
-            <!-- Zones Grid -->
-            <div id="zones-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Dynamic Zone Cards will be rendered here by admin.js -->
-            </div>
-        </div>
-
-        <!-- Active Sessions View -->
-        <div id="sessions-view" class="p-6 space-y-6 hidden">
-            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                <h3 class="text-lg font-bold text-slate-900 mb-2">Active Parking Sessions</h3>
-                <p class="text-sm text-slate-500 mb-6">Real-time list of vehicles currently parked in the system.</p>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="border-b border-slate-200 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                                <th class="pb-3">Vehicle Plate</th>
-                                <th class="pb-3">Zone</th>
-                                <th class="pb-3">Spot</th>
-                                <th class="pb-3">Check-In Time</th>
-                                <th class="pb-3">Duration</th>
-                                <th class="pb-3">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody class="text-xs text-slate-700 font-medium divide-y divide-slate-100" id="sessions-table-body">
-                            <tr>
-                                <td class="py-3.5 font-bold text-slate-900">DHK-METRO-1234</td>
-                                <td class="py-3.5">Zone A</td>
-                                <td class="py-3.5">A-12</td>
-                                <td class="py-3.5">14:30</td>
-                                <td class="py-3.5">1h 15m</td>
-                                <td class="py-3.5"><span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold">Parked</span></td>
-                            </tr>
-                            <tr>
-                                <td class="py-3.5 font-bold text-slate-900">DHK-METRO-5678</td>
-                                <td class="py-3.5">Zone B</td>
-                                <td class="py-3.5">B-04</td>
-                                <td class="py-3.5">15:05</td>
-                                <td class="py-3.5">40m</td>
-                                <td class="py-3.5"><span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold">Parked</span></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        <!-- History View -->
-        <div id="history-view" class="p-6 space-y-6 hidden">
-            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                <h3 class="text-lg font-bold text-slate-900 mb-2">Parking History</h3>
-                <p class="text-sm text-slate-500 mb-6">Historical log of all completed parking sessions and payments.</p>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="border-b border-slate-200 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                                <th class="pb-3">Vehicle Plate</th>
-                                <th class="pb-3">Zone</th>
-                                <th class="pb-3">Spot</th>
-                                <th class="pb-3">Duration</th>
-                                <th class="pb-3">Fee Paid</th>
-                                <th class="pb-3">Payment Method</th>
-                            </tr>
-                        </thead>
-                        <tbody class="text-xs text-slate-700 font-medium divide-y divide-slate-100">
-                            <tr>
-                                <td class="py-3.5 font-bold text-slate-900">DHK-METRO-9999</td>
-                                <td class="py-3.5">Zone C</td>
-                                <td class="py-3.5">C-05</td>
-                                <td class="py-3.5">2h 30m</td>
-                                <td class="py-3.5">৳50.00</td>
-                                <td class="py-3.5">bKash</td>
-                            </tr>
-                            <tr>
-                                <td class="py-3.5 font-bold text-slate-900">DHK-METRO-8888</td>
-                                <td class="py-3.5">Zone A</td>
-                                <td class="py-3.5">A-02</td>
-                                <td class="py-3.5">1h 05m</td>
-                                <td class="py-3.5">৳20.00</td>
-                                <td class="py-3.5">Nagad</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Live Map View -->
-        <div id="map-view" class="p-6 space-y-6 hidden">
-            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                <h3 class="text-lg font-bold text-slate-900 mb-2">Live Parking Map</h3>
-                <p class="text-sm text-slate-500 mb-6">Visual representation of the parking lot layout and real-time occupancy.</p>
-                <div class="border border-slate-200 rounded-xl p-12 bg-slate-50 flex flex-col items-center justify-center text-center">
-                    <div class="w-16 h-16 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-2xl mb-4">
-                        <i class="fa-solid fa-map-location-dot"></i>
-                    </div>
-                    <h4 class="text-base font-bold text-slate-800 mb-1">Interactive Map Loading...</h4>
-                    <p class="text-xs text-slate-500 max-w-xs">Connecting to live camera feeds and ultrasonic sensor arrays.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Customer View -->
-        <div id="customer-view" class="p-6 space-y-6 hidden">
-            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                <h3 class="text-lg font-bold text-slate-900 mb-2">Customer View</h3>
-                <p class="text-sm text-slate-500 mb-6">Simulate the customer-facing mobile app or booking portal.</p>
-                <a href="index.html" class="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/20 transition-all duration-300">
-                    <i class="fa-solid fa-arrow-left"></i> Go to Customer Login
-                </a>
-            </div>
-        </div>
-
-        <!-- Cash Verify View -->
-        <div id="cash-view" class="p-6 space-y-6 hidden">
-            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                <h3 class="text-lg font-bold text-slate-900 mb-2">Cash Verification</h3>
-                <p class="text-sm text-slate-500 mb-6">Verify manual cash payments collected by parking attendants.</p>
-                <div class="border border-slate-200 rounded-xl p-8 bg-slate-50 text-center">
-                    <p class="text-xs text-slate-500">No pending cash verifications at this time.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Settings View -->
-        <div id="settings-view" class="p-6 space-y-6 hidden">
-            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                <h3 class="text-lg font-bold text-slate-900 mb-2">System Settings</h3>
-                <p class="text-sm text-slate-500 mb-6">Configure system parameters, sensor thresholds, and admin accounts.</p>
-                <div class="space-y-4 max-w-md">
-                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                        <div>
-                            <p class="text-xs font-bold text-slate-800">Auto-Refresh Interval</p>
-                            <p class="text-[10px] text-slate-500">Refresh dashboard data automatically</p>
-                        </div>
-                        <select class="bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs font-semibold text-slate-700 outline-none">
-                            <option>Every 10s</option>
-                            <option>Every 30s</option>
-                            <option>Every 1m</option>
-                            <option>Manual Only</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-        </div>
     </main>
-
-    <!-- EDIT ZONE MODAL -->
-    <div id="edit-zone-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
-        <div class="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl transform scale-95 transition-all duration-300 overflow-y-auto max-h-[95vh]" id="edit-zone-card">
-            <!-- Modal Header -->
-            <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-4">
-                <h3 class="text-xl font-extrabold text-slate-900">Edit Zone</h3>
-                <button onclick="closeEditModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors">
-                    <i class="fa-solid fa-xmark text-base"></i>
-                </button>
-            </div>
-
-            <!-- Modal Form -->
-            <form id="edit-zone-form" onsubmit="saveZoneChanges(event)" class="space-y-4">
-                <input type="hidden" id="edit-zone-id">
-                
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <!-- Zone Name -->
-                    <div class="space-y-1.5">
-                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Zone Name *</label>
-                        <input type="text" id="edit-zone-name" required class="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300" placeholder="e.g. Zone C">
-                    </div>
-
-                    <!-- Location -->
-                    <div class="space-y-1.5">
-                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Location</label>
-                        <input type="text" id="edit-zone-location" class="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300" placeholder="e.g. Underground Parking, B1">
-                    </div>
-
-                    <!-- Total Spots -->
-                    <div class="space-y-1.5">
-                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Spots *</label>
-                        <input type="number" id="edit-zone-spots" required class="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300" placeholder="e.g. 120">
-                    </div>
-
-                    <!-- Hourly Rate -->
-                    <div class="space-y-1.5">
-                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Hourly Rate (BDT ৳) *</label>
-                        <input type="number" step="0.01" id="edit-zone-rate" required class="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300" placeholder="e.g. 5.00">
-                    </div>
-
-                    <!-- Zone Type -->
-                    <div class="space-y-1.5">
-                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Zone Type</label>
-                        <select id="edit-zone-type" class="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm text-slate-700 outline-none transition-all duration-300">
-                            <option value="Underground">Underground</option>
-                            <option value="Covered">Covered</option>
-                            <option value="Open Air">Open Air</option>
-                            <option value="Rooftop">Rooftop</option>
-                        </select>
-                    </div>
-
-                    <!-- Status -->
-                    <div class="space-y-1.5">
-                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Status</label>
-                        <select id="edit-zone-status" class="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm text-slate-700 outline-none transition-all duration-300">
-                            <option value="Active">Active</option>
-                            <option value="Maintenance">Maintenance</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Map Section -->
-                <div class="space-y-1.5 pt-2">
-                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Zone Location on Map (click to pin)</label>
-                    <div id="edit-map" class="w-full border border-slate-200 shadow-inner"></div>
-                    <div class="flex justify-between items-center">
-                        <p class="text-xs text-slate-500 font-semibold flex items-center gap-1.5">
-                            <i class="fa-solid fa-location-crosshairs text-blue-500"></i>
-                            <span id="edit-coords">📍 23.80700, 90.40600</span>
-                        </p>
-                        <span class="text-[10px] text-slate-400 font-medium">Click anywhere on the map to move the pin</span>
-                    </div>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="flex justify-end gap-3 border-t border-slate-100 pt-4 mt-5">
-                    <button type="button" onclick="closeEditModal()" class="px-5 py-2.5 text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors">
-                        Cancel
-                    </button>
-                    <button type="submit" class="px-5 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/20 transition-all duration-300">
-                        Save Changes
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     <!-- TOAST NOTIFICATION CONTAINER -->
     <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
