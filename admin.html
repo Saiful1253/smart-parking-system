@@ -12,9 +12,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Leaflet Map CDN -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         body {
             font-family: 'Poppins', sans-serif;
+        }
+        /* Custom Leaflet Map Height */
+        #edit-map {
+            height: 200px;
+            border-radius: 1rem;
+            z-index: 10;
         }
     </style>
 </head>
@@ -303,306 +312,8 @@
             </div>
 
             <!-- Zones Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Zone C -->
-                <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col justify-between min-h-[280px]">
-                    <div>
-                        <div class="flex justify-between items-start mb-2">
-                            <h4 class="text-lg font-bold text-slate-900">Zone C</h4>
-                            <span class="px-2.5 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full uppercase tracking-wider">Active</span>
-                        </div>
-                        <p class="text-xs text-slate-400 font-medium flex items-center gap-1.5 mb-4">
-                            <i class="fa-solid fa-location-dot text-slate-400"></i> Underground Parking, B1
-                        </p>
-                        
-                        <!-- Occupancy Progress -->
-                        <div class="space-y-1.5 mb-5">
-                            <div class="flex justify-between text-xs font-semibold">
-                                <span class="text-slate-400">Occupancy</span>
-                                <span class="text-slate-800">82%</span>
-                            </div>
-                            <div class="w-full bg-slate-100 rounded-full h-2">
-                                <div class="bg-blue-600 h-2 rounded-full" style="width: 82%"></div>
-                            </div>
-                        </div>
-
-                        <!-- Stats Boxes -->
-                        <div class="grid grid-cols-3 gap-2.5 mb-5">
-                            <div class="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
-                                <p class="text-lg font-extrabold text-slate-800">120</p>
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total</p>
-                            </div>
-                            <div class="bg-blue-50/50 border border-blue-100/50 rounded-xl p-2.5 text-center">
-                                <p class="text-lg font-extrabold text-blue-600">98</p>
-                                <p class="text-[9px] font-bold text-blue-400 uppercase tracking-wider">Occupied</p>
-                            </div>
-                            <div class="bg-emerald-50/50 border border-emerald-100/50 rounded-xl p-2.5 text-center">
-                                <p class="text-lg font-extrabold text-emerald-600">22</p>
-                                <p class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Free</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Bottom Row -->
-                    <div class="flex items-center justify-between border-t border-slate-100 pt-4">
-                        <div class="flex items-center gap-1 text-xs font-bold text-slate-700">
-                            <span class="text-slate-400">$</span>
-                            <span>৳5.00</span>
-                            <span class="text-slate-400 font-medium">/hr</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="text-xs font-semibold text-slate-400">Underground</span>
-                            <div class="flex items-center gap-2 border-l border-slate-100 pl-3">
-                                <button onclick="showToast('info', 'Edit Zone C')" class="text-slate-400 hover:text-slate-600 transition-colors">
-                                    <i class="fa-solid fa-pencil text-sm"></i>
-                                </button>
-                                <button onclick="showToast('error', 'Delete Zone C')" class="text-red-400 hover:text-red-600 transition-colors">
-                                    <i class="fa-solid fa-trash-can text-sm"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Zone A -->
-                <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col justify-between min-h-[280px]">
-                    <div>
-                        <div class="flex justify-between items-start mb-2">
-                            <h4 class="text-lg font-bold text-slate-900">Zone A</h4>
-                            <span class="px-2.5 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full uppercase tracking-wider">Active</span>
-                        </div>
-                        <p class="text-xs text-slate-400 font-medium flex items-center gap-1.5 mb-4">
-                            <i class="fa-solid fa-location-dot text-slate-400"></i> Ground Floor, Main Building
-                        </p>
-                        
-                        <!-- Occupancy Progress -->
-                        <div class="space-y-1.5 mb-5">
-                            <div class="flex justify-between text-xs font-semibold">
-                                <span class="text-slate-400">Occupancy</span>
-                                <span class="text-slate-800">54%</span>
-                            </div>
-                            <div class="w-full bg-slate-100 rounded-full h-2">
-                                <div class="bg-blue-600 h-2 rounded-full" style="width: 54%"></div>
-                            </div>
-                        </div>
-
-                        <!-- Stats Boxes -->
-                        <div class="grid grid-cols-3 gap-2.5 mb-5">
-                            <div class="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
-                                <p class="text-lg font-extrabold text-slate-800">50</p>
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total</p>
-                            </div>
-                            <div class="bg-blue-50/50 border border-blue-100/50 rounded-xl p-2.5 text-center">
-                                <p class="text-lg font-extrabold text-blue-600">27</p>
-                                <p class="text-[9px] font-bold text-blue-400 uppercase tracking-wider">Occupied</p>
-                            </div>
-                            <div class="bg-emerald-50/50 border border-emerald-100/50 rounded-xl p-2.5 text-center">
-                                <p class="text-lg font-extrabold text-emerald-600">23</p>
-                                <p class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Free</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Bottom Row -->
-                    <div class="flex items-center justify-between border-t border-slate-100 pt-4">
-                        <div class="flex items-center gap-1 text-xs font-bold text-slate-700">
-                            <span class="text-slate-400">$</span>
-                            <span>৳3.50</span>
-                            <span class="text-slate-400 font-medium">/hr</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="text-xs font-semibold text-slate-400">Covered</span>
-                            <div class="flex items-center gap-2 border-l border-slate-100 pl-3">
-                                <button onclick="showToast('info', 'Edit Zone A')" class="text-slate-400 hover:text-slate-600 transition-colors">
-                                    <i class="fa-solid fa-pencil text-sm"></i>
-                                </button>
-                                <button onclick="showToast('error', 'Delete Zone A')" class="text-red-400 hover:text-red-600 transition-colors">
-                                    <i class="fa-solid fa-trash-can text-sm"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Zone D -->
-                <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col justify-between min-h-[280px]">
-                    <div>
-                        <div class="flex justify-between items-start mb-2">
-                            <h4 class="text-lg font-bold text-slate-900">Zone D</h4>
-                            <span class="px-2.5 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full uppercase tracking-wider">Active</span>
-                        </div>
-                        <p class="text-xs text-slate-400 font-medium flex items-center gap-1.5 mb-4">
-                            <i class="fa-solid fa-location-dot text-slate-400"></i> Open Lot, East Wing
-                        </p>
-                        
-                        <!-- Occupancy Progress -->
-                        <div class="space-y-1.5 mb-5">
-                            <div class="flex justify-between text-xs font-semibold">
-                                <span class="text-slate-400">Occupancy</span>
-                                <span class="text-slate-800">40%</span>
-                            </div>
-                            <div class="w-full bg-slate-100 rounded-full h-2">
-                                <div class="bg-blue-600 h-2 rounded-full" style="width: 40%"></div>
-                            </div>
-                        </div>
-
-                        <!-- Stats Boxes -->
-                        <div class="grid grid-cols-3 gap-2.5 mb-5">
-                            <div class="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
-                                <p class="text-lg font-extrabold text-slate-800">30</p>
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total</p>
-                            </div>
-                            <div class="bg-blue-50/50 border border-blue-100/50 rounded-xl p-2.5 text-center">
-                                <p class="text-lg font-extrabold text-blue-600">12</p>
-                                <p class="text-[9px] font-bold text-blue-400 uppercase tracking-wider">Occupied</p>
-                            </div>
-                            <div class="bg-emerald-50/50 border border-emerald-100/50 rounded-xl p-2.5 text-center">
-                                <p class="text-lg font-extrabold text-emerald-600">18</p>
-                                <p class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Free</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Bottom Row -->
-                    <div class="flex items-center justify-between border-t border-slate-100 pt-4">
-                        <div class="flex items-center gap-1 text-xs font-bold text-slate-700">
-                            <span class="text-slate-400">$</span>
-                            <span>৳1.50</span>
-                            <span class="text-slate-400 font-medium">/hr</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="text-xs font-semibold text-slate-400">Open Air</span>
-                            <div class="flex items-center gap-2 border-l border-slate-100 pl-3">
-                                <button onclick="showToast('info', 'Edit Zone D')" class="text-slate-400 hover:text-slate-600 transition-colors">
-                                    <i class="fa-solid fa-pencil text-sm"></i>
-                                </button>
-                                <button onclick="showToast('error', 'Delete Zone D')" class="text-red-400 hover:text-red-600 transition-colors">
-                                    <i class="fa-solid fa-trash-can text-sm"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Zone E -->
-                <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col justify-between min-h-[280px]">
-                    <div>
-                        <div class="flex justify-between items-start mb-2">
-                            <h4 class="text-lg font-bold text-slate-900">Zone E</h4>
-                            <span class="px-2.5 py-0.5 text-[10px] font-bold bg-amber-50 text-orange-600 border border-orange-200 rounded-full uppercase tracking-wider">Maintenance</span>
-                        </div>
-                        <p class="text-xs text-slate-400 font-medium flex items-center gap-1.5 mb-4">
-                            <i class="fa-solid fa-location-dot text-slate-400"></i> West Annex
-                        </p>
-                        
-                        <!-- Occupancy Progress -->
-                        <div class="space-y-1.5 mb-5">
-                            <div class="flex justify-between text-xs font-semibold">
-                                <span class="text-slate-400">Occupancy</span>
-                                <span class="text-slate-800">0%</span>
-                            </div>
-                            <div class="w-full bg-slate-100 rounded-full h-2">
-                                <div class="bg-slate-200 h-2 rounded-full" style="width: 0%"></div>
-                            </div>
-                        </div>
-
-                        <!-- Stats Boxes -->
-                        <div class="grid grid-cols-3 gap-2.5 mb-5">
-                            <div class="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
-                                <p class="text-lg font-extrabold text-slate-800">40</p>
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total</p>
-                            </div>
-                            <div class="bg-blue-50/50 border border-blue-100/50 rounded-xl p-2.5 text-center">
-                                <p class="text-lg font-extrabold text-blue-600">0</p>
-                                <p class="text-[9px] font-bold text-blue-400 uppercase tracking-wider">Occupied</p>
-                            </div>
-                            <div class="bg-emerald-50/50 border border-emerald-100/50 rounded-xl p-2.5 text-center">
-                                <p class="text-lg font-extrabold text-emerald-600">40</p>
-                                <p class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Free</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Bottom Row -->
-                    <div class="flex items-center justify-between border-t border-slate-100 pt-4">
-                        <div class="flex items-center gap-1 text-xs font-bold text-slate-700">
-                            <span class="text-slate-400">$</span>
-                            <span>৳2.50</span>
-                            <span class="text-slate-400 font-medium">/hr</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="text-xs font-semibold text-slate-400">Covered</span>
-                            <div class="flex items-center gap-2 border-l border-slate-100 pl-3">
-                                <button onclick="showToast('info', 'Edit Zone E')" class="text-slate-400 hover:text-slate-600 transition-colors">
-                                    <i class="fa-solid fa-pencil text-sm"></i>
-                                </button>
-                                <button onclick="showToast('error', 'Delete Zone E')" class="text-red-400 hover:text-red-600 transition-colors">
-                                    <i class="fa-solid fa-trash-can text-sm"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Zone B -->
-                <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col justify-between min-h-[280px]">
-                    <div>
-                        <div class="flex justify-between items-start mb-2">
-                            <h4 class="text-lg font-bold text-slate-900">Zone B</h4>
-                            <span class="px-2.5 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full uppercase tracking-wider">Active</span>
-                        </div>
-                        <p class="text-xs text-slate-400 font-medium flex items-center gap-1.5 mb-4">
-                            <i class="fa-solid fa-location-dot text-slate-400"></i> Rooftop Level 5
-                        </p>
-                        
-                        <!-- Occupancy Progress -->
-                        <div class="space-y-1.5 mb-5">
-                            <div class="flex justify-between text-xs font-semibold">
-                                <span class="text-slate-400">Occupancy</span>
-                                <span class="text-slate-800">56%</span>
-                            </div>
-                            <div class="w-full bg-slate-100 rounded-full h-2">
-                                <div class="bg-blue-600 h-2 rounded-full" style="width: 56%"></div>
-                            </div>
-                        </div>
-
-                        <!-- Stats Boxes -->
-                        <div class="grid grid-cols-3 gap-2.5 mb-5">
-                            <div class="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
-                                <p class="text-lg font-extrabold text-slate-800">80</p>
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total</p>
-                            </div>
-                            <div class="bg-blue-50/50 border border-blue-100/50 rounded-xl p-2.5 text-center">
-                                <p class="text-lg font-extrabold text-blue-600">45</p>
-                                <p class="text-[9px] font-bold text-blue-400 uppercase tracking-wider">Occupied</p>
-                            </div>
-                            <div class="bg-emerald-50/50 border border-emerald-100/50 rounded-xl p-2.5 text-center">
-                                <p class="text-lg font-extrabold text-emerald-600">35</p>
-                                <p class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Free</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Bottom Row -->
-                    <div class="flex items-center justify-between border-t border-slate-100 pt-4">
-                        <div class="flex items-center gap-1 text-xs font-bold text-slate-700">
-                            <span class="text-slate-400">$</span>
-                            <span>৳2.00</span>
-                            <span class="text-slate-400 font-medium">/hr</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="text-xs font-semibold text-slate-400">Rooftop</span>
-                            <div class="flex items-center gap-2 border-l border-slate-100 pl-3">
-                                <button onclick="showToast('info', 'Edit Zone B')" class="text-slate-400 hover:text-slate-600 transition-colors">
-                                    <i class="fa-solid fa-pencil text-sm"></i>
-                                </button>
-                                <button onclick="showToast('error', 'Delete Zone B')" class="text-red-400 hover:text-red-600 transition-colors">
-                                    <i class="fa-solid fa-trash-can text-sm"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div id="zones-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Dynamic Zone Cards will be rendered here by admin.js -->
             </div>
         </div>
 
@@ -744,6 +455,93 @@
             </div>
         </div>
     </main>
+
+    <!-- EDIT ZONE MODAL -->
+    <div id="edit-zone-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
+        <div class="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl transform scale-95 transition-all duration-300 overflow-y-auto max-h-[95vh]" id="edit-zone-card">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-4">
+                <h3 class="text-xl font-extrabold text-slate-900">Edit Zone</h3>
+                <button onclick="closeEditModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <!-- Modal Form -->
+            <form id="edit-zone-form" onsubmit="saveZoneChanges(event)" class="space-y-4">
+                <input type="hidden" id="edit-zone-id">
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Zone Name -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Zone Name *</label>
+                        <input type="text" id="edit-zone-name" required class="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300" placeholder="e.g. Zone C">
+                    </div>
+
+                    <!-- Location -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Location</label>
+                        <input type="text" id="edit-zone-location" class="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300" placeholder="e.g. Underground Parking, B1">
+                    </div>
+
+                    <!-- Total Spots -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Spots *</label>
+                        <input type="number" id="edit-zone-spots" required class="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300" placeholder="e.g. 120">
+                    </div>
+
+                    <!-- Hourly Rate -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Hourly Rate (BDT ৳) *</label>
+                        <input type="number" step="0.01" id="edit-zone-rate" required class="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300" placeholder="e.g. 5.00">
+                    </div>
+
+                    <!-- Zone Type -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Zone Type</label>
+                        <select id="edit-zone-type" class="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm text-slate-700 outline-none transition-all duration-300">
+                            <option value="Underground">Underground</option>
+                            <option value="Covered">Covered</option>
+                            <option value="Open Air">Open Air</option>
+                            <option value="Rooftop">Rooftop</option>
+                        </select>
+                    </div>
+
+                    <!-- Status -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Status</label>
+                        <select id="edit-zone-status" class="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm text-slate-700 outline-none transition-all duration-300">
+                            <option value="Active">Active</option>
+                            <option value="Maintenance">Maintenance</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Map Section -->
+                <div class="space-y-1.5 pt-2">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Zone Location on Map (click to pin)</label>
+                    <div id="edit-map" class="w-full border border-slate-200 shadow-inner"></div>
+                    <div class="flex justify-between items-center">
+                        <p class="text-xs text-slate-500 font-semibold flex items-center gap-1.5">
+                            <i class="fa-solid fa-location-crosshairs text-blue-500"></i>
+                            <span id="edit-coords">📍 23.80700, 90.40600</span>
+                        </p>
+                        <span class="text-[10px] text-slate-400 font-medium">Click anywhere on the map to move the pin</span>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex justify-end gap-3 border-t border-slate-100 pt-4 mt-5">
+                    <button type="button" onclick="closeEditModal()" class="px-5 py-2.5 text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-5 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/20 transition-all duration-300">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- TOAST NOTIFICATION CONTAINER -->
     <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
