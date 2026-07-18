@@ -291,41 +291,315 @@
         <!-- OTHER VIEWS (Hidden by default) -->
         <!-- Parking Zones View -->
         <div id="zones-view" class="p-6 space-y-6 hidden">
-            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                <h3 class="text-lg font-bold text-slate-900 mb-2">Parking Zones Management</h3>
-                <p class="text-sm text-slate-500 mb-6">Configure and monitor parking zones, rates, and sensor statuses.</p>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="border border-slate-200 rounded-xl p-4 bg-slate-50">
-                        <div class="flex justify-between items-start mb-3">
-                            <span class="px-2.5 py-1 text-xs font-bold bg-blue-100 text-blue-700 rounded-lg">Zone A</span>
-                            <span class="text-xs font-semibold text-emerald-600">Active</span>
+            <!-- Header Row -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+                <div>
+                    <h3 class="text-2xl font-bold text-slate-900">Parking Zones</h3>
+                    <p class="text-sm text-slate-500">Manage your parking areas and capacity</p>
+                </div>
+                <button onclick="showToast('info', 'Add Zone feature coming soon!')" class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/20 transition-all duration-300">
+                    <i class="fa-solid fa-plus"></i> Add Zone
+                </button>
+            </div>
+
+            <!-- Zones Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Zone C -->
+                <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col justify-between min-h-[280px]">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="text-lg font-bold text-slate-900">Zone C</h4>
+                            <span class="px-2.5 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full uppercase tracking-wider">Active</span>
                         </div>
-                        <p class="text-xs text-slate-600 mb-1">Total Spots: 80</p>
-                        <p class="text-xs text-slate-600 mb-3">Occupied: 53</p>
-                        <div class="w-full bg-slate-200 rounded-full h-2">
-                            <div class="bg-blue-600 h-2 rounded-full" style="width: 66%"></div>
+                        <p class="text-xs text-slate-400 font-medium flex items-center gap-1.5 mb-4">
+                            <i class="fa-solid fa-location-dot text-slate-400"></i> Underground Parking, B1
+                        </p>
+                        
+                        <!-- Occupancy Progress -->
+                        <div class="space-y-1.5 mb-5">
+                            <div class="flex justify-between text-xs font-semibold">
+                                <span class="text-slate-400">Occupancy</span>
+                                <span class="text-slate-800">82%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2">
+                                <div class="bg-blue-600 h-2 rounded-full" style="width: 82%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Stats Boxes -->
+                        <div class="grid grid-cols-3 gap-2.5 mb-5">
+                            <div class="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
+                                <p class="text-lg font-extrabold text-slate-800">120</p>
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total</p>
+                            </div>
+                            <div class="bg-blue-50/50 border border-blue-100/50 rounded-xl p-2.5 text-center">
+                                <p class="text-lg font-extrabold text-blue-600">98</p>
+                                <p class="text-[9px] font-bold text-blue-400 uppercase tracking-wider">Occupied</p>
+                            </div>
+                            <div class="bg-emerald-50/50 border border-emerald-100/50 rounded-xl p-2.5 text-center">
+                                <p class="text-lg font-extrabold text-emerald-600">22</p>
+                                <p class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Free</p>
+                            </div>
                         </div>
                     </div>
-                    <div class="border border-slate-200 rounded-xl p-4 bg-slate-50">
-                        <div class="flex justify-between items-start mb-3">
-                            <span class="px-2.5 py-1 text-xs font-bold bg-blue-100 text-blue-700 rounded-lg">Zone B</span>
-                            <span class="text-xs font-semibold text-emerald-600">Active</span>
+
+                    <!-- Bottom Row -->
+                    <div class="flex items-center justify-between border-t border-slate-100 pt-4">
+                        <div class="flex items-center gap-1 text-xs font-bold text-slate-700">
+                            <span class="text-slate-400">$</span>
+                            <span>৳5.00</span>
+                            <span class="text-slate-400 font-medium">/hr</span>
                         </div>
-                        <p class="text-xs text-slate-600 mb-1">Total Spots: 60</p>
-                        <p class="text-xs text-slate-600 mb-3">Occupied: 45</p>
-                        <div class="w-full bg-slate-200 rounded-full h-2">
-                            <div class="bg-blue-600 h-2 rounded-full" style="width: 75%"></div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs font-semibold text-slate-400">Underground</span>
+                            <div class="flex items-center gap-2 border-l border-slate-100 pl-3">
+                                <button onclick="showToast('info', 'Edit Zone C')" class="text-slate-400 hover:text-slate-600 transition-colors">
+                                    <i class="fa-solid fa-pencil text-sm"></i>
+                                </button>
+                                <button onclick="showToast('error', 'Delete Zone C')" class="text-red-400 hover:text-red-600 transition-colors">
+                                    <i class="fa-solid fa-trash-can text-sm"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    <div class="border border-slate-200 rounded-xl p-4 bg-slate-50">
-                        <div class="flex justify-between items-start mb-3">
-                            <span class="px-2.5 py-1 text-xs font-bold bg-blue-100 text-blue-700 rounded-lg">Zone C</span>
-                            <span class="text-xs font-semibold text-emerald-600">Active</span>
+                </div>
+
+                <!-- Zone A -->
+                <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col justify-between min-h-[280px]">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="text-lg font-bold text-slate-900">Zone A</h4>
+                            <span class="px-2.5 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full uppercase tracking-wider">Active</span>
                         </div>
-                        <p class="text-xs text-slate-600 mb-1">Total Spots: 100</p>
-                        <p class="text-xs text-slate-600 mb-3">Occupied: 98</p>
-                        <div class="w-full bg-slate-200 rounded-full h-2">
-                            <div class="bg-blue-600 h-2 rounded-full" style="width: 98%"></div>
+                        <p class="text-xs text-slate-400 font-medium flex items-center gap-1.5 mb-4">
+                            <i class="fa-solid fa-location-dot text-slate-400"></i> Ground Floor, Main Building
+                        </p>
+                        
+                        <!-- Occupancy Progress -->
+                        <div class="space-y-1.5 mb-5">
+                            <div class="flex justify-between text-xs font-semibold">
+                                <span class="text-slate-400">Occupancy</span>
+                                <span class="text-slate-800">54%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2">
+                                <div class="bg-blue-600 h-2 rounded-full" style="width: 54%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Stats Boxes -->
+                        <div class="grid grid-cols-3 gap-2.5 mb-5">
+                            <div class="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
+                                <p class="text-lg font-extrabold text-slate-800">50</p>
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total</p>
+                            </div>
+                            <div class="bg-blue-50/50 border border-blue-100/50 rounded-xl p-2.5 text-center">
+                                <p class="text-lg font-extrabold text-blue-600">27</p>
+                                <p class="text-[9px] font-bold text-blue-400 uppercase tracking-wider">Occupied</p>
+                            </div>
+                            <div class="bg-emerald-50/50 border border-emerald-100/50 rounded-xl p-2.5 text-center">
+                                <p class="text-lg font-extrabold text-emerald-600">23</p>
+                                <p class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Free</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Row -->
+                    <div class="flex items-center justify-between border-t border-slate-100 pt-4">
+                        <div class="flex items-center gap-1 text-xs font-bold text-slate-700">
+                            <span class="text-slate-400">$</span>
+                            <span>৳3.50</span>
+                            <span class="text-slate-400 font-medium">/hr</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs font-semibold text-slate-400">Covered</span>
+                            <div class="flex items-center gap-2 border-l border-slate-100 pl-3">
+                                <button onclick="showToast('info', 'Edit Zone A')" class="text-slate-400 hover:text-slate-600 transition-colors">
+                                    <i class="fa-solid fa-pencil text-sm"></i>
+                                </button>
+                                <button onclick="showToast('error', 'Delete Zone A')" class="text-red-400 hover:text-red-600 transition-colors">
+                                    <i class="fa-solid fa-trash-can text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Zone D -->
+                <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col justify-between min-h-[280px]">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="text-lg font-bold text-slate-900">Zone D</h4>
+                            <span class="px-2.5 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full uppercase tracking-wider">Active</span>
+                        </div>
+                        <p class="text-xs text-slate-400 font-medium flex items-center gap-1.5 mb-4">
+                            <i class="fa-solid fa-location-dot text-slate-400"></i> Open Lot, East Wing
+                        </p>
+                        
+                        <!-- Occupancy Progress -->
+                        <div class="space-y-1.5 mb-5">
+                            <div class="flex justify-between text-xs font-semibold">
+                                <span class="text-slate-400">Occupancy</span>
+                                <span class="text-slate-800">40%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2">
+                                <div class="bg-blue-600 h-2 rounded-full" style="width: 40%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Stats Boxes -->
+                        <div class="grid grid-cols-3 gap-2.5 mb-5">
+                            <div class="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
+                                <p class="text-lg font-extrabold text-slate-800">30</p>
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total</p>
+                            </div>
+                            <div class="bg-blue-50/50 border border-blue-100/50 rounded-xl p-2.5 text-center">
+                                <p class="text-lg font-extrabold text-blue-600">12</p>
+                                <p class="text-[9px] font-bold text-blue-400 uppercase tracking-wider">Occupied</p>
+                            </div>
+                            <div class="bg-emerald-50/50 border border-emerald-100/50 rounded-xl p-2.5 text-center">
+                                <p class="text-lg font-extrabold text-emerald-600">18</p>
+                                <p class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Free</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Row -->
+                    <div class="flex items-center justify-between border-t border-slate-100 pt-4">
+                        <div class="flex items-center gap-1 text-xs font-bold text-slate-700">
+                            <span class="text-slate-400">$</span>
+                            <span>৳1.50</span>
+                            <span class="text-slate-400 font-medium">/hr</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs font-semibold text-slate-400">Open Air</span>
+                            <div class="flex items-center gap-2 border-l border-slate-100 pl-3">
+                                <button onclick="showToast('info', 'Edit Zone D')" class="text-slate-400 hover:text-slate-600 transition-colors">
+                                    <i class="fa-solid fa-pencil text-sm"></i>
+                                </button>
+                                <button onclick="showToast('error', 'Delete Zone D')" class="text-red-400 hover:text-red-600 transition-colors">
+                                    <i class="fa-solid fa-trash-can text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Zone E -->
+                <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col justify-between min-h-[280px]">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="text-lg font-bold text-slate-900">Zone E</h4>
+                            <span class="px-2.5 py-0.5 text-[10px] font-bold bg-amber-50 text-orange-600 border border-orange-200 rounded-full uppercase tracking-wider">Maintenance</span>
+                        </div>
+                        <p class="text-xs text-slate-400 font-medium flex items-center gap-1.5 mb-4">
+                            <i class="fa-solid fa-location-dot text-slate-400"></i> West Annex
+                        </p>
+                        
+                        <!-- Occupancy Progress -->
+                        <div class="space-y-1.5 mb-5">
+                            <div class="flex justify-between text-xs font-semibold">
+                                <span class="text-slate-400">Occupancy</span>
+                                <span class="text-slate-800">0%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2">
+                                <div class="bg-slate-200 h-2 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Stats Boxes -->
+                        <div class="grid grid-cols-3 gap-2.5 mb-5">
+                            <div class="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
+                                <p class="text-lg font-extrabold text-slate-800">40</p>
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total</p>
+                            </div>
+                            <div class="bg-blue-50/50 border border-blue-100/50 rounded-xl p-2.5 text-center">
+                                <p class="text-lg font-extrabold text-blue-600">0</p>
+                                <p class="text-[9px] font-bold text-blue-400 uppercase tracking-wider">Occupied</p>
+                            </div>
+                            <div class="bg-emerald-50/50 border border-emerald-100/50 rounded-xl p-2.5 text-center">
+                                <p class="text-lg font-extrabold text-emerald-600">40</p>
+                                <p class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Free</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Row -->
+                    <div class="flex items-center justify-between border-t border-slate-100 pt-4">
+                        <div class="flex items-center gap-1 text-xs font-bold text-slate-700">
+                            <span class="text-slate-400">$</span>
+                            <span>৳2.50</span>
+                            <span class="text-slate-400 font-medium">/hr</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs font-semibold text-slate-400">Covered</span>
+                            <div class="flex items-center gap-2 border-l border-slate-100 pl-3">
+                                <button onclick="showToast('info', 'Edit Zone E')" class="text-slate-400 hover:text-slate-600 transition-colors">
+                                    <i class="fa-solid fa-pencil text-sm"></i>
+                                </button>
+                                <button onclick="showToast('error', 'Delete Zone E')" class="text-red-400 hover:text-red-600 transition-colors">
+                                    <i class="fa-solid fa-trash-can text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Zone B -->
+                <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col justify-between min-h-[280px]">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="text-lg font-bold text-slate-900">Zone B</h4>
+                            <span class="px-2.5 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full uppercase tracking-wider">Active</span>
+                        </div>
+                        <p class="text-xs text-slate-400 font-medium flex items-center gap-1.5 mb-4">
+                            <i class="fa-solid fa-location-dot text-slate-400"></i> Rooftop Level 5
+                        </p>
+                        
+                        <!-- Occupancy Progress -->
+                        <div class="space-y-1.5 mb-5">
+                            <div class="flex justify-between text-xs font-semibold">
+                                <span class="text-slate-400">Occupancy</span>
+                                <span class="text-slate-800">56%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2">
+                                <div class="bg-blue-600 h-2 rounded-full" style="width: 56%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Stats Boxes -->
+                        <div class="grid grid-cols-3 gap-2.5 mb-5">
+                            <div class="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
+                                <p class="text-lg font-extrabold text-slate-800">80</p>
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total</p>
+                            </div>
+                            <div class="bg-blue-50/50 border border-blue-100/50 rounded-xl p-2.5 text-center">
+                                <p class="text-lg font-extrabold text-blue-600">45</p>
+                                <p class="text-[9px] font-bold text-blue-400 uppercase tracking-wider">Occupied</p>
+                            </div>
+                            <div class="bg-emerald-50/50 border border-emerald-100/50 rounded-xl p-2.5 text-center">
+                                <p class="text-lg font-extrabold text-emerald-600">35</p>
+                                <p class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Free</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Row -->
+                    <div class="flex items-center justify-between border-t border-slate-100 pt-4">
+                        <div class="flex items-center gap-1 text-xs font-bold text-slate-700">
+                            <span class="text-slate-400">$</span>
+                            <span>৳2.00</span>
+                            <span class="text-slate-400 font-medium">/hr</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs font-semibold text-slate-400">Rooftop</span>
+                            <div class="flex items-center gap-2 border-l border-slate-100 pl-3">
+                                <button onclick="showToast('info', 'Edit Zone B')" class="text-slate-400 hover:text-slate-600 transition-colors">
+                                    <i class="fa-solid fa-pencil text-sm"></i>
+                                </button>
+                                <button onclick="showToast('error', 'Delete Zone B')" class="text-red-400 hover:text-red-600 transition-colors">
+                                    <i class="fa-solid fa-trash-can text-sm"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
