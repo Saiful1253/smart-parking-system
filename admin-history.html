@@ -118,9 +118,23 @@
                         <h3 class="text-lg font-bold text-slate-900">Completed Sessions</h3>
                         <p class="text-xs text-slate-500">View historical logs and payment methods</p>
                     </div>
-                    <span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-semibold border border-slate-200">
-                        Archive
-                    </span>
+                    <div class="flex items-center gap-2">
+                        <button onclick="downloadHistoryReport()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg transition-all duration-200 border border-emerald-200">
+                            <i class="fa-solid fa-download"></i> Download Report
+                        </button>
+                        <button onclick="deleteAllHistory()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 border border-red-200">
+                            <i class="fa-solid fa-trash-can"></i> Delete All
+                        </button>
+                        <div class="hidden sm:flex items-center gap-1.5">
+                            <input type="date" id="filter-date-from" class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all w-[130px]" onchange="autoFilterByDate()" title="Select start date">
+                            <span class="text-slate-400 text-xs font-medium">&mdash;</span>
+                            <input type="date" id="filter-date-to" class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all w-[130px]" onchange="autoFilterByDate()" title="Select end date">
+                            <button onclick="clearDateFilter()" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-lg transition-all duration-200 border border-slate-200" title="Clear filter">
+                                <i class="fa-solid fa-rotate-left"></i> Reset
+                            </button>
+                            <span id="filter-status" class="text-[10px] text-slate-400 font-medium hidden">Filtered</span>
+                        </div>
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
@@ -132,35 +146,40 @@
                                 <th class="pb-3">Duration</th>
                                 <th class="pb-3">Fee Paid</th>
                                 <th class="pb-3">Payment Method</th>
+                                <th class="pb-3 text-right">Action</th>
                             </tr>
                         </thead>
-                        <tbody class="text-xs text-slate-700 font-medium divide-y divide-slate-100">
-                            <tr>
-                                <td class="py-3.5 font-bold text-slate-900">DHK-METRO-9999</td>
-                                <td class="py-3.5">Zone C</td>
-                                <td class="py-3.5">C-05</td>
-                                <td class="py-3.5">2h 30m</td>
-                                <td class="py-3.5">৳50.00</td>
-                                <td class="py-3.5">bKash</td>
-                            </tr>
-                            <tr>
-                                <td class="py-3.5 font-bold text-slate-900">DHK-METRO-8888</td>
-                                <td class="py-3.5">Zone A</td>
-                                <td class="py-3.5">A-02</td>
-                                <td class="py-3.5">1h 05m</td>
-                                <td class="py-3.5">৳20.00</td>
-                                <td class="py-3.5">Nagad</td>
-                            </tr>
-                            <tr>
-                                <td class="py-3.5 font-bold text-slate-900">DHK-METRO-7777</td>
-                                <td class="py-3.5">Zone D</td>
-                                <td class="py-3.5">D-08</td>
-                                <td class="py-3.5">3h 15m</td>
-                                <td class="py-3.5">৳45.00</td>
-                                <td class="py-3.5">Visa Card</td>
-                            </tr>
+                        <tbody id="history-table-body" class="text-xs text-slate-700 font-medium divide-y divide-slate-100">
+                            <!-- Dynamic rows will be rendered here by admin.js -->
                         </tbody>
                     </table>
+                    <!-- Pagination Controls -->
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100 mt-4">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-slate-500 font-medium">Show</span>
+                            <select id="records-per-page" onchange="changeRecordsPerPage()" class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200 transition-all font-semibold">
+                                <option value="25">25</option>
+                                <option value="50" selected>50</option>
+                                <option value="100">100</option>
+                            </select>
+                            <span class="text-xs text-slate-500 font-medium">per page</span>
+                        </div>
+                        <div class="flex items-center gap-1.5" id="pagination-controls">
+                            <button onclick="goToPage(1)" class="px-2.5 py-1.5 text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg border border-slate-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed" id="btn-first" disabled>
+                                <i class="fa-solid fa-angles-left"></i>
+                            </button>
+                            <button onclick="goToPage(currentPage - 1)" class="px-2.5 py-1.5 text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg border border-slate-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed" id="btn-prev" disabled>
+                                <i class="fa-solid fa-chevron-left"></i>
+                            </button>
+                            <span id="page-info" class="text-xs text-slate-600 font-semibold px-3">Page 1 of 1</span>
+                            <button onclick="goToPage(currentPage + 1)" class="px-2.5 py-1.5 text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg border border-slate-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed" id="btn-next" disabled>
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+                            <button onclick="goToPage(totalPages)" class="px-2.5 py-1.5 text-xs font-bold bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg border border-slate-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed" id="btn-last" disabled>
+                                <i class="fa-solid fa-angles-right"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

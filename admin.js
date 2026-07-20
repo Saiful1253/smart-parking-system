@@ -29,6 +29,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('sessions-table-body')) {
         renderSessionsTable();
     }
+
+    // Render dynamic history table if element exists
+    if (document.getElementById('history-table-body')) {
+        renderHistoryTable();
+    }
 });
 
 // Render Zones Grid Dynamically
@@ -607,9 +612,8 @@ function closeEditModal() {
 function saveZoneChanges(event) {
     event.preventDefault();
 
+    const mode = document.getElementById('edit-mode').value;
     const zoneId = document.getElementById('edit-zone-id').value;
-    const zone = zonesData[zoneId];
-    if (!zone) return;
 
     // Read form values
     const name = document.getElementById('edit-zone-name').value;
@@ -622,27 +626,47 @@ function saveZoneChanges(event) {
     // Read coordinates from marker
     const position = editMarker.getLatLng();
 
-    // Update zone data
-    zone.name = name;
-    zone.location = location;
-    zone.spots = spots;
-    zone.rate = rate;
-    zone.type = type;
-    zone.status = status;
-    zone.lat = position.lat;
-    zone.lng = position.lng;
+    if (mode === 'add') {
+        // Create a new zone
+        const newId = 'Zone-' + Object.keys(zonesData).length;
+        zonesData[newId] = {
+            id: newId,
+            name: name,
+            location: location,
+            spots: spots,
+            occupied: 0,
+            free: spots,
+            rate: rate,
+            type: type,
+            status: status,
+            lat: position.lat,
+            lng: position.lng
+        };
+        showToast('success', `${name} added successfully!`);
+    } else {
+        // Update existing zone
+        const zone = zonesData[zoneId];
+        if (!zone) return;
 
-    // Recalculate free spots based on new total spots
-    zone.free = Math.max(0, zone.spots - zone.occupied);
+        zone.name = name;
+        zone.location = location;
+        zone.spots = spots;
+        zone.rate = rate;
+        zone.type = type;
+        zone.status = status;
+        zone.lat = position.lat;
+        zone.lng = position.lng;
+
+        // Recalculate free spots based on new total spots
+        zone.free = Math.max(0, zone.spots - zone.occupied);
+        showToast('success', `${name} updated successfully!`);
+    }
 
     // Re-render grid
     renderZonesGrid();
 
     // Close modal
     closeEditModal();
-
-    // Show success toast
-    showToast('success', `${name} updated successfully!`);
 }
 
 function deleteZone(zoneId) {
@@ -658,17 +682,503 @@ function deleteZone(zoneId) {
 
 
 // ==========================================
+// PARKING HISTORY
+// ==========================================
+
+// Global History Data (with dates)
+let historyData = [
+    { id: 1, plate: 'DHK-METRO-9999', zone: 'Zone C', spot: 'C-05', duration: '2h 30m', fee: 50.00, payment: 'bKash', date: '2025-01-10' },
+    { id: 2, plate: 'DHK-METRO-8888', zone: 'Zone A', spot: 'A-02', duration: '1h 05m', fee: 20.00, payment: 'Nagad', date: '2025-01-11' },
+    { id: 3, plate: 'DHK-METRO-7777', zone: 'Zone D', spot: 'D-08', duration: '3h 15m', fee: 45.00, payment: 'Visa Card', date: '2025-01-12' },
+    { id: 4, plate: 'DHK-METRO-6666', zone: 'Zone B', spot: 'B-12', duration: '45m', fee: 15.00, payment: 'bKash', date: '2025-01-13' },
+    { id: 5, plate: 'DHK-METRO-5555', zone: 'Zone C', spot: 'C-01', duration: '1h 50m', fee: 35.00, payment: 'Cash', date: '2025-01-14' }
+];
+let nextHistoryId = 6;
+let filteredHistoryData = [...historyData];
+
+// Pagination State
+let currentPage = 1;
+let recordsPerPage = 50;
+let totalPages = 1;
+
+// Render History Table with Pagination
+function renderHistoryTable(data) {
+    const tbody = document.getElementById('history-table-body');
+    if (!tbody) return;
+
+    const allRecords = data || filteredHistoryData;
+    
+    // Calculate pagination
+    totalPages = Math.ceil(allRecords.length / recordsPerPage) || 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+    
+    const start = (currentPage - 1) * recordsPerPage;
+    const end = Math.min(start + recordsPerPage, allRecords.length);
+    const pageRecords = allRecords.slice(start, end);
+
+    tbody.innerHTML = '';
+
+    if (pageRecords.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="py-8 text-center text-slate-400">
+                    <i class="fa-solid fa-inbox text-2xl mb-2"></i>
+                    <p class="text-xs font-medium">No history records found</p>
+                </td>
+            </tr>
+        `;
+        updatePaginationUI(0);
+        return;
+    }
+
+    pageRecords.forEach(record => {
+        const rowHtml = `
+            <tr class="hover:bg-slate-50/50 transition-colors">
+                <td class="py-3.5 font-bold text-slate-900">${record.plate}</td>
+                <td class="py-3.5 text-slate-600">${record.zone}</td>
+                <td class="py-3.5 text-slate-600 font-semibold">${record.spot}</td>
+                <td class="py-3.5 text-slate-500">${record.duration}</td>
+                <td class="py-3.5 text-slate-700 font-semibold">৳${record.fee.toFixed(2)}</td>
+                <td class="py-3.5">
+                    <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold text-[10px] border border-slate-200">
+                        ${record.payment}
+                    </span>
+                </td>
+                <td class="py-3.5 text-right">
+                    <button onclick="deleteHistoryRecord(${record.id})" class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 border border-red-200">
+                        <i class="fa-solid fa-trash-can text-[10px]"></i> Delete
+                    </button>
+                </td>
+            </tr>
+        `;
+        tbody.innerHTML += rowHtml;
+    });
+    
+    updatePaginationUI(allRecords.length);
+}
+
+// Pagination Functions
+function updatePaginationUI(totalRecordCount) {
+    const pageInfo = document.getElementById('page-info');
+    const btnFirst = document.getElementById('btn-first');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const btnLast = document.getElementById('btn-last');
+    
+    if (pageInfo) {
+        pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+    }
+    
+    if (btnFirst) btnFirst.disabled = currentPage <= 1;
+    if (btnPrev) btnPrev.disabled = currentPage <= 1;
+    if (btnNext) btnNext.disabled = currentPage >= totalPages || totalRecordCount === 0;
+    if (btnLast) btnLast.disabled = currentPage >= totalPages || totalRecordCount === 0;
+}
+
+function goToPage(page) {
+    if (page < 1 || page > totalPages) return;
+    currentPage = page;
+    renderHistoryTable();
+}
+
+function changeRecordsPerPage() {
+    const select = document.getElementById('records-per-page');
+    if (!select) return;
+    recordsPerPage = parseInt(select.value);
+    currentPage = 1;
+    renderHistoryTable();
+}
+
+// Auto-filter whenever a date input changes
+function autoFilterByDate() {
+    const fromDate = document.getElementById('filter-date-from').value;
+    const toDate = document.getElementById('filter-date-to').value;
+    const filterStatus = document.getElementById('filter-status');
+
+    if (!fromDate && !toDate) {
+        filteredHistoryData = [...historyData];
+        renderHistoryTable(filteredHistoryData);
+        if (filterStatus) filterStatus.classList.add('hidden');
+        return;
+    }
+
+    filteredHistoryData = historyData.filter(record => {
+        const recordDate = record.date;
+        if (fromDate && toDate) {
+            return recordDate >= fromDate && recordDate <= toDate;
+        } else if (fromDate) {
+            return recordDate >= fromDate;
+        } else if (toDate) {
+            return recordDate <= toDate;
+        }
+        return true;
+    });
+
+    renderHistoryTable(filteredHistoryData);
+    const count = filteredHistoryData.length;
+    if (filterStatus) {
+        filterStatus.textContent = `${count} record${count !== 1 ? 's' : ''}`;
+        filterStatus.classList.remove('hidden');
+    }
+}
+
+// Apply Date Range Filter
+function applyDateFilter() {
+    const fromDate = document.getElementById('filter-date-from').value;
+    const toDate = document.getElementById('filter-date-to').value;
+
+    if (!fromDate && !toDate) {
+        showToast('info', 'Please select a date range to filter.');
+        return;
+    }
+
+    filteredHistoryData = historyData.filter(record => {
+        const recordDate = record.date;
+        if (fromDate && toDate) {
+            return recordDate >= fromDate && recordDate <= toDate;
+        } else if (fromDate) {
+            return recordDate >= fromDate;
+        } else if (toDate) {
+            return recordDate <= toDate;
+        }
+        return true;
+    });
+
+    renderHistoryTable(filteredHistoryData);
+    const count = filteredHistoryData.length;
+    showToast('success', `Showing ${count} record${count !== 1 ? 's' : ''} for selected date range.`);
+}
+
+// Clear Date Filter
+function clearDateFilter() {
+    document.getElementById('filter-date-from').value = '';
+    document.getElementById('filter-date-to').value = '';
+    filteredHistoryData = [...historyData];
+    renderHistoryTable(filteredHistoryData);
+    showToast('info', 'Date filter cleared. Showing all records.');
+}
+
+// Delete Single History Record
+function deleteHistoryRecord(recordId) {
+    const record = historyData.find(r => r.id === recordId);
+    if (!record) return;
+
+    if (confirm(`Delete history record for ${record.plate} (${record.zone})?`)) {
+        historyData = historyData.filter(r => r.id !== recordId);
+        renderHistoryTable();
+        showToast('success', `History record for ${record.plate} deleted.`);
+    }
+}
+
+// Delete All History Records
+function deleteAllHistory() {
+    if (historyData.length === 0) {
+        showToast('info', 'No history records to delete.');
+        return;
+    }
+
+    if (confirm('Are you sure you want to delete ALL history records? This cannot be undone.')) {
+        historyData = [];
+        renderHistoryTable();
+        showToast('success', 'All history records deleted successfully.');
+    }
+}
+
+// Download History Report as a printable HTML report
+function downloadHistoryReport() {
+    if (historyData.length === 0) {
+        showToast('info', 'No history records to download.');
+        return;
+    }
+
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const timeStr = today.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+    // Calculate totals
+    const totalRevenue = historyData.reduce((sum, r) => sum + r.fee, 0);
+    const totalSessions = historyData.length;
+
+    // Build table rows
+    let tableRows = '';
+    historyData.forEach((record, index) => {
+        tableRows += `
+            <tr>
+                <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #1e293b; font-weight: 600; font-size: 13px;">${record.plate}</td>
+                <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #475569; font-size: 13px;">${record.zone}</td>
+                <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #475569; font-weight: 500; font-size: 13px;">${record.spot}</td>
+                <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 13px;">${record.duration}</td>
+                <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-weight: 700; font-size: 13px; text-align: right;">৳${record.fee.toFixed(2)}</td>
+                <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px;">
+                    <span style="background: #f1f5f9; padding: 3px 10px; border-radius: 20px; color: #475569; border: 1px solid #e2e8f0; display: inline-block;">${record.payment}</span>
+                </td>
+            </tr>
+        `;
+    });
+
+    const reportHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>SmartPark - Parking History Report</title>
+            <style>
+                @media print {
+                    body { margin: 0; padding: 0; }
+                    .no-print { display: none !important; }
+                    @page { margin: 20mm 15mm; }
+                }
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background: #f8fafc;
+                    margin: 0;
+                    padding: 30px;
+                    color: #1e293b;
+                }
+                .report-container {
+                    max-width: 1000px;
+                    margin: 0 auto;
+                    background: #ffffff;
+                    border-radius: 16px;
+                    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+                    overflow: hidden;
+                }
+                .report-header {
+                    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+                    padding: 30px 40px;
+                    color: white;
+                }
+                .report-header h1 {
+                    margin: 0 0 5px 0;
+                    font-size: 24px;
+                    font-weight: 700;
+                    letter-spacing: 0.5px;
+                }
+                .report-header .subtitle {
+                    color: #94a3b8;
+                    font-size: 14px;
+                    margin: 0;
+                }
+                .report-meta {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 20px 40px;
+                    background: #f1f5f9;
+                    border-bottom: 1px solid #e2e8f0;
+                }
+                .report-meta .meta-item {
+                    text-align: center;
+                }
+                .report-meta .meta-item .label {
+                    font-size: 11px;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    color: #64748b;
+                    font-weight: 600;
+                }
+                .report-meta .meta-item .value {
+                    font-size: 20px;
+                    font-weight: 700;
+                    color: #0f172a;
+                    margin-top: 4px;
+                }
+                .report-meta .meta-item .value.green { color: #059669; }
+                .report-meta .meta-item .value.blue { color: #2563eb; }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+                thead th {
+                    background: #f8fafc;
+                    padding: 12px;
+                    text-align: left;
+                    font-size: 11px;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    color: #64748b;
+                    border-bottom: 2px solid #e2e8f0;
+                }
+                thead th:last-child { text-align: right; }
+                tbody tr:last-child td { border-bottom: none; }
+                tbody tr:hover { background: #f8fafc; }
+                .report-footer {
+                    padding: 20px 40px;
+                    border-top: 1px solid #e2e8f0;
+                    text-align: center;
+                    color: #94a3b8;
+                    font-size: 12px;
+                }
+                .report-footer strong { color: #64748b; }
+                .btn-print {
+                    display: inline-block;
+                    margin: 20px auto;
+                    padding: 12px 30px;
+                    background: #2563eb;
+                    color: white;
+                    border: none;
+                    border-radius: 10px;
+                    font-size: 14px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    font-family: inherit;
+                }
+                .btn-print:hover { background: #1d4ed8; }
+                .btn-print i { margin-right: 8px; }
+            </style>
+        </head>
+        <body>
+            <div class="report-container">
+                <div class="report-header">
+                    <h1>🏢 SmartPark — Parking History Report</h1>
+                    <p class="subtitle">Generated on ${dateStr} at ${timeStr}</p>
+                </div>
+
+                <div class="report-meta">
+                    <div class="meta-item">
+                        <div class="label">Total Sessions</div>
+                        <div class="value blue">${totalSessions}</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="label">Total Revenue</div>
+                        <div class="value green">৳${totalRevenue.toFixed(2)}</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="label">Payment Methods</div>
+                        <div class="value blue">${[...new Set(historyData.map(r => r.payment))].length}</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="label">Zones Covered</div>
+                        <div class="value blue">${[...new Set(historyData.map(r => r.zone))].length}</div>
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Vehicle Plate</th>
+                            <th>Zone</th>
+                            <th>Spot</th>
+                            <th>Duration</th>
+                            <th style="text-align: right;">Fee Paid</th>
+                            <th>Payment Method</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                    </tbody>
+                </table>
+
+                <div class="report-footer">
+                    <p style="margin: 0;">This is a system-generated report from <strong>SmartPark Parking Management System</strong></p>
+                    <p style="margin: 8px 0 0 0;">Report ID: SP-RPT-${String(today.getFullYear()).slice(-2)}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}-${String(totalSessions).padStart(4,'0')}</p>
+                    <div class="no-print" style="margin-top: 20px;">
+                        <button class="btn-print" onclick="window.print()"><i class="fa-solid fa-print"></i> Print / Save as PDF</button>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+
+    // Open report in a new window
+    const reportWindow = window.open('', '_blank', 'width=1000,height=700,scrollbars=yes');
+    reportWindow.document.write(reportHtml);
+    reportWindow.document.close();
+    
+    showToast('success', `History report opened with ${totalSessions} records.`);
+}
+
+// ==========================================
 // AI CAMERA INTEGRATION & ACTIVE SESSIONS
 // ==========================================
 
 // Global Sessions Data
-let sessionsData = [
-    { id: 1, plate: 'DHK-METRO-1234', zone: 'Zone A', spot: 'A-12', checkIn: '14:30', duration: '1h 15m', status: 'Parked' },
-    { id: 2, plate: 'DHK-METRO-5678', zone: 'Zone B', spot: 'B-04', checkIn: '15:05', duration: '40m', status: 'Parked' },
-    { id: 3, plate: '—', zone: 'Zone A', spot: 'A-15', checkIn: '—', duration: '—', status: 'Empty' },
-    { id: 4, plate: 'DHK-METRO-9911', zone: 'Zone C', spot: 'C-02', checkIn: '15:12', duration: '33m', status: 'Parked' },
-    { id: 5, plate: '—', zone: 'Zone C', spot: 'C-05', checkIn: '—', duration: '—', status: 'Empty' }
-];
+let sessionsData = [];
+let nextSessionId = 1;
+
+// Helper: Sync session counts with zone occupancy
+function syncZoneOccupancyFromSessions() {
+    // Reset all zone occupancy to 0
+    Object.values(zonesData).forEach(zone => {
+        zone.occupied = 0;
+    });
+    
+    // Count parked sessions per zone
+    sessionsData.forEach(session => {
+        if (session.status === 'Parked') {
+            const zone = Object.values(zonesData).find(z => z.name === session.zone);
+            if (zone) {
+                zone.occupied = (zone.occupied || 0) + 1;
+            }
+        }
+    });
+    
+    // Recalculate free spots
+    Object.values(zonesData).forEach(zone => {
+        zone.free = Math.max(0, zone.spots - zone.occupied);
+    });
+    
+    // Re-render zones grid if visible
+    if (document.getElementById('zones-grid')) {
+        renderZonesGrid();
+    }
+}
+
+// Helper: Populate zone dropdown dynamically
+function populateZoneDropdown(selectId) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    select.innerHTML = '';
+    Object.values(zonesData).forEach(zone => {
+        const option = document.createElement('option');
+        option.value = zone.name;
+        option.textContent = zone.name;
+        select.appendChild(option);
+    });
+}
+
+// Initialize sessions with proper zone connections
+function initSessionsData() {
+    sessionsData = [];
+    const zoneNames = Object.values(zonesData).map(z => z.name);
+    
+    // Only create default sessions if there are zones
+    if (zoneNames.length > 0) {
+        const sampleSessions = [
+            { plate: 'DHK-METRO-1234', spot: 'A-12', status: 'Parked' },
+            { plate: 'DHK-METRO-5678', spot: 'B-04', status: 'Parked' },
+            { plate: '—', spot: 'A-15', status: 'Empty' },
+            { plate: 'DHK-METRO-9911', spot: 'C-02', status: 'Parked' },
+            { plate: '—', spot: 'C-05', status: 'Empty' }
+        ];
+        
+        sampleSessions.forEach((s, index) => {
+            const zoneIdx = index % zoneNames.length;
+            const now = new Date();
+            const checkIn = s.status === 'Parked' 
+                ? `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
+                : '—';
+            const duration = s.status === 'Parked' ? 'Just now' : '—';
+            
+            sessionsData.push({
+                id: nextSessionId++,
+                plate: s.plate,
+                zone: zoneNames[zoneIdx],
+                spot: s.spot,
+                checkIn: checkIn,
+                duration: duration,
+                status: s.status
+            });
+        });
+    }
+    
+    syncZoneOccupancyFromSessions();
+}
+
+// Call init on page load
+initSessionsData();
 
 // Render Sessions Table
 function renderSessionsTable() {
@@ -694,11 +1204,108 @@ function renderSessionsTable() {
                     <button onclick="openAiScanModal(${session.id})" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all duration-200 border border-blue-100">
                         <i class="fa-solid fa-brain"></i> AI Scan
                     </button>
+                    <button onclick="deleteSession(${session.id})" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 border border-red-100 ml-1">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
                 </td>
             </tr>
         `;
         tbody.innerHTML += rowHtml;
     });
+}
+
+// Add Session Modal Controls
+function openAddSessionModal() {
+    document.getElementById('session-id').value = '';
+    document.getElementById('session-modal-title').textContent = 'Add Active Session';
+    document.getElementById('session-plate').value = '';
+    document.getElementById('session-spot').value = '';
+    document.getElementById('session-checkin').value = '';
+    document.getElementById('session-duration').value = '';
+    document.getElementById('session-status').value = 'Parked';
+    
+    // Populate zone dropdown dynamically from zonesData
+    populateZoneDropdown('session-zone');
+    
+    // Auto-fill current time for check-in
+    const now = new Date();
+    document.getElementById('session-checkin').value = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    
+    const modal = document.getElementById('session-modal');
+    const card = document.getElementById('session-card');
+    modal.classList.remove('opacity-0', 'pointer-events-none');
+    card.classList.remove('scale-95');
+    card.classList.add('scale-100');
+}
+
+function closeSessionModal() {
+    const modal = document.getElementById('session-modal');
+    const card = document.getElementById('session-card');
+    card.classList.remove('scale-100');
+    card.classList.add('scale-95');
+    modal.classList.add('opacity-0', 'pointer-events-none');
+}
+
+function saveSession(event) {
+    event.preventDefault();
+    
+    const sessionId = document.getElementById('session-id').value;
+    const plate = document.getElementById('session-plate').value;
+    const zone = document.getElementById('session-zone').value;
+    const spot = document.getElementById('session-spot').value;
+    const checkIn = document.getElementById('session-checkin').value;
+    const duration = document.getElementById('session-duration').value || 'Just now';
+    const status = document.getElementById('session-status').value;
+    
+    if (sessionId) {
+        // Edit existing session
+        const session = sessionsData.find(s => s.id == sessionId);
+        if (!session) return;
+        
+        // Update session
+        const oldZone = session.zone;
+        session.plate = plate;
+        session.zone = zone;
+        session.spot = spot;
+        session.checkIn = checkIn;
+        session.duration = duration;
+        session.status = status;
+        
+        showToast('success', `Session #${sessionId} updated successfully!`);
+    } else {
+        // Add new session
+        sessionsData.push({
+            id: nextSessionId++,
+            plate: plate,
+            zone: zone,
+            spot: spot,
+            checkIn: checkIn,
+            duration: duration,
+            status: status
+        });
+        showToast('success', `Session added for vehicle ${plate}!`);
+    }
+    
+    // Sync zone occupancy
+    syncZoneOccupancyFromSessions();
+    
+    // Re-render sessions table
+    renderSessionsTable();
+    
+    // Close modal
+    closeSessionModal();
+}
+
+function deleteSession(sessionId) {
+    const session = sessionsData.find(s => s.id === sessionId);
+    if (!session) return;
+    
+    if (confirm(`Delete session for ${session.plate} (${session.zone})?`)) {
+        sessionsData = sessionsData.filter(s => s.id !== sessionId);
+        syncZoneOccupancyFromSessions();
+        renderSessionsTable();
+        showToast('success', `Session deleted successfully.`);
+    }
 }
 
 let activeScanSession = null;
@@ -901,9 +1508,12 @@ function toggleSpotStatus() {
         activeScanSession.plate = randomPlate;
         const now = new Date();
         activeScanSession.checkIn = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-        activeScanSession.duration = '1m';
+        activeScanSession.duration = 'Just now';
         showToast('success', `Spot ${activeScanSession.spot} marked as Parked with vehicle ${randomPlate}.`);
     }
+
+    // Sync zone occupancy with the updated session
+    syncZoneOccupancyFromSessions();
 
     // Re-render table
     renderSessionsTable();
