@@ -126,7 +126,7 @@
                     <h3 class="text-xl font-bold text-slate-900">All Parking Zones</h3>
                     <p class="text-xs text-slate-500">Real-time status and configuration of active zones</p>
                 </div>
-                <button onclick="showToast('info', 'Add Zone feature coming soon!')" class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/20 transition-all duration-300">
+                <button onclick="openAddModal()" class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/20 transition-all duration-300">
                     <i class="fa-solid fa-plus"></i> Add Zone
                 </button>
             </div>
@@ -143,7 +143,7 @@
         <div class="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl transform scale-95 transition-all duration-300 overflow-y-auto max-h-[95vh]" id="edit-zone-card">
             <!-- Modal Header -->
             <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-4">
-                <h3 class="text-xl font-extrabold text-slate-900">Edit Zone</h3>
+                <h3 class="text-xl font-extrabold text-slate-900" id="edit-zone-modal-title">Edit Zone</h3>
                 <button onclick="closeEditModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors">
                     <i class="fa-solid fa-xmark text-base"></i>
                 </button>
@@ -152,6 +152,7 @@
             <!-- Modal Form -->
             <form id="edit-zone-form" onsubmit="saveZoneChanges(event)" class="space-y-4">
                 <input type="hidden" id="edit-zone-id">
+                <input type="hidden" id="edit-mode" value="edit">
                 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <!-- Zone Name -->
