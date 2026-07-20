@@ -204,11 +204,17 @@
                 <div class="space-y-1.5 pt-2">
                     <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Zone Location on Map (click to pin)</label>
                     <div id="edit-map" class="w-full border border-slate-200 shadow-inner"></div>
-                    <div class="flex justify-between items-center">
-                        <p class="text-xs text-slate-500 font-semibold flex items-center gap-1.5">
-                            <i class="fa-solid fa-location-crosshairs text-blue-500"></i>
-                            <span id="edit-coords">📍 23.80700, 90.40600</span>
-                        </p>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <p class="text-xs text-slate-500 font-semibold flex items-center gap-1.5">
+                                <i class="fa-solid fa-location-crosshairs text-blue-500"></i>
+                                <span id="edit-coords">📍 23.80700, 90.40600</span>
+                            </p>
+                            <p class="text-xs text-slate-400 font-medium flex items-center gap-1.5" id="edit-address-display">
+                                <i class="fa-solid fa-map-pin text-emerald-500"></i>
+                                <span id="edit-address-text">Fetching address...</span>
+                            </p>
+                        </div>
                         <span class="text-[10px] text-slate-400 font-medium">Click anywhere on the map to move the pin</span>
                     </div>
                 </div>

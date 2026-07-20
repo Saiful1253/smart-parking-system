@@ -555,6 +555,45 @@ function openEditModal(zoneId) {
 
 function updateCoordsText(lat, lng) {
     document.getElementById('edit-coords').textContent = `📍 ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    // Fetch address via reverse geocoding
+    reverseGeocode(lat, lng);
+}
+
+// Reverse Geocode using OpenStreetMap Nominatim API
+function reverseGeocode(lat, lng) {
+    const addressText = document.getElementById('edit-address-text');
+    const locationInput = document.getElementById('edit-zone-location');
+    
+    if (!addressText) return;
+    
+    addressText.textContent = 'Fetching address...';
+    
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
+    
+    fetch(url, {
+        headers: {
+            'Accept-Language': 'en'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data && data.display_name) {
+            // Shorten the address for display
+            const shortAddress = data.display_name.split(',').slice(0, 4).join(',').trim();
+            addressText.textContent = shortAddress;
+            
+            // Auto-fill the location input if it's empty or was previously auto-filled
+            if (locationInput && (!locationInput.value || locationInput.dataset.autofilled === 'true')) {
+                locationInput.value = shortAddress;
+                locationInput.dataset.autofilled = 'true';
+            }
+        } else {
+            addressText.textContent = 'Address not found';
+        }
+    })
+    .catch(() => {
+        addressText.textContent = 'Could not fetch address';
+    });
 }
 
 function closeEditModal() {
