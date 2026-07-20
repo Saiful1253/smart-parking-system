@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('occupancyChart')) {
         initOccupancyChart();
     }
-    
+
     // Simulate live active sessions counter if element exists
     if (document.getElementById('active-sessions-count')) {
         simulateLiveCounter();
@@ -23,6 +23,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Render dynamic zones grid if element exists
     if (document.getElementById('zones-grid')) {
         renderZonesGrid();
+    }
+
+    // Render dynamic sessions table if element exists
+    if (document.getElementById('sessions-table-body')) {
+        renderSessionsTable();
     }
 });
 
@@ -35,10 +40,10 @@ function renderZonesGrid() {
 
     Object.values(zonesData).forEach(zone => {
         const occupancyPercent = zone.spots > 0 ? Math.round((zone.occupied / zone.spots) * 100) : 0;
-        const statusClass = zone.status.toLowerCase() === 'active' 
-            ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
+        const statusClass = zone.status.toLowerCase() === 'active'
+            ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
             : 'bg-amber-50 text-orange-600 border-orange-200';
-        
+
         const progressBg = zone.status.toLowerCase() === 'active' ? 'bg-blue-600' : 'bg-slate-200';
 
         const cardHtml = `
@@ -51,7 +56,7 @@ function renderZonesGrid() {
                     <p class="text-xs text-slate-400 font-medium flex items-center gap-1.5 mb-4">
                         <i class="fa-solid fa-location-dot text-slate-400"></i> ${zone.location}
                     </p>
-                    
+
                     <!-- Occupancy Progress -->
                     <div class="space-y-1.5 mb-5">
                         <div class="flex justify-between text-xs font-semibold">
@@ -60,7 +65,6 @@ function renderZonesGrid() {
                         </div>
                         <div class="w-full bg-slate-100 rounded-full h-2">
                             <div class="${progressBg} h-2 rounded-full" style="width: ${occupancyPercent}%"></div>
-                        </div>
                     </div>
 
                     <!-- Stats Boxes -->
@@ -77,11 +81,12 @@ function renderZonesGrid() {
                             <p class="text-lg font-extrabold text-emerald-600">${zone.free}</p>
                             <p class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Free</p>
                         </div>
-                    </div>
                 </div>
 
                 <!-- Bottom Row -->
                 <div class="flex items-center justify-between border-t border-slate-100 pt-4">
+                    <div class="flex items-center gap-1 text-xs font-bold text-slate-700">
+                        <span class="text-slate-400">$</span>
                     <div class="flex items-center gap-1 text-xs font-bold text-slate-700">
                         <span class="text-slate-400">$</span>
                         <span>৳${zone.rate.toFixed(2)}</span>
@@ -131,7 +136,7 @@ function switchAdminTab(tabId, element) {
     navItems.forEach(item => {
         item.className = "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300 admin-nav-item";
     });
-    
+
     if (element) {
         element.className = "flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-500/20 transition-all duration-300 admin-nav-item";
     }
@@ -152,7 +157,7 @@ function switchAdminTab(tabId, element) {
     // Update Header Title & Subtitle
     const pageTitle = document.getElementById('page-title');
     const pageSubtitle = document.getElementById('page-subtitle');
-    
+
     const titles = {
         'dashboard': { title: 'Dashboard', subtitle: 'Overview of your parking system' },
         'zones': { title: 'Parking Zones', subtitle: 'Configure and monitor parking zones, rates, and sensor statuses' },
@@ -179,7 +184,7 @@ function switchAdminTab(tabId, element) {
 let occupancyChart;
 function initOccupancyChart() {
     const ctx = document.getElementById('occupancyChart').getContext('2d');
-    
+
     occupancyChart = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -261,20 +266,20 @@ function simulateLiveCounter() {
     let count = 142; // Start with a realistic number of active sessions
     if (counter) {
         counter.textContent = count;
-        
+
         setInterval(() => {
             // Randomly add or subtract sessions to simulate real-time activity
             const change = Math.floor(Math.random() * 3) - 1; // -1, 0, or +1
             count = Math.max(0, count + change);
             counter.textContent = count;
-            
+
             // Dynamically update chart data slightly to match
             if (occupancyChart) {
                 const zoneIndex = Math.floor(Math.random() * 5);
                 const currentVal = occupancyChart.data.datasets[0].data[zoneIndex];
                 const newVal = Math.min(100, Math.max(10, currentVal + (change * 2)));
                 occupancyChart.data.datasets[0].data[zoneIndex] = newVal;
-                
+
                 // Update color if occupancy is extremely high
                 if (newVal >= 90) {
                     occupancyChart.data.datasets[0].backgroundColor[zoneIndex] = 'rgba(239, 68, 68, 0.8)';
@@ -283,7 +288,7 @@ function simulateLiveCounter() {
                     occupancyChart.data.datasets[0].backgroundColor[zoneIndex] = 'rgba(59, 130, 246, 0.8)';
                     occupancyChart.data.datasets[0].borderColor[zoneIndex] = '#3b82f6';
                 }
-                
+
                 occupancyChart.update('none'); // Update without full animation for smoothness
             }
         }, 4000);
@@ -294,13 +299,13 @@ function simulateLiveCounter() {
 function triggerRefresh() {
     const refreshIcon = document.querySelector('header button i');
     refreshIcon.classList.add('fa-spin');
-    
+
     showToast('info', 'Refreshing system data...');
-    
+
     setTimeout(() => {
         refreshIcon.classList.remove('fa-spin');
         showToast('success', 'System data refreshed successfully!');
-        
+
         // Randomize chart data slightly on refresh
         if (occupancyChart) {
             occupancyChart.data.datasets[0].data = [
@@ -356,7 +361,7 @@ function viewAllActivity() {
 function showToast(type, message) {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
-    
+
     let bgClass, borderClass, iconClass;
     if (type === 'success') {
         bgClass = 'bg-slate-900/95';
@@ -386,7 +391,7 @@ function showToast(type, message) {
     `;
 
     container.appendChild(toast);
-    
+
     // Trigger animation
     setTimeout(() => {
         toast.classList.remove('translate-y-2', 'opacity-0');
@@ -404,9 +409,87 @@ function showToast(type, message) {
 // Edit Zone Modal Controls
 let editMap, editMarker;
 
+// Open Add Zone Modal (New Zone)
+function openAddModal() {
+    // Set mode to 'add'
+    document.getElementById('edit-mode').value = 'add';
+    document.getElementById('edit-zone-id').value = '';
+
+    // Update modal title
+    document.getElementById('edit-zone-modal-title').textContent = 'Add New Zone';
+
+    // Clear form fields with default values
+    document.getElementById('edit-zone-name').value = '';
+    document.getElementById('edit-zone-location').value = '';
+    document.getElementById('edit-zone-spots').value = '';
+    document.getElementById('edit-zone-rate').value = '';
+    document.getElementById('edit-zone-type').value = 'Underground';
+    document.getElementById('edit-zone-status').value = 'Active';
+
+    // Show Modal
+    const modal = document.getElementById('edit-zone-modal');
+    const card = document.getElementById('edit-zone-card');
+    modal.classList.remove('opacity-0', 'pointer-events-none');
+    card.classList.remove('scale-95');
+    card.classList.add('scale-100');
+
+    // Default coordinates (center of all zones)
+    const defaultLat = 23.80700;
+    const defaultLng = 90.40600;
+
+    // Initialize or Update Leaflet Map
+    setTimeout(() => {
+        if (!editMap) {
+            // Create map centered at default coordinates
+            editMap = L.map('edit-map', {
+                zoomControl: false
+            }).setView([defaultLat, defaultLng], 13);
+
+            // Add zoom controls to top-left
+            L.control.zoom({
+                position: 'topleft'
+            }).addTo(editMap);
+
+            // Add OpenStreetMap tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(editMap);
+
+            // Create draggable marker
+            editMarker = L.marker([defaultLat, defaultLng], {
+                draggable: true
+            }).addTo(editMap);
+
+            // Update coordinates on marker drag
+            editMarker.on('dragend', function (e) {
+                const position = editMarker.getLatLng();
+                updateCoordsText(position.lat, position.lng);
+            });
+
+            // Update coordinates on map click
+            editMap.on('click', function (e) {
+                editMarker.setLatLng(e.latlng);
+                updateCoordsText(e.latlng.lat, e.latlng.lng);
+            });
+        } else {
+            // Update existing map and marker
+            editMap.setView([defaultLat, defaultLng], 13);
+            editMarker.setLatLng([defaultLat, defaultLng]);
+            editMap.invalidateSize();
+        }
+
+        // Update coordinates text
+        updateCoordsText(defaultLat, defaultLng);
+    }, 300); // Small delay to allow modal transition to complete
+}
+
 function openEditModal(zoneId) {
     const zone = zonesData[zoneId];
     if (!zone) return;
+
+    // Set mode to 'edit'
+    document.getElementById('edit-mode').value = 'edit';
+    document.getElementById('edit-zone-modal-title').textContent = 'Edit Zone';
 
     // Pre-fill form fields
     document.getElementById('edit-zone-id').value = zone.id;
@@ -532,4 +615,260 @@ function deleteZone(zoneId) {
         renderZonesGrid();
         showToast('success', `${zone.name} deleted successfully.`);
     }
+}
+
+
+// ==========================================
+// AI CAMERA INTEGRATION & ACTIVE SESSIONS
+// ==========================================
+
+// Global Sessions Data
+let sessionsData = [
+    { id: 1, plate: 'DHK-METRO-1234', zone: 'Zone A', spot: 'A-12', checkIn: '14:30', duration: '1h 15m', status: 'Parked' },
+    { id: 2, plate: 'DHK-METRO-5678', zone: 'Zone B', spot: 'B-04', checkIn: '15:05', duration: '40m', status: 'Parked' },
+    { id: 3, plate: '—', zone: 'Zone A', spot: 'A-15', checkIn: '—', duration: '—', status: 'Empty' },
+    { id: 4, plate: 'DHK-METRO-9911', zone: 'Zone C', spot: 'C-02', checkIn: '15:12', duration: '33m', status: 'Parked' },
+    { id: 5, plate: '—', zone: 'Zone C', spot: 'C-05', checkIn: '—', duration: '—', status: 'Empty' }
+];
+
+// Render Sessions Table
+function renderSessionsTable() {
+    const tbody = document.getElementById('sessions-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    sessionsData.forEach(session => {
+        const statusBadge = session.status === 'Parked'
+            ? `<span class="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 font-bold border border-emerald-500/20">Parked</span>`
+            : `<span class="px-2.5 py-1 rounded-full bg-slate-500/10 text-slate-400 font-bold border border-slate-800">Empty</span>`;
+
+        const rowHtml = `
+            <tr class="hover:bg-slate-50/50 transition-colors border-b border-slate-100">
+                <td class="py-4 font-bold text-slate-900">${session.plate}</td>
+                <td class="py-4 text-slate-600">${session.zone}</td>
+                <td class="py-4 text-slate-600 font-semibold">${session.spot}</td>
+                <td class="py-4 text-slate-500">${session.checkIn}</td>
+                <td class="py-4 text-slate-500">${session.duration}</td>
+                <td class="py-4">${statusBadge}</td>
+                <td class="py-4 text-right">
+                    <button onclick="openAiScanModal(${session.id})" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-all duration-200 border border-blue-100">
+                        <i class="fa-solid fa-brain"></i> AI Scan
+                    </button>
+                </td>
+            </tr>
+        `;
+        tbody.innerHTML += rowHtml;
+    });
+}
+
+let activeScanSession = null;
+let scanInterval = null;
+
+function openAiScanModal(sessionId) {
+    const session = sessionsData.find(s => s.id === sessionId);
+    if (!session) return;
+
+    activeScanSession = session;
+
+    // Update HUD
+    document.getElementById('hud-spot-id').textContent = session.spot;
+
+    // Show Modal
+    const modal = document.getElementById('ai-scan-modal');
+    const card = document.getElementById('ai-scan-card');
+    modal.classList.remove('opacity-0', 'pointer-events-none');
+    card.classList.remove('scale-95');
+    card.classList.add('scale-100');
+
+    // Start Scan
+    startAiScan();
+}
+
+function closeAiScanModal() {
+    const modal = document.getElementById('ai-scan-modal');
+    const card = document.getElementById('ai-scan-card');
+    card.classList.remove('scale-100');
+    card.classList.add('scale-95');
+    modal.classList.add('opacity-0', 'pointer-events-none');
+
+    if (scanInterval) {
+        clearInterval(scanInterval);
+    }
+    activeScanSession = null;
+}
+
+function startAiScan() {
+    if (!activeScanSession) return;
+
+    const logsContainer = document.getElementById('ai-logs');
+    const scannerLine = document.getElementById('ai-scanner-line');
+    const boundingBox = document.getElementById('ai-bounding-box');
+    const detectedObject = document.getElementById('ai-detected-object');
+    const currentStatusText = document.getElementById('ai-current-status');
+
+    if (scanInterval) {
+        clearInterval(scanInterval);
+    }
+
+    // Reset UI
+    logsContainer.innerHTML = '';
+    scannerLine.style.top = '0%';
+    scannerLine.classList.remove('opacity-0');
+    scannerLine.classList.add('opacity-100');
+    boundingBox.classList.add('opacity-0');
+    detectedObject.innerHTML = `
+        <div class="flex flex-col items-center justify-center gap-3">
+            <div class="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+            <p class="text-xs font-mono text-blue-400 animate-pulse">ESTABLISHING FEED...</p>
+        </div>
+    `;
+    currentStatusText.textContent = 'Scanning...';
+    currentStatusText.className = 'text-xs font-bold text-blue-400';
+
+    // Animate scanner line
+    let direction = 1;
+    let position = 0;
+    scanInterval = setInterval(() => {
+        position += 4 * direction;
+        if (position >= 100) {
+            direction = -1;
+        } else if (position <= 0) {
+            direction = 1;
+        }
+        scannerLine.style.top = `${position}%`;
+    }, 40);
+
+    // Log simulation helper with timestamps
+    const getTimestamp = () => {
+        const now = new Date();
+        return `[${now.toTimeString().split(' ')[0]}.${String(now.getMilliseconds()).padStart(3, '0')}]`;
+    };
+
+    const addLog = (text, delay, type = 'INFO') => {
+        setTimeout(() => {
+            const log = document.createElement('p');
+            let typeColor = 'text-blue-400';
+            if (type === 'SUCCESS') typeColor = 'text-emerald-400';
+            if (type === 'WARN') typeColor = 'text-amber-400';
+
+            log.innerHTML = `<span class="text-slate-500">${getTimestamp()}</span> <span class="${typeColor} font-bold">[${type}]</span> <span class="text-slate-300">${text}</span>`;
+            logsContainer.appendChild(log);
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+        }, delay);
+    };
+
+    addLog('Initializing YOLOv8-Nano neural network model...', 200, 'SYS');
+    addLog('Loading model weights (yolov8n-parking.pt)...', 500, 'SYS');
+    addLog(`Connecting to RTSP stream CAM_SPOT_${activeScanSession.spot}...`, 800, 'CAM');
+    addLog('Latency: 12ms | Resolution: 1920x1080 @ 60fps', 1100, 'CAM');
+    addLog('Running object detection inference on frame...', 1400, 'AI');
+
+    setTimeout(() => {
+        clearInterval(scanInterval);
+        scannerLine.classList.add('opacity-0');
+        scannerLine.classList.remove('opacity-100');
+
+        const isParked = activeScanSession.status === 'Parked';
+
+        if (isParked) {
+            addLog('Vehicle detected! Class: "car"', 100, 'AI');
+            addLog('Confidence score: 98.72%', 300, 'AI');
+            addLog('Running License Plate Recognition (LPR-Net)...', 600, 'AI');
+            addLog(`Plate recognized: "${activeScanSession.plate}" (Confidence: 96.45%)`, 1000, 'AI');
+            addLog(`Matching plate with active database sessions...`, 1300, 'SYS');
+            addLog(`Match found! Session ID: #${activeScanSession.id}`, 1600, 'SUCCESS');
+
+            setTimeout(() => {
+                // Show Futuristic Wireframe Car SVG
+                detectedObject.innerHTML = `
+                    <div class="relative flex flex-col items-center justify-center">
+                        <div class="absolute inset-0 bg-blue-500/10 rounded-full blur-2xl w-24 h-24"></div>
+                        <svg class="w-36 h-24 text-blue-400 drop-shadow-[0_0_15px_rgba(96,165,250,0.6)]" viewBox="0 0 100 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 35H2C1.4 35 1 34.6 1 34V28C1 25.8 2.8 24 5 24H15L25 12H65L78 24H95C97.2 24 99 25.8 99 28V34C99 34.6 98.6 35 98 35H92" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                            <path d="M27 14H63L73 24H20L27 14Z" stroke="currentColor" stroke-width="1" stroke-linejoin="round" fill="currentColor" fill-opacity="0.05"/>
+                            <line x1="45" y1="14" x2="41" y2="24" stroke="currentColor" stroke-width="1"/>
+                            <circle cx="22" cy="38" r="10" stroke="currentColor" stroke-width="1.5" fill="#0f172a"/>
+                            <circle cx="22" cy="38" r="4" stroke="currentColor" stroke-width="1" fill="currentColor" fill-opacity="0.2"/>
+                            <circle cx="78" cy="38" r="10" stroke="currentColor" stroke-width="1.5" fill="#0f172a"/>
+                            <circle cx="78" cy="38" r="4" stroke="currentColor" stroke-width="1" fill="currentColor" fill-opacity="0.2"/>
+                            <path d="M99 28L95 29V31L99 32" stroke="#60a5fa" stroke-width="1.5"/>
+                            <path d="M1 28L5 29V31L1 32" stroke="#ef4444" stroke-width="1.5"/>
+                        </svg>
+                        <p class="text-xs font-mono font-bold text-blue-400 mt-2 tracking-widest">${activeScanSession.plate}</p>
+                    </div>
+                `;
+                // Show Bounding Box
+                boundingBox.style.top = '20%';
+                boundingBox.style.left = '25%';
+                boundingBox.style.width = '50%';
+                boundingBox.style.height = '60%';
+                boundingBox.classList.remove('opacity-0');
+                document.getElementById('ai-box-label').textContent = 'CAR: 98.72%';
+                document.getElementById('ai-box-label').className = 'absolute -top-5 left-0 bg-blue-500 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded text-white uppercase tracking-wider';
+                boundingBox.className = 'absolute border-2 border-dashed border-blue-500 rounded-xl transition-all duration-500';
+
+                currentStatusText.textContent = 'Parked (Verified)';
+                currentStatusText.className = 'text-xs font-bold text-emerald-400';
+            }, 1600);
+        } else {
+            addLog('No vehicle detected in region of interest (ROI).', 100, 'AI');
+            addLog('Background subtraction confidence: 99.41%', 400, 'AI');
+            addLog('Spot verified as EMPTY.', 700, 'SUCCESS');
+
+            setTimeout(() => {
+                // Show Empty Spot SVG
+                detectedObject.innerHTML = `
+                    <div class="relative flex flex-col items-center justify-center text-slate-600">
+                        <svg class="w-24 h-24 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 4" />
+                            <line x1="3" y1="12" x2="21" y2="12" stroke-dasharray="2 2" />
+                        </svg>
+                        <p class="text-xs font-mono font-bold mt-2 tracking-widest text-slate-500">SPOT EMPTY</p>
+                    </div>
+                `;
+                // Show Bounding Box
+                boundingBox.style.top = '25%';
+                boundingBox.style.left = '30%';
+                boundingBox.style.width = '40%';
+                boundingBox.style.height = '50%';
+                boundingBox.classList.remove('opacity-0');
+                document.getElementById('ai-box-label').textContent = 'EMPTY: 99.41%';
+                document.getElementById('ai-box-label').className = 'absolute -top-5 left-0 bg-slate-700 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded text-white uppercase tracking-wider';
+                boundingBox.className = 'absolute border-2 border-dashed border-slate-700 rounded-xl transition-all duration-500';
+
+                currentStatusText.textContent = 'Empty (Verified)';
+                currentStatusText.className = 'text-xs font-bold text-slate-400';
+            }, 700);
+        }
+    }, 2000);
+}
+
+function toggleSpotStatus() {
+    if (!activeScanSession) return;
+
+    if (activeScanSession.status === 'Parked') {
+        // Change to Empty
+        activeScanSession.status = 'Empty';
+        activeScanSession.plate = '—';
+        activeScanSession.checkIn = '—';
+        activeScanSession.duration = '—';
+        showToast('info', `Spot ${activeScanSession.spot} marked as Empty.`);
+    } else {
+        // Change to Parked
+        activeScanSession.status = 'Parked';
+        // Generate a random plate
+        const randomPlate = 'DHK-METRO-' + Math.floor(1000 + Math.random() * 9000);
+        activeScanSession.plate = randomPlate;
+        const now = new Date();
+        activeScanSession.checkIn = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        activeScanSession.duration = '1m';
+        showToast('success', `Spot ${activeScanSession.spot} marked as Parked with vehicle ${randomPlate}.`);
+    }
+
+    // Re-render table
+    renderSessionsTable();
+
+    // Re-run scan to show updated state
+    startAiScan();
 }
