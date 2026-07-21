@@ -235,10 +235,9 @@ function handleLogin(event) {
         setTimeout(() => {
             showToast('success', 'Login successful! Redirecting to dashboard...');
             setTimeout(() => {
-                // Reset button and simulate redirect
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalContent;
-                alert('Simulation: Redirecting to Smart Parking Dashboard!');
+                window.location.href = 'book-parking.html';
             }, 1500);
         }, 1500);
     }

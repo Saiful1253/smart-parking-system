@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartPark - My History</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts (Poppins) -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Poppins', sans-serif; background: #f8fafc; color: #1e293b; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body>
+
+    <!-- ===================== TOP NAVBAR ===================== -->
+    <header class="bg-slate-950 border-b border-slate-800 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6">
+            <div class="flex items-center justify-between h-16">
+                <!-- Left: Logo -->
+                <div class="flex items-center gap-3">
+                    <a href="customer.html" class="flex items-center gap-2.5 no-underline">
+                        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                            <i class="fa-solid fa-square-p text-white text-lg"></i>
+                        </div>
+                        <div>
+                            <span class="text-lg font-extrabold tracking-wider bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">SmartPark</span>
+                            <span class="block text-[9px] text-slate-500 font-semibold tracking-widest uppercase leading-none">Parking System</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Center: Desktop Nav -->
+                <nav class="hidden lg:flex items-center gap-1">
+                    <a href="book-parking.html" class="px-4 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all duration-300">
+                        <i class="fa-solid fa-calendar-check mr-1.5"></i>Book Parking
+                    </a>
+                    <a href="my-sessions.html" class="px-4 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all duration-300">
+                        <i class="fa-solid fa-car-side mr-1.5"></i>My Sessions
+                    </a>
+                    <a href="my-history.html" class="px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white shadow-lg shadow-blue-500/20 transition-all duration-300">
+                        <i class="fa-solid fa-clock-rotate-left mr-1.5"></i>My History
+                    </a>
+                </nav>
+
+                <!-- Right: Actions -->
+                <div class="flex items-center gap-3">
+                    <button onclick="refreshData()" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors" title="Refresh">
+                        <i class="fa-solid fa-rotate"></i>
+                    </button>
+                    <a href="index.html" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg transition-all border border-red-500/20 no-underline">
+                        <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ===================== MAIN CONTENT ===================== -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+
+        <div class="mb-6">
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900">My History</h2>
+            <p class="text-sm text-slate-500 mt-1">View all your completed parking sessions.</p>
+        </div>
+
+        <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <h3 class="text-lg font-bold text-slate-900">Parking History</h3>
+                <div class="flex flex-wrap items-center gap-2">
+                    <input type="date" id="my-history-from" class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 outline-none focus:border-blue-500" onchange="filterMyHistory()">
+                    <span class="text-xs text-slate-400">to</span>
+                    <input type="date" id="my-history-to" class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 outline-none focus:border-blue-500" onchange="filterMyHistory()">
+                    <button onclick="exportMyHistoryPDF()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors border border-blue-200">
+                        <i class="fa-solid fa-file-pdf"></i> PDF
+                    </button>
+                    <button onclick="exportMyHistoryCSV()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg transition-colors border border-emerald-200">
+                        <i class="fa-solid fa-file-csv"></i> CSV
+                    </button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                            <th class="pb-3.5 px-3">Booking ID</th>
+                            <th class="pb-3.5 px-3">Zone</th>
+                            <th class="pb-3.5 px-3">Date</th>
+                            <th class="pb-3.5 px-3">Entry Time</th>
+                            <th class="pb-3.5 px-3">Exit Time</th>
+                            <th class="pb-3.5 px-3">Duration</th>
+                            <th class="pb-3.5 px-3">Total Cost</th>
+                            <th class="pb-3.5 px-3">Payment</th>
+                        </tr>
+                    </thead>
+                    <tbody id="my-history-table-body" class="text-xs text-slate-700 font-medium"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ===================== TOAST CONTAINER ===================== -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
+
+    <!-- ===================== JAVASCRIPT ===================== -->
+    <script>
+        // ============================================================
+        // DATA
+        // ============================================================
+        let sessions = [];
+        let history = [];
+        let nextBookingId = 1000;
+        let nextHistoryId = 2000;
+
+        // ============================================================
+        // INIT
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+            renderHistory();
+        });
+
+        // ============================================================
+        // REFRESH
+        // ============================================================
+        function refreshData() {
+            loadData();
+            renderHistory();
+            showToast('info', 'Data refreshed!');
+        }
+
+        // ============================================================
+        // LOCAL STORAGE (shared across all 3 pages)
+        // ============================================================
+        function loadData() {
+            try {
+                var saved = localStorage.getItem('customerParkingData');
+                if (saved) {
+                    var d = JSON.parse(saved);
+                    sessions = d.sessions || [];
+                    history = d.history || [];
+                    nextBookingId = d.nextId || 1000;
+                    nextHistoryId = d.nextHistId || 2000;
+                }
+            } catch(e) {}
+        }
+        function saveData() {
+            localStorage.setItem('customerParkingData', JSON.stringify({
+                sessions: sessions,
+                history: history,
+                nextId: nextBookingId,
+                nextHistId: nextHistoryId
+            }));
+        }
+
+        // ============================================================
+        // MY HISTORY
+        // ============================================================
+        function renderHistory() {
+            var tbody = document.getElementById('my-history-table-body');
+            if (!tbody) return;
+            var from = document.getElementById('my-history-from').value;
+            var to = document.getElementById('my-history-to').value;
+            var filtered = history.slice();
+            if (from) filtered = filtered.filter(function(h) { return h.date >= from; });
+            if (to) filtered = filtered.filter(function(h) { return h.date <= to; });
+            tbody.innerHTML = '';
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="py-8 text-center text-slate-400"><i class="fa-solid fa-clock-rotate-left text-2xl mb-2"></i><p class="text-xs font-medium">No history records</p></td></tr>';
+                return;
+            }
+            filtered.forEach(function(h) {
+                tbody.innerHTML += '<tr class="border-b border-slate-100 hover:bg-slate-50/50">' +
+                    '<td class="py-3.5 px-3 font-bold text-slate-900">#' + h.bookingId + '</td>' +
+                    '<td class="py-3.5 px-3 text-slate-600">' + h.zone + '</td>' +
+                    '<td class="py-3.5 px-3 text-slate-500">' + h.date + '</td>' +
+                    '<td class="py-3.5 px-3 text-slate-500">' + h.entryTime + '</td>' +
+                    '<td class="py-3.5 px-3 text-slate-500">' + (h.exitTime || '\u2014') + '</td>' +
+                    '<td class="py-3.5 px-3 text-slate-500">' + h.duration + '</td>' +
+                    '<td class="py-3.5 px-3 font-bold text-slate-700">&#x9F3;' + h.cost.toFixed(2) + '</td>' +
+                    '<td class="py-3.5 px-3"><span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">' + h.paymentStatus + '</span></td></tr>';
+            });
+        }
+
+        function filterMyHistory() {
+            renderHistory();
+        }
+
+        // ============================================================
+        // EXPORTS
+        // ============================================================
+        function exportMyHistoryPDF() {
+            if (history.length === 0) { showToast('info', 'No history records to export.'); return; }
+            var w = window.open('', '_blank');
+            var rows = '';
+            history.forEach(function(h) {
+                rows += '<tr><td style="padding:8px;border-bottom:1px solid #e2e8f0;font-weight:600;">#' + h.bookingId + '</td>' +
+                    '<td style="padding:8px;border-bottom:1px solid #e2e8f0;">' + h.zone + '</td>' +
+                    '<td style="padding:8px;border-bottom:1px solid #e2e8f0;">' + h.date + '</td>' +
+                    '<td style="padding:8px;border-bottom:1px solid #e2e8f0;">' + h.entryTime + '</td>' +
+                    '<td style="padding:8px;border-bottom:1px solid #e2e8f0;">' + (h.exitTime || '\u2014') + '</td>' +
+                    '<td style="padding:8px;border-bottom:1px solid #e2e8f0;">' + h.duration + '</td>' +
+                    '<td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right;">&#x9F3;' + h.cost.toFixed(2) + '</td>' +
+                    '<td style="padding:8px;border-bottom:1px solid #e2e8f0;">' + h.paymentStatus + '</td></tr>';
+            });
+            var totalRevenue = history.reduce(function(s, h) { return s + h.cost; }, 0);
+            var htmlContent = '<html><head><title>SmartPark - Parking History Report</title>' +
+                '<style>body{font-family:Poppins,sans-serif;padding:30px;background:#f8fafc;}' +
+                'table{width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.05);}' +
+                'th{background:#1e293b;color:white;padding:10px 8px;font-size:11px;text-align:left;}' +
+                'td{font-size:12px;color:#1e293b;}h2{color:#1e293b;}p{color:#64748b;font-size:13px;}' +
+                '</style></head><body>' +
+                '<h2>SmartPark - Parking History Report</h2>' +
+                '<p>Generated: ' + new Date().toLocaleString() + '</p>' +
+                '<table><thead><tr><th>Booking ID</th><th>Zone</th><th>Date</th><th>Entry</th><th>Exit</th><th>Duration</th><th style="text-align:right;">Cost</th><th>Payment</th></tr></thead>' +
+                '<tbody>' + rows + '</tbody></table>' +
+                '<p style="margin-top:16px;">Total: ' + history.length + ' records | Revenue: &#x9F3;' + totalRevenue.toFixed(2) + '</p>' +
+                '<button onclick="window.print()" style="margin-top:20px;padding:10px 24px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Print / Save PDF</button>' +
+                '</body></html>';
+            w.document.write(htmlContent);
+            w.document.close();
+            showToast('success', 'History report opened in new tab.');
+        }
+
+        function exportMyHistoryCSV() {
+            if (history.length === 0) { showToast('info', 'No history records to export.'); return; }
+            var csv = 'Booking ID,Zone,Date,Entry Time,Exit Time,Duration,Cost,Payment Status\n';
+            history.forEach(function(h) {
+                csv += '#' + h.bookingId + ',"' + h.zone + '","' + h.date + '","' + h.entryTime + '","' + (h.exitTime || '') + '","' + h.duration + '",' + h.cost.toFixed(2) + ',"' + h.paymentStatus + '"\n';
+            });
+            var blob = new Blob([csv], { type: 'text/csv' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'SmartPark_Parking_History.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('success', 'CSV file downloaded with ' + history.length + ' records.');
+        }
+
+        // ============================================================
+        // TOAST
+        // ============================================================
+        function showToast(type, message) {
+            var container = document.getElementById('toast-container');
+            if (!container) return;
+            var toast = document.createElement('div');
+            var borderClass = 'border-blue-500/30';
+            var iconClass = 'fa-solid fa-circle-info text-blue-400';
+            if (type === 'success') { borderClass = 'border-emerald-500/30'; iconClass = 'fa-solid fa-circle-check text-emerald-400'; }
+            else if (type === 'error') { borderClass = 'border-red-500/30'; iconClass = 'fa-solid fa-circle-exclamation text-red-400'; }
+            toast.className = 'flex items-center gap-3 p-4 rounded-xl border ' + borderClass + ' bg-slate-900/95 shadow-2xl pointer-events-auto max-w-sm w-full transition-all duration-300 transform translate-y-2 opacity-0';
+            toast.innerHTML = '<div class="flex-shrink-0 text-lg"><i class="' + iconClass + '"></i></div><div class="flex-grow"><p class="text-xs font-semibold text-slate-200">' + message + '</p></div><button class="text-slate-500 hover:text-slate-300 transition-colors" onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark text-xs"></i></button>';
+            container.appendChild(toast);
+            setTimeout(function() { toast.classList.remove('translate-y-2', 'opacity-0'); }, 50);
+            setTimeout(function() { toast.classList.add('opacity-0', 'translate-y-2'); setTimeout(function() { toast.remove(); }, 300); }, 4000);
+        }
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartPark - Book Parking</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts (Poppins) -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Leaflet Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Poppins', sans-serif; background: #f8fafc; color: #1e293b; }
+        #customer-map { height: 420px; border-radius: 1rem; z-index: 10; }
+        #customer-map .leaflet-control-zoom a { background: #1e293b; color: #e2e8f0; border-color: #334155; border-radius: 8px !important; }
+        #customer-map .leaflet-control-zoom a:hover { background: #334155; }
+        .leaflet-popup-content-wrapper { border-radius: 14px !important; font-family: 'Poppins', sans-serif !important; box-shadow: 0 10px 40px rgba(0,0,0,0.15) !important; }
+        .leaflet-popup-content { margin: 16px 20px !important; font-size: 13px !important; min-width: 220px; }
+        .leaflet-popup-tip { box-shadow: none !important; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        @media (max-width: 768px) { #customer-map { height: 280px; } }
+        .progress-bar { transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+        /* Map Loading & Error States */
+        #map-loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8fafc; border-radius: 1rem; z-index: 20; transition: opacity 0.5s; }
+        #map-loading.loaded { opacity: 0; pointer-events: none; }
+        #map-error { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; background: #fef2f2; border-radius: 1rem; z-index: 20; padding: 20px; text-align: center; }
+        #map-fallback-canvas { width: 100%; height: 100%; border-radius: 1rem; display: none; background: #f1f5f9; }
+        /* Booking Type Toggle */
+        .booking-type-btn { flex: 1; padding: 10px 16px; font-size: 12px; font-weight: 700; border-radius: 12px; cursor: pointer; transition: all 0.3s; border: 2px solid transparent; text-align: center; }
+        .booking-type-btn.active-fixed { background: #2563eb; color: white; border-color: #2563eb; box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+        .booking-type-btn.active-meter { background: #059669; color: white; border-color: #059669; box-shadow: 0 4px 12px rgba(5,150,105,0.3); }
+        .booking-type-btn.inactive { background: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; }
+        /* Live Meter Display */
+        #meter-display { display: none; }
+        #meter-counter { font-variant-numeric: tabular-nums; letter-spacing: 2px; }
+        .meter-digit { display: inline-block; min-width: 12px; text-align: center; }
+        .meter-sep { opacity: 0.4; }
+        .meter-tick { animation: tickPulse 0.15s ease-in-out; }
+        @keyframes tickPulse { 0% { transform: scale(1); } 50% { transform: scale(1.04); } 100% { transform: scale(1); } }
+    </style>
+</head>
+<body>
+
+    <!-- ===================== TOP NAVBAR ===================== -->
+    <header class="bg-slate-950 border-b border-slate-800 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6">
+            <div class="flex items-center justify-between h-16">
+                <!-- Left: Logo -->
+                <div class="flex items-center gap-3">
+                    <a href="customer.html" class="flex items-center gap-2.5 no-underline">
+                        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                            <i class="fa-solid fa-square-p text-white text-lg"></i>
+                        </div>
+                        <div>
+                            <span class="text-lg font-extrabold tracking-wider bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">SmartPark</span>
+                            <span class="block text-[9px] text-slate-500 font-semibold tracking-widest uppercase leading-none">Parking System</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Center: Desktop Nav -->
+                <nav class="hidden lg:flex items-center gap-1">
+                    <a href="book-parking.html" class="px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white shadow-lg shadow-blue-500/20 transition-all duration-300">
+                        <i class="fa-solid fa-calendar-check mr-1.5"></i>Book Parking
+                    </a>
+                    <a href="my-sessions.html" class="px-4 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all duration-300">
+                        <i class="fa-solid fa-car-side mr-1.5"></i>My Sessions
+                    </a>
+                    <a href="my-history.html" class="px-4 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all duration-300">
+                        <i class="fa-solid fa-clock-rotate-left mr-1.5"></i>My History
+                    </a>
+                </nav>
+
+                <!-- Right: Actions -->
+                <div class="flex items-center gap-3">
+                    <button onclick="refreshData()" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors" title="Refresh">
+                        <i class="fa-solid fa-rotate"></i>
+                    </button>
+                    <a href="index.html" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg transition-all border border-red-500/20 no-underline">
+                        <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ===================== MAIN CONTENT ===================== -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+
+        <!-- Header -->
+        <div class="mb-6">
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900">Find Parking</h2>
+            <p class="text-sm text-slate-500 mt-1">Click a parking zone to book your parking slot.</p>
+        </div>
+
+        <!-- Legend -->
+        <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-wrap items-center gap-5 mb-6">
+            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Status</span>
+            <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span><span class="text-xs text-slate-600">Active</span></div>
+            <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span><span class="text-xs text-slate-600">Maintenance</span></div>
+            <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-red-500"></span><span class="text-xs text-slate-600">Closed</span></div>
+        </div>
+
+        <!-- Live Map -->
+        <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm mb-6">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-map-location-dot text-blue-600"></i> Live Parking Map
+                </h3>
+                <span class="text-[10px] bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full font-semibold border border-emerald-200 flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> LIVE
+                </span>
+            </div>
+            <div id="customer-map" class="relative">
+                <!-- Map Loading State -->
+                <div id="map-loading">
+                    <div class="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-3"></div>
+                    <p class="text-sm font-semibold text-slate-500">Loading map...</p>
+                    <p class="text-[10px] text-slate-400 mt-1">Fetching tile data</p>
+                </div>
+                <!-- Map Error State -->
+                <div id="map-error">
+                    <div class="w-14 h-14 rounded-full bg-red-100 text-red-500 flex items-center justify-center text-2xl mb-3">
+                        <i class="fa-solid fa-map-location-dot"></i>
+                    </div>
+                    <p class="text-sm font-bold text-red-700 mb-1">Map Unavailable</p>
+                    <p class="text-xs text-red-500 mb-3 max-w-xs">Could not load the map tiles. Check your internet connection.</p>
+                    <button onclick="retryMap()" class="px-4 py-2 text-xs font-bold bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors">
+                        <i class="fa-solid fa-rotate mr-1"></i> Retry
+                    </button>
+                </div>
+                <!-- Fallback Canvas (renders if Leaflet fails) -->
+                <canvas id="map-fallback-canvas"></canvas>
+            </div>
+        </div>
+
+        <!-- Zone Cards -->
+        <div>
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-base font-bold text-slate-900">Available Parking Zones</h3>
+                <span class="text-xs text-slate-400" id="zone-count-label">5 zones</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4" id="customer-zones-grid"></div>
+        </div>
+
+    </main>
+
+    <!-- ===================== BOOKING MODAL ===================== -->
+    <div id="booking-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl transform scale-95 transition-all duration-300 overflow-y-auto max-h-[90vh]" id="booking-modal-card">
+            <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900">Book Parking Slot</h3>
+                    <p class="text-xs text-slate-500">Complete the form to reserve your spot</p>
+                </div>
+                <button onclick="closeBookingModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="booking-form" onsubmit="confirmBooking(event)" class="space-y-4">
+                <input type="hidden" id="book-zone-id">
+                <input type="hidden" id="book-booking-type" value="fixed">
+
+                <!-- Booking Type Toggle -->
+                <div>
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Booking Type</label>
+                    <div class="flex gap-2">
+                        <button type="button" id="btn-type-fixed" class="booking-type-btn active-fixed" onclick="setBookingType('fixed')">
+                            <i class="fa-solid fa-clock mr-1"></i> Fixed Duration
+                        </button>
+                        <button type="button" id="btn-type-meter" class="booking-type-btn inactive" onclick="setBookingType('meter')">
+                            <i class="fa-solid fa-gauge-high mr-1"></i> Metered (Per Sec)
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Customer Name *</label>
+                    <input type="text" id="book-name" required class="w-full mt-1 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm outline-none transition-all" placeholder="Enter your full name">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Vehicle Number *</label>
+                        <input type="text" id="book-vehicle" required class="w-full mt-1 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm outline-none transition-all" placeholder="ABC-1234">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Vehicle Type *</label>
+                        <select id="book-vehicle-type" required class="w-full mt-1 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm outline-none transition-all">
+                            <option value="Car">Car</option>
+                            <option value="Motorcycle">Motorcycle</option>
+                            <option value="SUV">SUV</option>
+                            <option value="Truck">Truck</option>
+                            <option value="Van">Van</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Parking Zone</label>
+                        <input type="text" id="book-zone-name" readonly class="w-full mt-1 bg-slate-100 border border-slate-200 rounded-xl py-2.5 px-4 text-sm text-slate-500 outline-none cursor-not-allowed" placeholder="Auto">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Slot Number</label>
+                        <input type="text" id="book-slot" readonly class="w-full mt-1 bg-slate-100 border border-slate-200 rounded-xl py-2.5 px-4 text-sm text-slate-500 outline-none cursor-not-allowed" placeholder="Auto Assigned">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Date *</label>
+                        <input type="date" id="book-date" required class="w-full mt-1 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Entry Time *</label>
+                        <input type="time" id="book-time" required class="w-full mt-1 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm outline-none transition-all">
+                    </div>
+                </div>
+
+                <!-- Fixed Duration (shown when type = fixed) -->
+                <div id="fixed-duration-group" class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Duration (hrs) *</label>
+                        <input type="number" id="book-duration" min="1" max="24" value="1" class="w-full mt-1 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm outline-none transition-all" onchange="updateEstimatedCost()">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Payment *</label>
+                        <select id="book-payment" required class="w-full mt-1 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm outline-none transition-all">
+                            <option value="bKash">bKash</option>
+                            <option value="Nagad">Nagad</option>
+                            <option value="Visa Card">Visa Card</option>
+                            <option value="Cash">Cash</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Fixed Cost Display -->
+                <div id="fixed-cost-display" class="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center justify-between">
+                    <span class="text-xs font-semibold text-blue-700">Fixed Estimated Total:</span>
+                    <span class="text-lg font-extrabold text-blue-700" id="estimated-cost">&#x9F3;0.00</span>
+                </div>
+
+                <!-- Meter Display (shown when type = meter) -->
+                <div id="meter-display">
+                    <div class="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-emerald-700 uppercase tracking-wider">
+                                <i class="fa-solid fa-gauge-high mr-1"></i> Live Meter
+                            </span>
+                            <span class="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-bold animate-pulse">LIVE</span>
+                        </div>
+                        <div class="text-center" id="meter-counter">
+                            <span class="text-3xl font-black text-emerald-700 font-mono" id="meter-amount">&#x9F3;0.00</span>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-emerald-600 font-semibold mt-1">
+                            <span id="meter-rate-label">Rate: &#x9F3;0.00/hr</span>
+                            <span id="meter-per-sec">&#x9F3;0.0000/sec</span>
+                        </div>
+                        <div class="mt-2 pt-2 border-t border-emerald-200 flex justify-between text-[10px] text-emerald-600">
+                            <span id="meter-elapsed">Elapsed: 0s</span>
+                            <span id="meter-pay-note">Pay on exit</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider mt-3 block">Payment Method (on exit) *</label>
+                        <select id="book-payment-meter" class="w-full mt-1 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl py-2.5 px-4 text-sm outline-none transition-all">
+                            <option value="bKash">bKash</option>
+                            <option value="Nagad">Nagad</option>
+                            <option value="Visa Card">Visa Card</option>
+                            <option value="Cash">Cash</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 border-t border-slate-100 pt-4">
+                    <button type="button" onclick="closeBookingModal()" class="px-5 py-2.5 text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/20 transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-check-circle"></i> Confirm Booking
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===================== TOAST CONTAINER ===================== -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
+
+    <!-- ===================== JAVASCRIPT ===================== -->
+    <script>
+        // ============================================================
+        // DATA
+        // ============================================================
+        const zonesData = {
+            'Zone-A': { id: 'Zone-A', name: 'Zone A', location: 'Ground Floor, Main Building', spots: 50, occupied: 27, free: 23, rate: 3.50, type: 'Covered', status: 'Active', lat: 23.79400, lng: 90.40400 },
+            'Zone-B': { id: 'Zone-B', name: 'Zone B', location: 'Rooftop Level 5', spots: 80, occupied: 45, free: 35, rate: 2.00, type: 'Rooftop', status: 'Active', lat: 23.81500, lng: 90.40100 },
+            'Zone-C': { id: 'Zone-C', name: 'Zone C', location: 'Underground Parking, B1', spots: 120, occupied: 98, free: 22, rate: 5.00, type: 'Underground', status: 'Active', lat: 23.80700, lng: 90.40600 },
+            'Zone-D': { id: 'Zone-D', name: 'Zone D', location: 'Open Lot, East Wing', spots: 30, occupied: 12, free: 18, rate: 1.50, type: 'Open Air', status: 'Active', lat: 23.81200, lng: 90.41500 },
+            'Zone-E': { id: 'Zone-E', name: 'Zone E', location: 'West Annex', spots: 40, occupied: 0, free: 40, rate: 2.50, type: 'Covered', status: 'Maintenance', lat: 23.80100, lng: 90.39500 }
+        };
+        let sessions = [];
+        let history = [];
+        let nextBookingId = 1000;
+        let nextHistoryId = 2000;
+        let map = null;
+        let markers = [];
+
+        // Meter state variables
+        let meterInterval = null;
+        let meterStartTime = null;
+        let meterElapsedSeconds = 0;
+        let currentMeterRate = 0;
+
+        // ============================================================
+        // INIT
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            var today = new Date().toISOString().split('T')[0];
+            document.getElementById('book-date').value = today;
+            document.getElementById('book-time').value = new Date().toTimeString().slice(0,5);
+            loadData();
+            renderZones();
+            initMap();
+            document.getElementById('zone-count-label').textContent = Object.keys(zonesData).length + ' zones';
+            // Add resize listener for map
+            window.addEventListener('resize', function() {
+                if (map) setTimeout(function() { map.invalidateSize(); }, 100);
+            });
+        });
+
+        // ============================================================
+        // REFRESH
+        // ============================================================
+        function refreshData() {
+            renderZones();
+            if (map) map.invalidateSize();
+            showToast('info', 'Data refreshed!');
+        }
+
+        // ============================================================
+        // LOCAL STORAGE (shared across all 3 pages)
+        // ============================================================
+        function loadData() {
+            try {
+                var saved = localStorage.getItem('customerParkingData');
+                if (saved) {
+                    var d = JSON.parse(saved);
+                    sessions = d.sessions || [];
+                    history = d.history || [];
+                    nextBookingId = d.nextId || 1000;
+                    nextHistoryId = d.nextHistId || 2000;
+                    // Sync zone occupancy from sessions
+                    syncZoneOccupancy();
+                }
+            } catch(e) {}
+        }
+        function saveData() {
+            localStorage.setItem('customerParkingData', JSON.stringify({
+                sessions: sessions,
+                history: history,
+                nextId: nextBookingId,
+                nextHistId: nextHistoryId
+            }));
+        }
+
+        function syncZoneOccupancy() {
+            // Reset occupancy
+            Object.values(zonesData).forEach(function(z) { z.occupied = 0; });
+            // Count active sessions per zone
+            sessions.forEach(function(s) {
+                if (s.status === 'Active') {
+                    var zone = Object.values(zonesData).find(function(z) { return z.name === s.zone; });
+                    if (zone) zone.occupied = (zone.occupied || 0) + 1;
+                }
+            });
+            // Recalculate free
+            Object.values(zonesData).forEach(function(z) {
+                z.free = Math.max(0, z.spots - z.occupied);
+            });
+        }
+
+        // ============================================================
+        // MAP
+        // ============================================================
+        function initMap() {
+            var el = document.getElementById('customer-map');
+            if (!el) return;
+            var zones = Object.values(zonesData);
+            var clat = zones.reduce(function(s,z) { return s+z.lat; }, 0) / zones.length;
+            var clng = zones.reduce(function(s,z) { return s+z.lng; }, 0) / zones.length;
+
+            // Check if Leaflet is available
+            if (typeof L === 'undefined') {
+                document.getElementById('map-loading').style.display = 'none';
+                document.getElementById('map-error').style.display = 'flex';
+                return;
+            }
+
+            map = L.map('customer-map', { scrollWheelZoom: true }).setView([clat, clng], 13);
+
+            var tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OSM',
+                maxZoom: 19,
+                errorTileUrl: ''
+            }).addTo(map);
+
+            // Hide loading when tiles start loading
+            map.on('load', function() {
+                var loadingEl = document.getElementById('map-loading');
+                if (loadingEl) loadingEl.classList.add('loaded');
+            });
+
+            // Handle tile errors
+            tileLayer.on('tileerror', function() {
+                var loadingEl = document.getElementById('map-loading');
+                if (loadingEl) loadingEl.classList.add('loaded');
+                // Show error after timeout if tiles still failing
+                setTimeout(function() {
+                    if (map && document.querySelectorAll('.leaflet-tile-loaded').length === 0) {
+                        document.getElementById('map-error').style.display = 'flex';
+                    }
+                }, 5000);
+            });
+
+            // Also hide loading after a timeout regardless
+            setTimeout(function() {
+                var loadingEl = document.getElementById('map-loading');
+                if (loadingEl) loadingEl.classList.add('loaded');
+            }, 3000);
+
+            addMarkers();
+            setTimeout(function() { map.invalidateSize(); }, 300);
+        }
+
+        function addMarkers() {
+            if (!map) return;
+            markers.forEach(function(m) { map.removeLayer(m); });
+            markers = [];
+            Object.values(zonesData).forEach(function(z) {
+                var color = z.status === 'Active' ? '#2563EB' : (z.status === 'Maintenance' ? '#F59E0B' : '#EF4444');
+                var icon = L.divIcon({
+                    html: '<div style="background:' + color + ';width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);font-size:12px;color:white;font-weight:bold;">' + z.name.replace('Zone ','') + '</div>',
+                    iconSize: [30,30], iconAnchor: [15,15], className: ''
+                });
+                var m = L.marker([z.lat, z.lng], { icon: icon });
+                var popupHtml = '<div style="font-family:Poppins,sans-serif;min-width:200px;">' +
+                    '<h4 style="font-size:15px;font-weight:700;margin:0 0 4px;color:#1e293b;">' + z.name + '</h4>' +
+                    '<p style="font-size:11px;color:#64748b;margin:0 0 8px;">' + z.location + '</p>' +
+                    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">' +
+                    '<span>Total: <strong>' + z.spots + '</strong></span>' +
+                    '<span>Free: <strong style="color:#22c55e;">' + z.free + '</strong></span>' +
+                    '<span>Occupied: <strong style="color:#ef4444;">' + z.occupied + '</strong></span></div>' +
+                    '<p style="font-size:12px;color:#475569;margin:0 0 8px;">Fee: <strong>&#x9F3;' + z.rate.toFixed(2) + '/hr</strong></p>' +
+                    '<button onclick="openBookingModal(\'' + z.id + '\')" style="width:100%;padding:8px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Book Now</button></div>';
+                m.bindPopup(popupHtml, { maxWidth: 280, className: '' });
+                m.on('click', function() { map.setView([z.lat, z.lng], 16, { animate: true }); });
+                markers.push(m);
+            });
+        }
+
+        // ============================================================
+        // ZONE CARDS
+        // ============================================================
+        function renderZones() {
+            var grid = document.getElementById('customer-zones-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            Object.values(zonesData).forEach(function(z) {
+                var pct = z.spots > 0 ? Math.round((z.occupied / z.spots) * 100) : 0;
+                var isActive = z.status === 'Active';
+                var statusColor = isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : (z.status === 'Maintenance' ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-red-50 text-red-600 border-red-200');
+                var barColor = isActive ? 'bg-blue-600' : 'bg-slate-300';
+                var opacityClass = !isActive ? 'opacity-70' : '';
+                var btnClass = isActive ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 hover:bg-blue-500' : 'bg-slate-200 text-slate-400 cursor-not-allowed';
+                var btnOnClick = isActive ? "openBookingModal('" + z.id + "')" : "showToast('error','This zone is currently unavailable.')";
+                var btnText = isActive ? '<i class="fa-solid fa-calendar-check mr-1.5"></i>Book Slot' : 'Unavailable';
+                grid.innerHTML += '<div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between ' + opacityClass + '">' +
+                    '<div><div class="flex justify-between items-start mb-1"><h4 class="text-base font-bold text-slate-900">' + z.name + '</h4><span class="px-2 py-0.5 text-[9px] font-bold border rounded-full uppercase ' + statusColor + '">' + z.status + '</span></div>' +
+                    '<p class="text-[10px] text-slate-400 mb-3">' + z.location + '</p>' +
+                    '<div class="space-y-1 mb-3"><div class="flex justify-between text-[11px] font-semibold"><span class="text-slate-400">Occupancy</span><span class="text-slate-700">' + z.occupied + ' / ' + z.spots + '</span></div>' +
+                    '<div class="w-full bg-slate-100 rounded-full h-2"><div class="' + barColor + ' h-2 rounded-full progress-bar" style="width:' + pct + '%"></div></div></div>' +
+                    '<div class="flex items-center justify-between text-xs mb-3"><span class="font-bold text-slate-700">&#x9F3;' + z.rate.toFixed(2) + '<span class="font-normal text-slate-400">/hr</span></span><span class="font-semibold text-emerald-600">' + z.free + ' Slots Free</span></div></div>' +
+                    '<button onclick="' + btnOnClick + '" class="w-full py-2.5 text-xs font-bold rounded-xl transition-all duration-300 ' + btnClass + '">' + btnText + '</button></div>';
+            });
+        }
+
+        // ============================================================
+        // BOOKING TYPE TOGGLE
+        // ============================================================
+        function setBookingType(type) {
+            document.getElementById('book-booking-type').value = type;
+            var btnFixed = document.getElementById('btn-type-fixed');
+            var btnMeter = document.getElementById('btn-type-meter');
+            var fixedGroup = document.getElementById('fixed-duration-group');
+            var fixedCost = document.getElementById('fixed-cost-display');
+            var meterDisplay = document.getElementById('meter-display');
+
+            if (type === 'fixed') {
+                btnFixed.className = 'booking-type-btn active-fixed';
+                btnMeter.className = 'booking-type-btn inactive';
+                fixedGroup.style.display = 'grid';
+                fixedCost.style.display = 'flex';
+                meterDisplay.style.display = 'none';
+                document.getElementById('book-duration').setAttribute('required', 'required');
+                document.getElementById('book-payment').setAttribute('required', 'required');
+                document.getElementById('book-payment-meter').removeAttribute('required');
+                stopMeter();
+            } else {
+                btnFixed.className = 'booking-type-btn inactive';
+                btnMeter.className = 'booking-type-btn active-meter';
+                fixedGroup.style.display = 'none';
+                fixedCost.style.display = 'none';
+                meterDisplay.style.display = 'block';
+                document.getElementById('book-duration').removeAttribute('required');
+                document.getElementById('book-payment').removeAttribute('required');
+                document.getElementById('book-payment-meter').setAttribute('required', 'required');
+                startMeter();
+            }
+        }
+
+        // ============================================================
+        // LIVE METER
+        // ============================================================
+        function startMeter() {
+            var zoneId = document.getElementById('book-zone-id').value;
+            var z = zonesData[zoneId];
+            if (!z) return;
+
+            currentMeterRate = z.rate;
+            var perSec = currentMeterRate / 3600;
+            document.getElementById('meter-rate-label').textContent = 'Rate: \u09F3' + currentMeterRate.toFixed(2) + '/hr';
+            document.getElementById('meter-per-sec').textContent = '\u09F3' + perSec.toFixed(6) + '/sec';
+
+            meterElapsedSeconds = 0;
+            meterStartTime = Date.now();
+            updateMeterDisplay();
+
+            if (meterInterval) clearInterval(meterInterval);
+            meterInterval = setInterval(function() {
+                meterElapsedSeconds = Math.floor((Date.now() - meterStartTime) / 1000);
+                updateMeterDisplay();
+            }, 1000);
+        }
+
+        function stopMeter() {
+            if (meterInterval) {
+                clearInterval(meterInterval);
+                meterInterval = null;
+            }
+            meterElapsedSeconds = 0;
+            meterStartTime = null;
+            document.getElementById('meter-amount').textContent = '\u09F30.00';
+            document.getElementById('meter-elapsed').textContent = 'Elapsed: 0s';
+        }
+
+        function updateMeterDisplay() {
+            var cost = (currentMeterRate / 3600) * meterElapsedSeconds;
+            document.getElementById('meter-amount').textContent = '\u09F3' + cost.toFixed(2);
+            var hrs = Math.floor(meterElapsedSeconds / 3600);
+            var mins = Math.floor((meterElapsedSeconds % 3600) / 60);
+            var secs = meterElapsedSeconds % 60;
+            var elapsedStr = '';
+            if (hrs > 0) elapsedStr += hrs + 'h ';
+            if (mins > 0) elapsedStr += mins + 'm ';
+            elapsedStr += secs + 's';
+            document.getElementById('meter-elapsed').textContent = 'Elapsed: ' + elapsedStr;
+        }
+
+        // ============================================================
+        // BOOKING MODAL
+        // ============================================================
+        function openBookingModal(zoneId) {
+            var z = zonesData[zoneId];
+            if (!z) return;
+            if (z.status !== 'Active') { showToast('error', z.name + ' is currently ' + z.status + '. Please choose another zone.'); return; }
+            document.getElementById('book-zone-id').value = z.id;
+            document.getElementById('book-zone-name').value = z.name;
+            document.getElementById('book-slot').value = z.name + '-' + String(z.free).padStart(2,'0');
+            // Reset to fixed by default
+            setBookingType('fixed');
+            updateEstimatedCost();
+            var modal = document.getElementById('booking-modal');
+            var card = document.getElementById('booking-modal-card');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            card.classList.remove('scale-95');
+            card.classList.add('scale-100');
+        }
+
+        function closeBookingModal() {
+            stopMeter();
+            var modal = document.getElementById('booking-modal');
+            var card = document.getElementById('booking-modal-card');
+            card.classList.remove('scale-100');
+            card.classList.add('scale-95');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+        }
+
+        function updateEstimatedCost() {
+            var zoneId = document.getElementById('book-zone-id').value;
+            var z = zonesData[zoneId];
+            var hrs = parseInt(document.getElementById('book-duration').value) || 1;
+            if (z) {
+                document.getElementById('estimated-cost').textContent = '\u09F3' + (z.rate * hrs).toFixed(2);
+            }
+        }
+
+        function confirmBooking(e) {
+            e.preventDefault();
+            var zoneId = document.getElementById('book-zone-id').value;
+            var z = zonesData[zoneId];
+            if (!z) return;
+            if (z.free <= 0) { showToast('error', 'Sorry, no slots available in ' + z.name + '.'); return; }
+
+            var bookingType = document.getElementById('book-booking-type').value;
+            var booking;
+
+            if (bookingType === 'meter') {
+                // Meter booking - cost will be calculated on exit
+                var meterCost = (currentMeterRate / 3600) * meterElapsedSeconds;
+                var estimatedMeterCost = meterCost > 0.01 ? meterCost : currentMeterRate * 0.01; // min charge
+                booking = {
+                    id: nextBookingId++,
+                    name: document.getElementById('book-name').value,
+                    vehicle: document.getElementById('book-vehicle').value,
+                    vehicleType: document.getElementById('book-vehicle-type').value,
+                    zone: z.name,
+                    zoneId: z.id,
+                    slot: document.getElementById('book-slot').value,
+                    date: document.getElementById('book-date').value,
+                    entryTime: document.getElementById('book-time').value,
+                    duration: 'Metered',
+                    durationHours: 0,
+                    payment: document.getElementById('book-payment-meter').value,
+                    cost: estimatedMeterCost,
+                    bookingType: 'meter',
+                    meterRate: currentMeterRate,
+                    meterSeconds: meterElapsedSeconds,
+                    status: 'Active',
+                    createdAt: new Date().toISOString()
+                };
+                stopMeter();
+            } else {
+                // Fixed duration booking (original)
+                var duration = parseInt(document.getElementById('book-duration').value) || 1;
+                booking = {
+                    id: nextBookingId++,
+                    name: document.getElementById('book-name').value,
+                    vehicle: document.getElementById('book-vehicle').value,
+                    vehicleType: document.getElementById('book-vehicle-type').value,
+                    zone: z.name,
+                    zoneId: z.id,
+                    slot: document.getElementById('book-slot').value,
+                    date: document.getElementById('book-date').value,
+                    entryTime: document.getElementById('book-time').value,
+                    duration: duration,
+                    durationHours: duration,
+                    payment: document.getElementById('book-payment').value,
+                    cost: z.rate * duration,
+                    bookingType: 'fixed',
+                    status: 'Active',
+                    createdAt: new Date().toISOString()
+                };
+            }
+
+            sessions.push(booking);
+            z.occupied += 1;
+            z.free = Math.max(0, z.spots - z.occupied);
+            saveData();
+            renderZones();
+            addMarkers();
+            closeBookingModal();
+            document.getElementById('booking-form').reset();
+            document.getElementById('book-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('book-time').value = new Date().toTimeString().slice(0,5);
+            setBookingType('fixed');
+
+            if (bookingType === 'meter') {
+                showToast('success', 'Metered session started! Slot ' + booking.slot + ' for ' + booking.name + '. Pay on exit.');
+            } else {
+                showToast('success', 'Booking confirmed! Slot ' + booking.slot + ' reserved for ' + booking.name + '.');
+            }
+        }
+
+        // ============================================================
+        // MAP RETRY
+        // ============================================================
+        function retryMap() {
+            var errorEl = document.getElementById('map-error');
+            var loadingEl = document.getElementById('map-loading');
+            errorEl.style.display = 'none';
+            loadingEl.classList.remove('loaded');
+            loadingEl.style.display = 'flex';
+            // Destroy and reinitialize map
+            if (map) {
+                map.remove();
+                map = null;
+                markers = [];
+            }
+            setTimeout(function() { initMap(); }, 500);
+        }
+
+        // ============================================================
+        // TOAST
+        // ============================================================
+        function showToast(type, message) {
+            var container = document.getElementById('toast-container');
+            if (!container) return;
+            var toast = document.createElement('div');
+            var borderClass = 'border-blue-500/30';
+            var iconClass = 'fa-solid fa-circle-info text-blue-400';
+            if (type === 'success') { borderClass = 'border-emerald-500/30'; iconClass = 'fa-solid fa-circle-check text-emerald-400'; }
+            else if (type === 'error') { borderClass = 'border-red-500/30'; iconClass = 'fa-solid fa-circle-exclamation text-red-400'; }
+            toast.className = 'flex items-center gap-3 p-4 rounded-xl border ' + borderClass + ' bg-slate-900/95 shadow-2xl pointer-events-auto max-w-sm w-full transition-all duration-300 transform translate-y-2 opacity-0';
+            toast.innerHTML = '<div class="flex-shrink-0 text-lg"><i class="' + iconClass + '"></i></div><div class="flex-grow"><p class="text-xs font-semibold text-slate-200">' + message + '</p></div><button class="text-slate-500 hover:text-slate-300 transition-colors" onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark text-xs"></i></button>';
+            container.appendChild(toast);
+            setTimeout(function() { toast.classList.remove('translate-y-2', 'opacity-0'); }, 50);
+            setTimeout(function() { toast.classList.add('opacity-0', 'translate-y-2'); setTimeout(function() { toast.remove(); }, 300); }, 4000);
+        }
+    </script>
+</body>
+</html>
+

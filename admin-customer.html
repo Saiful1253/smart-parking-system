@@ -10,16 +10,28 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts (Poppins) -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Leaflet Map CDN -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        body {
-            font-family: 'Poppins', sans-serif;
-        }
+        body { font-family: 'Poppins', sans-serif; }
+        #customer-map { height: 400px; border-radius: 1rem; z-index: 10; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Leaflet Marker Cluster Fix */
+        .leaflet-popup-content-wrapper { border-radius: 12px !important; font-family: 'Poppins', sans-serif !important; }
+        .leaflet-popup-content { margin: 12px 16px !important; font-size: 13px !important; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 h-screen flex overflow-hidden">
 
-    <!-- Sidebar (Left) -->
-    <aside class="w-64 bg-slate-950 text-slate-400 flex flex-col justify-between flex-shrink-0 border-r border-slate-800 z-20 transition-all duration-300 md:translate-x-0 -translate-x-full fixed md:relative h-screen" id="sidebar">
+    <!-- =================== LEFT SIDEBAR (Admin Nav) =================== -->
+    <aside class="w-64 bg-slate-950 text-slate-400 flex flex-col justify-between flex-shrink-0 border-r border-slate-800 z-30 transition-all duration-300 md:translate-x-0 -translate-x-full fixed md:relative h-screen" id="sidebar">
         <div>
             <!-- Brand Logo -->
             <div class="p-6 flex items-center gap-3 border-b border-slate-900">
@@ -77,55 +89,1131 @@
             </a>
         </div>
     </aside>
-    <!-- Main Content Area -->
+
+    <!-- =================== MIDDLE SIDEBAR (Customer Nav) =================== -->
+    <aside class="w-64 bg-white border-r border-slate-200 flex flex-col justify-between flex-shrink-0 z-20 transition-all duration-300 md:translate-x-0 -translate-x-full fixed md:relative h-screen top-0 left-64" id="customer-sidebar">
+        <div>
+            <!-- Customer Header -->
+            <div class="p-6 flex items-center gap-3 border-b border-slate-200">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                    <i class="fa-solid fa-user text-white text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-slate-900 tracking-wider">Customer</h1>
+                    <p class="text-[10px] text-slate-500 font-semibold tracking-widest uppercase">Parking Portal</p>
+                </div>
+            </div>
+
+            <!-- Customer Navigation Menu -->
+            <nav class="p-4 space-y-1.5">
+                <button onclick="switchCustomerView('book-parking', this)" class="customer-nav-item flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-500/20 transition-all duration-300 w-full text-left" data-view="book-parking">
+                    <i class="fa-solid fa-calendar-check text-lg"></i>
+                    <span>Book Parking</span>
+                </button>
+                <button onclick="switchCustomerView('my-sessions', this)" class="customer-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-100 hover:text-slate-700 transition-all duration-300 w-full text-left text-slate-500" data-view="my-sessions">
+                    <i class="fa-solid fa-car-side text-lg"></i>
+                    <span>My Sessions</span>
+                </button>
+                <button onclick="switchCustomerView('my-history', this)" class="customer-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-100 hover:text-slate-700 transition-all duration-300 w-full text-left text-slate-500" data-view="my-history">
+                    <i class="fa-solid fa-clock-rotate-left text-lg"></i>
+                    <span>My History</span>
+                </button>
+            </nav>
+        </div>
+
+        <!-- Bottom Sign Out -->
+        <div class="p-4 border-t border-slate-200">
+            <a href="index.html" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-red-50 hover:text-red-500 text-slate-500 transition-all duration-300">
+                <i class="fa-solid fa-right-from-bracket text-lg"></i>
+                <span>Sign Out</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- =================== MAIN CONTENT AREA =================== -->
     <main class="flex-grow flex flex-col overflow-y-auto h-screen relative">
         
         <!-- Top Header -->
         <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
             <div class="flex items-center gap-3">
                 <!-- Mobile Menu Toggle -->
-                <button onclick="toggleSidebar()" class="md:hidden text-slate-600 hover:text-slate-900 text-xl">
+                <button onclick="toggleLeftSidebar()" class="md:hidden text-slate-600 hover:text-slate-900 text-xl">
                     <i class="fa-solid fa-bars"></i>
                 </button>
+                <button onclick="toggleCustomerSidebar()" class="lg:hidden text-slate-600 hover:text-slate-900 text-xl ml-2">
+                    <i class="fa-solid fa-user"></i>
+                </button>
                 <div>
-                    <h2 class="text-2xl font-bold text-slate-900">Customer View</h2>
-                    <p class="text-xs text-slate-500">Simulate the customer-facing mobile app or booking portal</p>
+                    <h2 class="text-2xl font-bold text-slate-900" id="customer-page-title">Find Parking</h2>
+                    <p class="text-xs text-slate-500" id="customer-page-subtitle">Click a parking zone to book your parking slot.</p>
                 </div>
             </div>
 
-            <!-- Admin Profile / Quick Actions -->
+            <!-- Profile / Quick Actions -->
             <div class="flex items-center gap-4">
-                <button onclick="showToast('success', 'Customer view refreshed!');" class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors" title="Refresh Data">
+                <button onclick="refreshCustomerData()" class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors" title="Refresh Data">
                     <i class="fa-solid fa-rotate"></i>
                 </button>
                 <div class="flex items-center gap-3 border-l border-slate-200 pl-4">
                     <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
-                        AD
+                        CU
                     </div>
                     <div class="hidden sm:block">
-                        <p class="text-sm font-semibold text-slate-800">Admin User</p>
-                        <p class="text-[10px] text-slate-500 font-medium">System Administrator</p>
+                        <p class="text-sm font-semibold text-slate-800">Customer User</p>
+                        <p class="text-[10px] text-slate-500 font-medium">Parking Portal</p>
                     </div>
                 </div>
             </div>
         </header>
 
-        <!-- Customer View -->
-        <div class="p-6 space-y-6">
-            <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
-                <h3 class="text-lg font-bold text-slate-900 mb-2">Customer View</h3>
-                <p class="text-sm text-slate-500 mb-6">Simulate the customer-facing mobile app or booking portal.</p>
-                <a href="index.html" class="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/20 transition-all duration-300">
-                    <i class="fa-solid fa-arrow-left"></i> Go to Customer Login
-                </a>
+        <!-- ===================== VIEW 1: BOOK PARKING ===================== -->
+        <div id="view-book-parking" class="p-6 space-y-6 customer-view">
+            
+            <!-- Parking Status Legend -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-wrap items-center gap-6">
+                <span class="text-sm font-semibold text-slate-700">Parking Status Legend:</span>
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+                    <span class="text-xs text-slate-600">Active</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-orange-500"></span>
+                    <span class="text-xs text-slate-600">Maintenance</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-red-500"></span>
+                    <span class="text-xs text-slate-600">Closed</span>
+                </div>
+            </div>
+
+            <!-- Live Parking Map -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <i class="fa-solid fa-map-location-dot text-blue-600"></i> Live Parking Map
+                    </h3>
+                    <span class="text-xs bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full font-semibold border border-emerald-200 flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> Live
+                    </span>
+                </div>
+                <div id="customer-map"></div>
+            </div>
+
+            <!-- Parking Zone Cards -->
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-base font-bold text-slate-900">Available Parking Zones</h3>
+                    <span class="text-xs text-slate-400" id="zone-count-label">5 zones</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4" id="customer-zones-grid">
+                    <!-- Dynamically rendered by JS -->
+                </div>
             </div>
         </div>
+
+        <!-- ===================== VIEW 2: MY SESSIONS ===================== -->
+        <div id="view-my-sessions" class="p-6 space-y-6 customer-view hidden">
+            <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">My Active Sessions</h3>
+                        <p class="text-xs text-slate-500">View and manage your active parking sessions</p>
+                    </div>
+                    <span class="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full font-semibold border border-blue-200" id="my-sessions-count">
+                        0 Active
+                    </span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-200 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                                <th class="pb-3 px-2">Booking ID</th>
+                                <th class="pb-3 px-2">Zone</th>
+                                <th class="pb-3 px-2">Slot</th>
+                                <th class="pb-3 px-2">Entry Time</th>
+                                <th class="pb-3 px-2">Duration</th>
+                                <th class="pb-3 px-2">Cost</th>
+                                <th class="pb-3 px-2">Status</th>
+                                <th class="pb-3 px-2 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="my-sessions-table-body" class="text-xs text-slate-700 font-medium">
+                            <!-- Dynamic rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== VIEW 3: MY HISTORY ===================== -->
+        <div id="view-my-history" class="p-6 space-y-6 customer-view hidden">
+            <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">My Parking History</h3>
+                        <p class="text-xs text-slate-500">View all your completed parking sessions</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="flex items-center gap-2">
+                            <input type="date" id="my-history-from" class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 outline-none focus:border-blue-500" onchange="filterMyHistory()">
+                            <span class="text-xs text-slate-400">to</span>
+                            <input type="date" id="my-history-to" class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 outline-none focus:border-blue-500" onchange="filterMyHistory()">
+                        </div>
+                        <button onclick="exportMyHistoryPDF()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors border border-blue-200">
+                            <i class="fa-solid fa-file-pdf"></i> PDF
+                        </button>
+                        <button onclick="exportMyHistoryCSV()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg transition-colors border border-emerald-200">
+                            <i class="fa-solid fa-file-csv"></i> CSV
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-200 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                                <th class="pb-3 px-2">Booking ID</th>
+                                <th class="pb-3 px-2">Zone</th>
+                                <th class="pb-3 px-2">Date</th>
+                                <th class="pb-3 px-2">Entry Time</th>
+                                <th class="pb-3 px-2">Exit Time</th>
+                                <th class="pb-3 px-2">Duration</th>
+                                <th class="pb-3 px-2">Total Cost</th>
+                                <th class="pb-3 px-2">Payment</th>
+                            </tr>
+                        </thead>
+                        <tbody id="my-history-table-body" class="text-xs text-slate-700 font-medium">
+                            <!-- Dynamic rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </main>
 
-    <!-- TOAST NOTIFICATION CONTAINER -->
+    <!-- =================== BOOKING MODAL =================== -->
+    <div id="booking-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl transform scale-95 transition-all duration-300 overflow-y-auto max-h-[90vh]" id="booking-modal-card">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-4">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                        <i class="fa-solid fa-calendar-check"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900" id="booking-modal-title">Book Parking Slot</h3>
+                        <p class="text-[10px] text-slate-500">Complete the form to reserve your spot</p>
+                    </div>
+                </div>
+                <button onclick="closeBookingModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <!-- Modal Form -->
+            <form id="booking-form" onsubmit="confirmBooking(event)" class="space-y-4">
+                <!-- Customer Name -->
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Customer Name *</label>
+                    <input type="text" id="book-name" required class="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300" placeholder="Enter your full name">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Vehicle Number -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Vehicle Number *</label>
+                        <input type="text" id="book-vehicle" required class="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300" placeholder="ABC-1234">
+                    </div>
+                    <!-- Vehicle Type -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Vehicle Type *</label>
+                        <select id="book-vehicle-type" required class="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm text-slate-700 outline-none transition-all duration-300">
+                            <option value="Car">Car</option>
+                            <option value="Motorcycle">Motorcycle</option>
+                            <option value="SUV">SUV</option>
+                            <option value="Truck">Truck</option>
+                            <option value="Van">Van</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Parking Zone -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Parking Zone *</label>
+                        <select id="book-zone" required class="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm text-slate-700 outline-none transition-all duration-300" onchange="autoAssignSlot()">
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
+                    <!-- Slot Number (Auto Assigned) -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Slot Number</label>
+                        <input type="text" id="book-slot" readonly class="w-full bg-slate-100 border border-slate-200 rounded-xl py-2.5 px-4 text-sm text-slate-500 outline-none cursor-not-allowed" placeholder="Auto Assigned">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Date -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Date *</label>
+                        <input type="date" id="book-date" required class="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm text-slate-800 outline-none transition-all duration-300">
+                    </div>
+                    <!-- Entry Time -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Entry Time *</label>
+                        <input type="time" id="book-time" required class="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm text-slate-800 outline-none transition-all duration-300">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Duration -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Duration (hours) *</label>
+                        <input type="number" id="book-duration" required min="1" max="24" class="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm text-slate-800 outline-none transition-all duration-300" placeholder="e.g. 2" onchange="updateEstimatedCost()">
+                    </div>
+                    <!-- Payment Method -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Payment Method *</label>
+                        <select id="book-payment" required class="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm text-slate-700 outline-none transition-all duration-300">
+                            <option value="bKash">bKash</option>
+                            <option value="Nagad">Nagad</option>
+                            <option value="Visa Card">Visa Card</option>
+                            <option value="Cash">Cash</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Estimated Cost Display -->
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center justify-between">
+                    <span class="text-xs font-semibold text-blue-700">Estimated Total Cost:</span>
+                    <span class="text-lg font-extrabold text-blue-700" id="estimated-cost">৳0.00</span>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex justify-end gap-3 border-t border-slate-100 pt-4 mt-5">
+                    <button type="button" onclick="closeBookingModal()" class="px-5 py-2.5 text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-5 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/20 transition-all duration-300 flex items-center gap-2">
+                        <i class="fa-solid fa-check-circle"></i> Confirm Booking
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- =================== TOAST NOTIFICATION CONTAINER =================== -->
     <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
 
-    <!-- JavaScript -->
-    <script src="admin.js"></script>
+    <!-- =================== JAVASCRIPT =================== -->
+    <script>
+        // ============================================================
+        // CUSTOMER VIEW DATA
+        // ============================================================
+
+        // Zones data (synced with admin.js zonesData)
+        const customerZonesData = {
+            'Zone-C': { id: 'Zone-C', name: 'Zone C', location: 'Underground Parking, B1', spots: 120, occupied: 98, free: 22, rate: 5.00, type: 'Underground', status: 'Active', lat: 23.80700, lng: 90.40600 },
+            'Zone-A': { id: 'Zone-A', name: 'Zone A', location: 'Ground Floor, Main Building', spots: 50, occupied: 27, free: 23, rate: 3.50, type: 'Covered', status: 'Active', lat: 23.79400, lng: 90.40400 },
+            'Zone-D': { id: 'Zone-D', name: 'Zone D', location: 'Open Lot, East Wing', spots: 30, occupied: 12, free: 18, rate: 1.50, type: 'Open Air', status: 'Active', lat: 23.81200, lng: 90.41500 },
+            'Zone-E': { id: 'Zone-E', name: 'Zone E', location: 'West Annex', spots: 40, occupied: 0, free: 40, rate: 2.50, type: 'Covered', status: 'Maintenance', lat: 23.80100, lng: 90.39500 },
+            'Zone-B': { id: 'Zone-B', name: 'Zone B', location: 'Rooftop Level 5', spots: 80, occupied: 45, free: 35, rate: 2.00, type: 'Rooftop', status: 'Active', lat: 23.81500, lng: 90.40100 }
+        };
+
+        // Customer bookings data
+        let customerSessions = [];
+        let customerHistory = [];
+        let nextBookingId = 1000;
+        let nextHistoryId = 2000;
+        let customerMap = null;
+        let customerMarkers = [];
+
+        // ============================================================
+        // INITIALIZATION
+        // ============================================================
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set default date and time in booking form
+            const today = new Date().toISOString().split('T')[0];
+            const now = new Date();
+            const timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('book-date').value = today;
+            document.getElementById('book-time').value = timeStr;
+
+            // Populate zone dropdown
+            populateBookingZones();
+
+            // Render zone cards
+            renderCustomerZones();
+
+            // Initialize map
+            initCustomerMap();
+
+            // Render sessions & history tables
+            renderMySessions();
+            renderMyHistory();
+
+            // Load from localStorage
+            loadCustomerData();
+
+            // Update zone count
+            document.getElementById('zone-count-label').textContent = Object.keys(customerZonesData).length + ' zones';
+        });
+
+        // ============================================================
+        // LOCAL STORAGE PERSISTENCE
+        // ============================================================
+
+        function loadCustomerData() {
+            try {
+                const saved = localStorage.getItem('customerParkingData');
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    customerSessions = data.sessions || [];
+                    customerHistory = data.history || [];
+                    nextBookingId = data.nextId || 1000;
+                    renderMySessions();
+                    renderMyHistory();
+                }
+            } catch(e) {}
+        }
+
+        function saveCustomerData() {
+            try {
+                localStorage.setItem('customerParkingData', JSON.stringify({
+                    sessions: customerSessions,
+                    history: customerHistory,
+                    nextId: nextBookingId
+                }));
+            } catch(e) {}
+        }
+
+        // ============================================================
+        // SIDEBAR TOGGLES
+        // ============================================================
+
+        function toggleLeftSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        }
+
+        function toggleCustomerSidebar() {
+            const sidebar = document.getElementById('customer-sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        }
+
+        // Close sidebars when clicking outside on mobile
+        document.addEventListener('click', (e) => {
+            const sidebar = document.getElementById('sidebar');
+            const cSidebar = document.getElementById('customer-sidebar');
+            const menuBtn = document.querySelector('header button');
+            
+            if (window.innerWidth < 768 && sidebar && !sidebar.contains(e.target) && !e.target.closest('header button:first-child')) {
+                sidebar.classList.add('-translate-x-full');
+            }
+            if (window.innerWidth < 1024 && cSidebar && !cSidebar.contains(e.target) && !e.target.closest('header button:nth-child(2)')) {
+                cSidebar.classList.add('-translate-x-full');
+            }
+        });
+
+        // ============================================================
+        // CUSTOMER VIEW SWITCHING
+        // ============================================================
+
+        function switchCustomerView(viewId, button) {
+            // Update nav buttons
+            document.querySelectorAll('.customer-nav-item').forEach(item => {
+                item.className = 'customer-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-100 hover:text-slate-700 transition-all duration-300 w-full text-left text-slate-500';
+            });
+            if (button) {
+                button.className = 'customer-nav-item flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-500/20 transition-all duration-300 w-full text-left';
+            }
+
+            // Hide all views
+            document.querySelectorAll('.customer-view').forEach(v => v.classList.add('hidden'));
+
+            // Show selected view
+            document.getElementById('view-' + viewId).classList.remove('hidden');
+
+            // Update header
+            const titles = {
+                'book-parking': { title: 'Find Parking', subtitle: 'Click a parking zone to book your parking slot.' },
+                'my-sessions': { title: 'My Sessions', subtitle: 'View and manage your active parking sessions.' },
+                'my-history': { title: 'My History', subtitle: 'View all your completed parking sessions.' }
+            };
+            if (titles[viewId]) {
+                document.getElementById('customer-page-title').textContent = titles[viewId].title;
+                document.getElementById('customer-page-subtitle').textContent = titles[viewId].subtitle;
+            }
+
+            // Close sidebar on mobile
+            if (window.innerWidth < 1024) {
+                document.getElementById('customer-sidebar').classList.add('-translate-x-full');
+            }
+        }
+
+        // ============================================================
+        // MAP FUNCTIONS
+        // ============================================================
+
+        function initCustomerMap() {
+            const mapEl = document.getElementById('customer-map');
+            if (!mapEl) return;
+
+            // Center on all zones average
+            const lats = Object.values(customerZonesData).map(z => z.lat);
+            const lngs = Object.values(customerZonesData).map(z => z.lng);
+            const centerLat = lats.reduce((a, b) => a + b, 0) / lats.length;
+            const centerLng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
+
+            customerMap = L.map('customer-map', {
+                zoomControl: true,
+                scrollWheelZoom: true
+            }).setView([centerLat, centerLng], 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(customerMap);
+
+            // Add markers for each zone
+            addCustomerMapMarkers();
+
+            // Ensure map resizes properly
+            setTimeout(() => customerMap.invalidateSize(), 500);
+        }
+
+        function addCustomerMapMarkers() {
+            if (!customerMap) return;
+
+            // Clear existing markers
+            customerMarkers.forEach(m => customerMap.removeLayer(m));
+            customerMarkers = [];
+
+            Object.values(customerZonesData).forEach(zone => {
+                let markerColor, markerIcon;
+                
+                if (zone.status === 'Active') {
+                    markerColor = '#2563EB'; // Blue
+                    markerIcon = L.divIcon({
+                        className: 'custom-marker',
+                        html: `<div style="background:${markerColor}; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:3px solid white; box-shadow:0 2px 8px rgba(0,0,0,0.3);"><i class="fa-solid fa-p text-white text-xs"></i></div>`,
+                        iconSize: [28, 28],
+                        iconAnchor: [14, 14]
+                    });
+                } else if (zone.status === 'Maintenance') {
+                    markerColor = '#F59E0B'; // Orange
+                    markerIcon = L.divIcon({
+                        className: 'custom-marker',
+                        html: `<div style="background:${markerColor}; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:3px solid white; box-shadow:0 2px 8px rgba(0,0,0,0.3);"><i class="fa-solid fa-tools text-white text-xs"></i></div>`,
+                        iconSize: [28, 28],
+                        iconAnchor: [14, 14]
+                    });
+                } else {
+                    markerColor = '#EF4444'; // Red
+                    markerIcon = L.divIcon({
+                        className: 'custom-marker',
+                        html: `<div style="background:${markerColor}; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:3px solid white; box-shadow:0 2px 8px rgba(0,0,0,0.3);"><i class="fa-solid fa-xmark text-white text-sm"></i></div>`,
+                        iconSize: [28, 28],
+                        iconAnchor: [14, 14]
+                    });
+                }
+
+                const marker = L.marker([zone.lat, zone.lng], { icon: markerIcon }).addTo(customerMap);
+
+                // Popup on click
+                marker.bindPopup(`
+                    <div style="min-width:200px; font-family:'Poppins',sans-serif;">
+                        <h4 style="font-weight:700; font-size:14px; margin:0 0 4px 0; color:#1e293b;">${zone.name}</h4>
+                        <p style="font-size:11px; color:#64748b; margin:0 0 8px 0;">${zone.location}</p>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; font-size:11px; margin-bottom:8px;">
+                            <span style="color:#475569;">Total Slots:</span>
+                            <span style="font-weight:600; color:#0f172a; text-align:right;">${zone.spots}</span>
+                            <span style="color:#475569;">Available:</span>
+                            <span style="font-weight:600; color:#059669; text-align:right;">${zone.free}</span>
+                            <span style="color:#475569;">Occupied:</span>
+                            <span style="font-weight:600; color:#dc2626; text-align:right;">${zone.occupied}</span>
+                            <span style="color:#475569;">Fee:</span>
+                            <span style="font-weight:600; color:#2563eb; text-align:right;">৳${zone.rate.toFixed(2)}/hr</span>
+                        </div>
+                        <button onclick="quickBook('${zone.id}')" style="width:100%; padding:8px 0; background:#2563eb; color:white; border:none; border-radius:8px; font-weight:600; font-size:12px; cursor:pointer; font-family:'Poppins',sans-serif;">
+                            <i class="fa-solid fa-calendar-check"></i> Book Now
+                        </button>
+                    </div>
+                `);
+
+                customerMarkers.push(marker);
+            });
+        }
+
+        // ============================================================
+        // ZONE CARDS
+        // ============================================================
+
+        function renderCustomerZones() {
+            const grid = document.getElementById('customer-zones-grid');
+            if (!grid) return;
+
+            grid.innerHTML = '';
+
+            Object.values(customerZonesData).forEach(zone => {
+                const occupancyPercent = zone.spots > 0 ? Math.round((zone.occupied / zone.spots) * 100) : 0;
+                
+                let statusClass, statusBadgeClass, progressColor, bookBtnDisabled = '';
+                if (zone.status === 'Active') {
+                    statusClass = 'bg-blue-100 text-blue-700 border-blue-200';
+                    statusBadgeClass = 'bg-blue-500';
+                    progressColor = 'bg-blue-600';
+                } else if (zone.status === 'Maintenance') {
+                    statusClass = 'bg-orange-100 text-orange-700 border-orange-200';
+                    statusBadgeClass = 'bg-orange-500';
+                    progressColor = 'bg-orange-500';
+                    bookBtnDisabled = 'opacity-50 cursor-not-allowed';
+                } else {
+                    statusClass = 'bg-red-100 text-red-700 border-red-200';
+                    statusBadgeClass = 'bg-red-500';
+                    progressColor = 'bg-red-500';
+                    bookBtnDisabled = 'opacity-50 cursor-not-allowed';
+                }
+
+                const cardHtml = `
+                    <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start mb-2">
+                                <h4 class="text-base font-bold text-slate-900">${zone.name}</h4>
+                                <span class="px-2 py-0.5 text-[9px] font-bold rounded-full border uppercase tracking-wider ${statusClass}">
+                                    <span class="w-1.5 h-1.5 rounded-full ${statusBadgeClass} inline-block mr-1"></span>
+                                    ${zone.status}
+                                </span>
+                            </div>
+
+                            <!-- Occupancy Progress -->
+                            <div class="space-y-1 mb-3">
+                                <div class="flex justify-between text-xs font-semibold">
+                                    <span class="text-slate-400">Occupancy</span>
+                                    <span class="text-slate-700">${zone.occupied} / ${zone.spots}</span>
+                                </div>
+                                <div class="w-full bg-slate-100 rounded-full h-2">
+                                    <div class="${progressColor} h-2 rounded-full transition-all duration-500" style="width: ${occupancyPercent}%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Info Row -->
+                            <div class="flex items-center justify-between text-xs mb-3">
+                                <span class="text-slate-500 font-medium">Price: <strong class="text-blue-600">৳${zone.rate.toFixed(2)}/hr</strong></span>
+                                <span class="text-emerald-600 font-semibold">${zone.free} Slots Free</span>
+                            </div>
+                        </div>
+
+                        <button onclick="quickBook('${zone.id}')" class="w-full py-2.5 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/20 transition-all duration-300 ${bookBtnDisabled}" ${zone.status !== 'Active' ? 'disabled' : ''}>
+                            <i class="fa-solid fa-calendar-check mr-1"></i> Book Slot
+                        </button>
+                    </div>
+                `;
+                grid.innerHTML += cardHtml;
+            });
+        }
+
+        // ============================================================
+        // BOOKING MODAL
+        // ============================================================
+
+        function populateBookingZones() {
+            const select = document.getElementById('book-zone');
+            if (!select) return;
+            select.innerHTML = '<option value="">Select Zone</option>';
+            Object.values(customerZonesData).forEach(zone => {
+                const option = document.createElement('option');
+                option.value = zone.id;
+                option.textContent = zone.name + ' (৳' + zone.rate.toFixed(2) + '/hr - ' + zone.free + ' free)';
+                if (zone.status !== 'Active') option.disabled = true;
+                select.appendChild(option);
+            });
+        }
+
+        function autoAssignSlot() {
+            const zoneId = document.getElementById('book-zone').value;
+            const slotInput = document.getElementById('book-slot');
+            if (!zoneId) {
+                slotInput.value = '';
+                updateEstimatedCost();
+                return;
+            }
+            const zone = customerZonesData[zoneId];
+            if (!zone) return;
+
+            // Generate a random slot number within range
+            const slotNum = Math.floor(Math.random() * zone.spots) + 1;
+            const prefix = zone.name.split(' ')[1] || 'X';
+            slotInput.value = `${prefix}-${String(slotNum).padStart(2, '0')}`;
+            updateEstimatedCost();
+        }
+
+        function updateEstimatedCost() {
+            const zoneId = document.getElementById('book-zone').value;
+            const duration = parseInt(document.getElementById('book-duration').value) || 0;
+            const costEl = document.getElementById('estimated-cost');
+
+            if (!zoneId || duration <= 0) {
+                costEl.textContent = '৳0.00';
+                return;
+            }
+
+            const zone = customerZonesData[zoneId];
+            if (!zone) return;
+
+            const total = zone.rate * duration;
+            costEl.textContent = '৳' + total.toFixed(2);
+        }
+
+        function quickBook(zoneId) {
+            // Set the zone in the dropdown
+            const zoneSelect = document.getElementById('book-zone');
+            zoneSelect.value = zoneId;
+            autoAssignSlot();
+            updateEstimatedCost();
+
+            openBookingModal();
+        }
+
+        function openBookingModal() {
+            const modal = document.getElementById('booking-modal');
+            const card = document.getElementById('booking-modal-card');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            card.classList.remove('scale-95');
+            card.classList.add('scale-100');
+        }
+
+        function closeBookingModal() {
+            const modal = document.getElementById('booking-modal');
+            const card = document.getElementById('booking-modal-card');
+            card.classList.remove('scale-100');
+            card.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('opacity-0', 'pointer-events-none');
+            }, 150);
+        }
+
+        function confirmBooking(event) {
+            event.preventDefault();
+
+            const name = document.getElementById('book-name').value.trim();
+            const vehicle = document.getElementById('book-vehicle').value.trim();
+            const vehicleType = document.getElementById('book-vehicle-type').value;
+            const zoneId = document.getElementById('book-zone').value;
+            const slot = document.getElementById('book-slot').value;
+            const date = document.getElementById('book-date').value;
+            const time = document.getElementById('book-time').value;
+            const duration = parseInt(document.getElementById('book-duration').value);
+            const payment = document.getElementById('book-payment').value;
+
+            if (!name || !vehicle || !zoneId || !slot || !date || !time || !duration) {
+                showToast('error', 'Please fill in all required fields.');
+                return;
+            }
+
+            const zone = customerZonesData[zoneId];
+            if (!zone) {
+                showToast('error', 'Selected zone not found.');
+                return;
+            }
+
+            // Check if slots are available
+            if (zone.free <= 0) {
+                showToast('error', 'Slot Full! No available spots in ' + zone.name);
+                return;
+            }
+
+            // Calculate cost
+            const totalCost = zone.rate * duration;
+
+            // Create booking
+            const booking = {
+                id: nextBookingId++,
+                customerName: name,
+                vehicle: vehicle,
+                vehicleType: vehicleType,
+                zone: zone.name,
+                zoneId: zoneId,
+                slot: slot,
+                date: date,
+                entryTime: time,
+                duration: duration + 'h',
+                durationHours: duration,
+                cost: totalCost,
+                payment: payment,
+                status: 'Active',
+                createdAt: new Date().toISOString()
+            };
+
+            // Add to sessions
+            customerSessions.push(booking);
+
+            // Update zone occupancy
+            zone.occupied += 1;
+            zone.free = Math.max(0, zone.spots - zone.occupied);
+
+            // Save to localStorage
+            saveCustomerData();
+
+            // Re-render everything
+            renderCustomerZones();
+            renderMySessions();
+            addCustomerMapMarkers();
+
+            // Close modal
+            closeBookingModal();
+
+            // Reset form
+            document.getElementById('booking-form').reset();
+            document.getElementById('estimated-cost').textContent = '৳0.00';
+            document.getElementById('book-slot').value = '';
+            document.getElementById('book-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('book-time').value = new Date().toTimeString().slice(0, 5);
+
+            // Show success toast
+            showToast('success', `Booking successful! Spot ${slot} in ${zone.name} reserved.`);
+        }
+
+        // ============================================================
+        // MY SESSIONS
+        // ============================================================
+
+        function renderMySessions() {
+            const tbody = document.getElementById('my-sessions-table-body');
+            if (!tbody) return;
+
+            const countEl = document.getElementById('my-sessions-count');
+            const activeCount = customerSessions.filter(s => s.status === 'Active').length;
+            if (countEl) countEl.textContent = activeCount + ' Active';
+
+            tbody.innerHTML = '';
+
+            if (customerSessions.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="py-8 text-center text-slate-400">
+                            <i class="fa-solid fa-inbox text-2xl mb-2"></i>
+                            <p class="text-xs font-medium">No active sessions. Book a parking slot to get started!</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            // Show only active sessions
+            const activeSessions = customerSessions.filter(s => s.status === 'Active');
+
+            if (activeSessions.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="py-8 text-center text-slate-400">
+                            <i class="fa-solid fa-inbox text-2xl mb-2"></i>
+                            <p class="text-xs font-medium">No active sessions. Book a parking slot!</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            activeSessions.forEach(session => {
+                // Calculate current cost (simulate elapsed time)
+                const hoursElapsed = Math.floor(Math.random() * session.durationHours) + 0.5;
+                const currentCost = (hoursElapsed * (customerZonesData[session.zoneId]?.rate || 3)).toFixed(2);
+
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-slate-50/50 transition-colors border-b border-slate-100';
+                row.innerHTML = `
+                    <td class="py-3.5 px-2 font-bold text-slate-900">#${session.id}</td>
+                    <td class="py-3.5 px-2 text-slate-600">${session.zone}</td>
+                    <td class="py-3.5 px-2 text-slate-600 font-semibold">${session.slot}</td>
+                    <td class="py-3.5 px-2 text-slate-500">${session.entryTime}</td>
+                    <td class="py-3.5 px-2 text-slate-500">${session.duration}</td>
+                    <td class="py-3.5 px-2 text-slate-700 font-semibold">৳${currentCost}</td>
+                    <td class="py-3.5 px-2">
+                        <span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 font-bold text-[10px] border border-emerald-200">Active</span>
+                    </td>
+                    <td class="py-3.5 px-2 text-right">
+                        <button onclick="endSession(${session.id})" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-all duration-200 border border-red-200">
+                            <i class="fa-solid fa-stop-circle"></i> End
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function endSession(sessionId) {
+            const session = customerSessions.find(s => s.id === sessionId);
+            if (!session) return;
+
+            if (!confirm(`End session #${sessionId} at ${session.zone}?`)) return;
+
+            // Calculate final cost
+            const zone = customerZonesData[session.zoneId];
+            const rate = zone ? zone.rate : 3;
+            const hours = session.durationHours || 1;
+            const totalCost = rate * hours;
+
+            // Create history record
+            const now = new Date();
+            const exitTime = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+            
+            const historyRecord = {
+                id: nextHistoryId++,
+                bookingId: session.id,
+                customerName: session.customerName,
+                vehicle: session.vehicle,
+                zone: session.zone,
+                zoneId: session.zoneId,
+                slot: session.slot,
+                date: session.date || now.toISOString().split('T')[0],
+                entryTime: session.entryTime,
+                exitTime: exitTime,
+                duration: session.duration,
+                totalCost: totalCost,
+                payment: session.payment,
+                paymentStatus: 'Paid'
+            };
+
+            customerHistory.push(historyRecord);
+            
+            // Remove from sessions
+            customerSessions = customerSessions.filter(s => s.id !== sessionId);
+
+            // Update zone occupancy
+            if (zone) {
+                zone.occupied = Math.max(0, zone.occupied - 1);
+                zone.free = zone.spots - zone.occupied;
+            }
+
+            // Save and re-render
+            saveCustomerData();
+            renderCustomerZones();
+            renderMySessions();
+            renderMyHistory();
+            addCustomerMapMarkers();
+
+            showToast('success', `Session #${sessionId} ended. Total cost: ৳${totalCost.toFixed(2)}`);
+        }
+
+        // ============================================================
+        // MY HISTORY
+        // ============================================================
+
+        function renderMyHistory(data) {
+            const tbody = document.getElementById('my-history-table-body');
+            if (!tbody) return;
+
+            const records = data || customerHistory;
+
+            tbody.innerHTML = '';
+
+            if (records.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="py-8 text-center text-slate-400">
+                            <i class="fa-solid fa-inbox text-2xl mb-2"></i>
+                            <p class="text-xs font-medium">No parking history yet. Complete a session to see it here.</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            records.forEach(record => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-slate-50/50 transition-colors border-b border-slate-100';
+                row.innerHTML = `
+                    <td class="py-3.5 px-2 font-bold text-slate-900">#${record.bookingId}</td>
+                    <td class="py-3.5 px-2 text-slate-600">${record.zone}</td>
+                    <td class="py-3.5 px-2 text-slate-500">${record.date}</td>
+                    <td class="py-3.5 px-2 text-slate-500">${record.entryTime}</td>
+                    <td class="py-3.5 px-2 text-slate-500">${record.exitTime}</td>
+                    <td class="py-3.5 px-2 text-slate-500">${record.duration}</td>
+                    <td class="py-3.5 px-2 text-slate-700 font-semibold">৳${record.totalCost.toFixed(2)}</td>
+                    <td class="py-3.5 px-2">
+                        <span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 font-bold text-[10px] border border-emerald-200">${record.paymentStatus || 'Paid'}</span>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function filterMyHistory() {
+            const from = document.getElementById('my-history-from').value;
+            const to = document.getElementById('my-history-to').value;
+
+            if (!from && !to) {
+                renderMyHistory(customerHistory);
+                return;
+            }
+
+            const filtered = customerHistory.filter(record => {
+                const recordDate = record.date;
+                if (from && to) return recordDate >= from && recordDate <= to;
+                if (from) return recordDate >= from;
+                if (to) return recordDate <= to;
+                return true;
+            });
+
+            renderMyHistory(filtered);
+            showToast('info', `Showing ${filtered.length} history records.`);
+        }
+
+        function exportMyHistoryPDF() {
+            if (customerHistory.length === 0) {
+                showToast('info', 'No history records to export.');
+                return;
+            }
+
+            const today = new Date();
+            const dateStr = today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            const totalRevenue = customerHistory.reduce((sum, r) => sum + r.totalCost, 0);
+
+            let tableRows = '';
+            customerHistory.forEach(r => {
+                tableRows += `
+                    <tr>
+                        <td style="padding:8px; border-bottom:1px solid #e2e8f0; font-weight:600;">#${r.bookingId}</td>
+                        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${r.zone}</td>
+                        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${r.date}</td>
+                        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${r.entryTime}</td>
+                        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${r.exitTime}</td>
+                        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${r.duration}</td>
+                        <td style="padding:8px; border-bottom:1px solid #e2e8f0; font-weight:700;">৳${r.totalCost.toFixed(2)}</td>
+                        <td style="padding:8px; border-bottom:1px solid #e2e8f0;">${r.paymentStatus}</td>
+                    </tr>
+                `;
+            });
+
+            const win = window.open('', '_blank');
+            win.document.write(`
+                <html><head><title>SmartPark - My Parking History</title>
+                <style>
+                    body { font-family: 'Segoe UI', sans-serif; padding: 30px; background: #f8fafc; }
+                    .container { max-width: 1000px; margin: 0 auto; background: white; border-radius: 16px; padding: 30px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+                    h1 { margin: 0 0 5px; font-size: 22px; }
+                    .subtitle { color: #64748b; font-size: 13px; }
+                    .meta { display: flex; gap: 30px; margin: 20px 0; padding: 15px; background: #f1f5f9; border-radius: 12px; }
+                    .meta div { text-align: center; }
+                    .meta .label { font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 600; }
+                    .meta .value { font-size: 18px; font-weight: 700; color: #0f172a; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                    th { background: #f8fafc; padding: 10px 8px; font-size: 11px; text-transform: uppercase; color: #64748b; border-bottom: 2px solid #e2e8f0; text-align: left; }
+                    td { font-size: 12px; color: #1e293b; }
+                    .footer { text-align: center; color: #94a3b8; font-size: 11px; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 15px; }
+                    @media print { body { padding: 0; } .container { box-shadow: none; } }
+                </style>
+                </head><body>
+                <div class="container">
+                    <h1>🚗 SmartPark — My Parking History</h1>
+                    <p class="subtitle">Generated on ${dateStr}</p>
+                    <div class="meta">
+                        <div><div class="label">Total Sessions</div><div class="value">${customerHistory.length}</div></div>
+                        <div><div class="label">Total Spent</div><div class="value">৳${totalRevenue.toFixed(2)}</div></div>
+                    </div>
+                    <table>
+                        <thead><tr>
+                            <th>Booking ID</th><th>Zone</th><th>Date</th><th>Entry</th><th>Exit</th><th>Duration</th><th>Cost</th><th>Payment</th>
+                        </tr></thead>
+                        <tbody>${tableRows}</tbody>
+                    </table>
+                    <div class="footer">
+                        <p>SmartPark Parking Management System — Report ID: SP-HIST-${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}-${String(customerHistory.length).padStart(4,'0')}</p>
+                        <button onclick="window.print()" style="padding:10px 24px; background:#2563eb; color:white; border:none; border-radius:10px; font-weight:600; cursor:pointer; margin-top:10px;">🖨️ Print / Save PDF</button>
+                    </div>
+                </div>
+                </body></html>
+            `);
+            win.document.close();
+            showToast('success', `History report opened with ${customerHistory.length} records.`);
+        }
+
+        function exportMyHistoryCSV() {
+            if (customerHistory.length === 0) {
+                showToast('info', 'No history records to export.');
+                return;
+            }
+
+            const headers = ['Booking ID', 'Zone', 'Date', 'Entry Time', 'Exit Time', 'Duration', 'Total Cost', 'Payment Status'];
+            const rows = customerHistory.map(r => [
+                `#${r.bookingId}`, r.zone, r.date, r.entryTime, r.exitTime, r.duration,
+                `৳${r.totalCost.toFixed(2)}`, r.paymentStatus
+            ]);
+
+            let csv = headers.join(',') + '\n';
+            rows.forEach(row => {
+                csv += row.map(cell => `"${cell}"`).join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'SmartPark_My_History.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showToast('success', `CSV file downloaded with ${customerHistory.length} records.`);
+        }
+
+        // ============================================================
+        // REFRESH
+        // ============================================================
+
+        function refreshCustomerData() {
+            if (customerMap) customerMap.invalidateSize();
+            renderCustomerZones();
+            renderMySessions();
+            renderMyHistory();
+            addCustomerMapMarkers();
+            showToast('success', 'Customer view refreshed!');
+        }
+
+        // ============================================================
+        // TOAST NOTIFICATIONS
+        // ============================================================
+
+        function showToast(type, message) {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            let bgClass, borderClass, iconClass;
+            
+            if (type === 'success') {
+                bgClass = 'bg-slate-900/95';
+                borderClass = 'border-emerald-500/30';
+                iconClass = 'fa-solid fa-circle-check text-emerald-400';
+            } else if (type === 'error') {
+                bgClass = 'bg-slate-900/95';
+                borderClass = 'border-red-500/30';
+                iconClass = 'fa-solid fa-circle-exclamation text-red-400';
+            } else {
+                bgClass = 'bg-slate-900/95';
+                borderClass = 'border-blue-500/30';
+                iconClass = 'fa-solid fa-circle-info text-blue-400';
+            }
+
+            toast.className = `flex items-center gap-3 p-4 rounded-xl border ${borderClass} ${bgClass} shadow-2xl pointer-events-auto max-w-sm w-full transition-all duration-300 transform translate-y-2 opacity-0`;
+            toast.innerHTML = `
+                <div class="flex-shrink-0 text-lg"><i class="${iconClass}"></i></div>
+                <div class="flex-grow"><p class="text-xs font-semibold text-slate-200">${message}</p></div>
+                <button class="text-slate-500 hover:text-slate-300 transition-colors" onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark text-xs"></i></button>
+            `;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 50);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+    </script>
 </body>
 </html>
+
