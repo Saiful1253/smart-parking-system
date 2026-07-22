@@ -288,6 +288,61 @@
         </div>
     </div>
 
+    <!-- ===================== PAYMENT MODAL ===================== -->
+    <div id="payment-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl transform scale-95 transition-all duration-300 overflow-y-auto max-h-[95vh]" id="payment-modal-card">
+            <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-4">
+                <div>
+                    <h3 class="text-lg font-extrabold text-slate-900" id="pay-modal-title">Complete Payment</h3>
+                    <p class="text-xs text-slate-500">Send the exact amount to the admin number below</p>
+                </div>
+                <button onclick="closePaymentModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <!-- Admin Account Info -->
+                <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+                    <p class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Send Payment To (Admin)</p>
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xl">
+                            <i class="fa-solid fa-building-columns"></i>
+                        </div>
+                        <div>
+                            <p class="text-lg font-extrabold text-slate-900">01841156753</p>
+                            <p class="text-xs text-slate-500">Admin <span id="pay-method-label">bKash</span> Account</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Amount -->
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center">
+                    <p class="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">Amount to Pay</p>
+                    <p class="text-4xl font-extrabold text-emerald-700" id="pay-amount-modal">&#x9F3;0.00</p>
+                </div>
+                <!-- Customer Details -->
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Your Payment Details</p>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-xs font-semibold text-slate-600">Your Mobile Number *</label>
+                            <input type="text" id="pay-customer-number" required placeholder="e.g. 01XXXXXXXXX" class="w-full mt-1 bg-white border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm outline-none transition-all">
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-slate-600">Transaction ID (TrxID) *</label>
+                            <input type="text" id="pay-trx-id" required placeholder="e.g. ABC123D4E5" class="w-full mt-1 bg-white border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm outline-none transition-all">
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 border-t border-slate-100 pt-4">
+                    <button onclick="closePaymentModal()" class="px-5 py-2.5 text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors">Cancel</button>
+                    <button onclick="confirmPaymentFromBooking()" class="px-5 py-2.5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-check-circle"></i> Pay Now
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ===================== TOAST CONTAINER ===================== -->
     <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
 
@@ -654,6 +709,11 @@
             }
         }
 
+        // ============================================================
+        // PAYMENT MODAL
+        // ============================================================
+        let pendingBooking = null;
+
         function confirmBooking(e) {
             e.preventDefault();
             var zoneId = document.getElementById('book-zone-id').value;
@@ -673,18 +733,97 @@
                     }
                 }
             }
-            if (slotIndex === -1) {
-                showToast('error', 'No free slots available in ' + z.name + '.');
-                return;
+            if (slotIndex === -1) { showToast('error', 'No free slots available in ' + z.name + '.'); return; }
+
+            // Save booking data temporarily
+            var bookingType = document.getElementById('book-booking-type').value;
+            var cost = 0;
+            if (bookingType === 'meter') {
+                var meterCost = (currentMeterRate / 3600) * meterElapsedSeconds;
+                cost = meterCost > 0.01 ? meterCost : currentMeterRate * 0.01;
+            } else {
+                cost = z.rate * (parseInt(document.getElementById('book-duration').value) || 1);
             }
 
-            var bookingType = document.getElementById('book-booking-type').value;
+            pendingBooking = {
+                zoneId: zoneId,
+                slotIndex: slotIndex,
+                bookingType: bookingType,
+                cost: cost,
+                // Keep form data in the form fields
+            };
+
+            // Show payment modal instead of completing booking immediately
+            closeBookingModal();
+            openPaymentModal(z, cost, bookingType);
+        }
+
+        function openPaymentModal(z, amount, bookingType) {
+            // Update payment modal with booking info
+            var zonePrefix = z.name.replace('Zone ', '');
+            // Find assigned slot number
+            var slotNum = 1;
+            if (zoneSlots[z.id]) {
+                for (var i = 0; i < zoneSlots[z.id].length; i++) {
+                    if (zoneSlots[z.id][i] && pendingBooking && pendingBooking.slotIndex === i) {
+                        slotNum = i + 1;
+                        break;
+                    }
+                }
+            }
+            document.getElementById('pay-modal-title').innerHTML = 'Complete Payment <span class="text-sm font-normal text-slate-400">(' + zonePrefix + '-' + String(slotNum).padStart(2,'0') + ')</span>';
+            var method = bookingType === 'meter' ? document.getElementById('book-payment-meter').value : document.getElementById('book-payment').value;
+            document.getElementById('pay-method-label').textContent = method;
+            document.getElementById('pay-amount-modal').textContent = '\u09F3' + amount.toFixed(2);
+            document.getElementById('pay-customer-number').value = '';
+            document.getElementById('pay-trx-id').value = '';
+
+            var modal = document.getElementById('payment-modal');
+            var card = document.getElementById('payment-modal-card');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            card.classList.remove('scale-95');
+            card.classList.add('scale-100');
+        }
+
+        function closePaymentModal() {
+            var modal = document.getElementById('payment-modal');
+            var card = document.getElementById('payment-modal-card');
+            card.classList.remove('scale-100');
+            card.classList.add('scale-95');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            // If user cancels payment, free the slot back
+            if (pendingBooking) {
+                var slots = zoneSlots[pendingBooking.zoneId];
+                if (slots && slots[pendingBooking.slotIndex]) {
+                    slots[pendingBooking.slotIndex] = false;
+                }
+                pendingBooking = null;
+            }
+        }
+
+        function confirmPaymentFromBooking() {
+            // Validate payment details
+            var customerNumber = document.getElementById('pay-customer-number').value.trim();
+            var trxId = document.getElementById('pay-trx-id').value.trim();
+
+            if (!customerNumber) { showToast('error', 'Please enter your mobile number.'); return; }
+            // Auto-generate TrxID if empty (for testing)
+            if (!trxId) {
+                trxId = 'TRX' + String(Date.now()).slice(-8) + 'DEMO';
+                document.getElementById('pay-trx-id').value = trxId;
+            }
+
+            if (!pendingBooking) { showToast('error', 'No pending booking found.'); return; }
+
+            var zoneId = pendingBooking.zoneId;
+            var z = zonesData[zoneId];
+            if (!z) { showToast('error', 'Zone not found.'); return; }
+
+            // Complete the booking
+            var bookingType = pendingBooking.bookingType;
             var booking;
 
             if (bookingType === 'meter') {
-                // Meter booking - cost will be calculated on exit
-                var meterCost = (currentMeterRate / 3600) * meterElapsedSeconds;
-                var estimatedMeterCost = meterCost > 0.01 ? meterCost : currentMeterRate * 0.01; // min charge
                 booking = {
                     id: nextBookingId++,
                     name: document.getElementById('book-name').value,
@@ -693,22 +832,25 @@
                     zone: z.name,
                     zoneId: z.id,
                     slot: document.getElementById('book-slot').value,
-                    slotIndex: slotIndex,
+                    slotIndex: pendingBooking.slotIndex,
                     date: document.getElementById('book-date').value,
                     entryTime: document.getElementById('book-time').value,
                     duration: 'Metered',
                     durationHours: 0,
                     payment: document.getElementById('book-payment-meter').value,
-                    cost: estimatedMeterCost,
+                    cost: pendingBooking.cost,
                     bookingType: 'meter',
                     meterRate: currentMeterRate,
                     meterSeconds: meterElapsedSeconds,
                     status: 'Active',
+                    paid: true,
+                    customerNumber: customerNumber,
+                    trxId: trxId,
+                    paymentStatus: 'Pending',
                     createdAt: new Date().toISOString()
                 };
                 stopMeter();
             } else {
-                // Fixed duration booking (original)
                 var duration = parseInt(document.getElementById('book-duration').value) || 1;
                 booking = {
                     id: nextBookingId++,
@@ -718,15 +860,19 @@
                     zone: z.name,
                     zoneId: z.id,
                     slot: document.getElementById('book-slot').value,
-                    slotIndex: slotIndex,
+                    slotIndex: pendingBooking.slotIndex,
                     date: document.getElementById('book-date').value,
                     entryTime: document.getElementById('book-time').value,
                     duration: duration,
                     durationHours: duration,
                     payment: document.getElementById('book-payment').value,
-                    cost: z.rate * duration,
+                    cost: pendingBooking.cost,
                     bookingType: 'fixed',
                     status: 'Active',
+                    paid: true,
+                    customerNumber: customerNumber,
+                    trxId: trxId,
+                    paymentStatus: 'Pending',
                     createdAt: new Date().toISOString()
                 };
             }
@@ -735,24 +881,46 @@
             z.occupied += 1;
             z.free = Math.max(0, z.spots - z.occupied);
             saveData();
+
+            // Save payment to admin payment system
+            savePaymentToAdmin(booking, customerNumber, trxId);
+
             renderZones();
             addMarkers();
-            closeBookingModal();
+            closePaymentModal();
             document.getElementById('booking-form').reset();
             document.getElementById('book-date').value = new Date().toISOString().split('T')[0];
             document.getElementById('book-time').value = new Date().toTimeString().slice(0,5);
             setBookingType('fixed');
+            pendingBooking = null;
 
-            if (bookingType === 'meter') {
-                showToast('success', 'Metered session started! Slot ' + booking.slot + ' for ' + booking.name + '. Pay on exit.');
-            } else {
-                showToast('success', 'Booking confirmed! Slot ' + booking.slot + ' reserved for ' + booking.name + '.');
-            }
+            showToast('success', 'Payment recorded! Slot ' + booking.slot + ' reserved for ' + booking.name + '. Waiting for admin verification.');
         }
 
-        // ============================================================
-        // MAP RETRY
-        // ============================================================
+        function savePaymentToAdmin(booking, customerNumber, trxId) {
+            try {
+                var payments = JSON.parse(localStorage.getItem('smartParkPayments')) || [];
+                payments.push({
+                    id: 'PAY-' + String(payments.length + 1).padStart(4, '0'),
+                    bookingId: booking.id,
+                    customerName: booking.name,
+                    vehicle: booking.vehicle,
+                    zone: booking.zone,
+                    slot: booking.slot,
+                    amount: booking.cost,
+                    paymentMethod: booking.payment,
+                    customerNumber: customerNumber,
+                    trxId: trxId,
+                    date: booking.date,
+                    time: booking.entryTime,
+                    status: 'Pending',
+                    adminVerified: false,
+                    createdAt: new Date().toISOString()
+                });
+                localStorage.setItem('smartParkPayments', JSON.stringify(payments));
+            } catch(e) {}
+        }
+
         function retryMap() {
             var errorEl = document.getElementById('map-error');
             var loadingEl = document.getElementById('map-loading');

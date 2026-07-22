@@ -135,6 +135,68 @@
         <div id="session-card-container" class="max-w-2xl mx-auto"></div>
     </main>
 
+    <!-- ===================== PAYMENT MODAL ===================== -->
+    <div id="payment-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl transform scale-95 transition-all duration-300 overflow-y-auto max-h-[95vh]" id="payment-modal-card">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-4">
+                <div>
+                    <h3 class="text-lg font-extrabold text-slate-900" id="pay-modal-title">Complete Payment</h3>
+                    <p class="text-xs text-slate-500">Send the exact amount to the admin number below</p>
+                </div>
+                <button onclick="closePaymentModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <!-- Payment Details -->
+            <div class="space-y-4">
+                <!-- Admin Account Info -->
+                <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+                    <p class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Send Payment To (Admin)</p>
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xl">
+                            <i class="fa-solid fa-building-columns"></i>
+                        </div>
+                        <div>
+                            <p class="text-lg font-extrabold text-slate-900" id="pay-admin-number">01841156753</p>
+                            <p class="text-xs text-slate-500">Admin <span id="pay-method-label">bKash</span> Account</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Amount to Pay -->
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center">
+                    <p class="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">Amount to Pay</p>
+                    <p class="text-4xl font-extrabold text-emerald-700" id="pay-amount">&#x9F3;0.00</p>
+                </div>
+
+                <!-- Customer Sends Money Section -->
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Customer Payment Details</p>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-xs font-semibold text-slate-600">Your <span id="pay-cust-method-label">bKash</span> Number *</label>
+                            <input type="text" id="pay-customer-number" required placeholder="e.g. 01XXXXXXXXX" class="w-full mt-1 bg-white border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm outline-none transition-all">
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-slate-600">Transaction ID (TrxID) *</label>
+                            <input type="text" id="pay-trx-id" required placeholder="e.g. ABC123D4E5" class="w-full mt-1 bg-white border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm outline-none transition-all">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex justify-end gap-3 border-t border-slate-100 pt-4">
+                    <button onclick="closePaymentModal()" class="px-5 py-2.5 text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors">Cancel</button>
+                    <button onclick="confirmPayment()" class="px-5 py-2.5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-check-circle"></i> Confirm Payment
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ===================== TOAST CONTAINER ===================== -->
     <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
 
@@ -314,8 +376,8 @@
                                     '<i class="fa-solid fa-gauge-high text-blue-600 text-sm"></i>' +
                                     '<span class="text-sm font-bold text-blue-700">Live Meter</span>' +
                                 '</div>' +
-                                '<span class="px-2.5 py-1 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">' +
-                                    (isFixed ? '1st Hour (Fixed)' : 'Metered') +
+                '<span class="px-2.5 py-1 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">' +
+                                    (isFixed ? (s.durationHours == 1 ? '1st Hour (Fixed)' : s.durationHours + ' Hours (Fixed)') : 'Metered') +
                                 '</span>' +
                             '</div>' +
                             '<div class="text-center mb-4">' +
@@ -358,8 +420,14 @@
                 var costEl = document.getElementById('cost-display-' + s.id);
                 if (timerEl) timerEl.textContent = formatTime(secs);
                 if (costEl) {
-                    var runningCost = (costPerHour / 3600) * secs;
-                    costEl.textContent = '\u09F3' + runningCost.toFixed(2);
+                    if (isFixed) {
+                        // Fixed booking: cost stays the same (set at booking time)
+                        costEl.textContent = '\u09F3' + s.cost.toFixed(2);
+                    } else {
+                        // Metered booking: cost increases over time
+                        var runningCost = (costPerHour / 3600) * secs;
+                        costEl.textContent = '\u09F3' + runningCost.toFixed(2);
+                    }
                 }
             }, 1000);
         }
@@ -374,28 +442,138 @@
             return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
         }
 
+        // Payment modal state
+        let pendingPaymentSessionId = null;
+        let pendingPaymentMethod = null;
+
         // ============================================================
-        // PAYMENT HANDLER
+        // PAYMENT MODAL
         // ============================================================
-        function payWith(sessionId, method) {
+        function openPaymentModal(sessionId, method) {
             var idx = sessions.findIndex(function(s) { return s.id == sessionId; });
             if (idx === -1) { showToast('error', 'Session not found.'); return; }
             var s = sessions[idx];
             if (s.status !== 'Active') { showToast('error', 'Session is not active.'); return; }
 
-            // Update payment method and end session
-            s.payment = method;
-            endSession(sessionId);
+            pendingPaymentSessionId = sessionId;
+            pendingPaymentMethod = method;
+
+            // Set modal content dynamically
+            document.getElementById('pay-modal-title').textContent = 'Pay with ' + method;
+            document.getElementById('pay-method-label').textContent = method;
+            document.getElementById('pay-cust-method-label').textContent = method;
+            document.getElementById('pay-admin-number').textContent = '01841156753';
+            document.getElementById('pay-amount').textContent = '\u09F3' + s.cost.toFixed(2);
+            document.getElementById('pay-customer-number').value = '';
+            document.getElementById('pay-trx-id').value = '';
+
+            // Show modal
+            var modal = document.getElementById('payment-modal');
+            var card = document.getElementById('payment-modal-card');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            card.classList.remove('scale-95');
+            card.classList.add('scale-100');
+        }
+
+        function closePaymentModal() {
+            var modal = document.getElementById('payment-modal');
+            var card = document.getElementById('payment-modal-card');
+            card.classList.remove('scale-100');
+            card.classList.add('scale-95');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            pendingPaymentSessionId = null;
+            pendingPaymentMethod = null;
+        }
+
+        function confirmPayment() {
+            var customerNumber = document.getElementById('pay-customer-number').value.trim();
+            var trxId = document.getElementById('pay-trx-id').value.trim();
+
+            if (!customerNumber) {
+                showToast('error', 'Please enter your ' + pendingPaymentMethod + ' number.');
+                return;
+            }
+            // Auto-generate TrxID if empty (for testing)
+            if (!trxId) {
+                trxId = 'TRX' + String(Date.now()).slice(-8) + 'DEMO';
+                document.getElementById('pay-trx-id').value = trxId;
+            }
+
+            // Save payment and end session
+            var idx = sessions.findIndex(function(s) { return s.id == pendingPaymentSessionId; });
+            if (idx === -1) { showToast('error', 'Session not found.'); closePaymentModal(); return; }
+            var s = sessions[idx];
+            if (s.status !== 'Active') { showToast('error', 'Session is not active.'); closePaymentModal(); return; }
+
+            // Calculate running cost (only for metered bookings)
+            var isFixed = s.bookingType !== 'meter';
+            if (!isFixed) {
+                var createdAt = s.createdAt ? new Date(s.createdAt).getTime() : Date.now();
+                var elapsedSeconds = Math.floor((Date.now() - createdAt) / 1000);
+                var rate = s.meterRate || 5.00;
+                var runningCost = (rate / 3600) * elapsedSeconds;
+                if (runningCost < s.cost) runningCost = s.cost; // minimum charge
+                s.cost = runningCost;
+            }
+            // For fixed bookings, cost stays as originally set
+            s.payment = pendingPaymentMethod;
+            s.customerNumber = customerNumber;
+            s.trxId = trxId;
+
+            // Save to shared ledger
+            savePaymentToLedger(s, pendingPaymentMethod);
+
+            // Save the session ID before closing modal (modal closes nullifies it)
+            var sessionIdToEnd = pendingPaymentSessionId;
+            closePaymentModal();
+            endSession(sessionIdToEnd, true); // skip confirm, already done in payment modal
+        }
+
+        // ============================================================
+        // SHARED PAYMENT LEDGER (visible to main office / admin)
+        // ============================================================
+        function savePaymentToLedger(session, method) {
+            var payments = [];
+            try {
+                var saved = localStorage.getItem('smartParkPayments');
+                if (saved) payments = JSON.parse(saved);
+            } catch(e) {}
+            var now = new Date();
+            payments.push({
+                id: 'PAY-' + String(Date.now()).slice(-8),
+                bookingId: session.id,
+                customerName: session.name || 'N/A',
+                vehicle: session.vehicle || 'N/A',
+                customerNumber: session.customerNumber || 'N/A',
+                trxId: session.trxId || 'N/A',
+                zone: session.zone,
+                slot: session.slot,
+                amount: session.cost,
+                paymentMethod: method,
+                status: 'Pending',
+                createdAt: now.toISOString(),
+                date: now.toLocaleDateString('en-CA'),
+                time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+            });
+            localStorage.setItem('smartParkPayments', JSON.stringify(payments));
+        }
+
+        // ============================================================
+        // PAYMENT HANDLER
+        // ============================================================
+        function payWith(sessionId, method) {
+            // Open payment modal instead of directly ending session
+            openPaymentModal(sessionId, method);
         }
 
         // ============================================================
         // END SESSION
         // ============================================================
-        function endSession(sessionId) {
-            var idx = sessions.findIndex(function(s) { return s.id === sessionId; });
-            if (idx === -1) return;
+        function endSession(sessionId, skipConfirm) {
+            var idx = sessions.findIndex(function(s) { return s.id == sessionId; });
+            if (idx === -1) { showToast('error', 'Session not found for ending.'); return; }
             var s = sessions[idx];
-            if (!confirm('End session for ' + s.vehicle + ' at ' + s.slot + '? Total: \u09F3' + s.cost.toFixed(2))) return;
+            if (!skipConfirm && !confirm('End session for ' + s.vehicle + ' at ' + s.slot + '? Total: \u09F3' + s.cost.toFixed(2))) return;
 
             // Stop live timer
             if (liveTimers[s.id]) {
