@@ -316,6 +316,9 @@
         let meterElapsedSeconds = 0;
         let currentMeterRate = 0;
 
+        // Slot tracking - per-zone boolean arrays (false = free, true = occupied)
+        let zoneSlots = {};
+
         // ============================================================
         // INIT
         // ============================================================
@@ -345,6 +348,25 @@
         // ============================================================
         // LOCAL STORAGE (shared across all 3 pages)
         // ============================================================
+        function initZoneSlots() {
+            // Initialize zoneSlots from zonesData (all false = free)
+            Object.keys(zonesData).forEach(function(key) {
+                var z = zonesData[key];
+                if (!zoneSlots[key]) {
+                    zoneSlots[key] = new Array(z.spots).fill(false);
+                }
+            });
+            // Mark occupied slots from active sessions
+            sessions.forEach(function(s) {
+                if (s.status === 'Active' && s.slotIndex !== undefined) {
+                    var zKey = s.zoneId;
+                    if (zoneSlots[zKey] && zoneSlots[zKey][s.slotIndex] !== undefined) {
+                        zoneSlots[zKey][s.slotIndex] = true;
+                    }
+                }
+            });
+        }
+
         function loadData() {
             try {
                 var saved = localStorage.getItem('customerParkingData');
@@ -354,8 +376,17 @@
                     history = d.history || [];
                     nextBookingId = d.nextId || 1000;
                     nextHistoryId = d.nextHistId || 2000;
+                    // Restore zoneSlots from saved data
+                    zoneSlots = d.zoneSlots || {};
+                    // Rebuild zoneSlots from sessions if missing
+                    if (Object.keys(zoneSlots).length === 0) {
+                        initZoneSlots();
+                    }
                     // Sync zone occupancy from sessions
                     syncZoneOccupancy();
+                } else {
+                    // First time: initialize fresh zoneSlots
+                    initZoneSlots();
                 }
             } catch(e) {}
         }
@@ -364,7 +395,8 @@
                 sessions: sessions,
                 history: history,
                 nextId: nextBookingId,
-                nextHistId: nextHistoryId
+                nextHistId: nextHistoryId,
+                zoneSlots: zoneSlots
             }));
         }
 
@@ -578,9 +610,22 @@
             var z = zonesData[zoneId];
             if (!z) return;
             if (z.status !== 'Active') { showToast('error', z.name + ' is currently ' + z.status + '. Please choose another zone.'); return; }
+            // Find the first free slot (smallest index where false = free)
+            var slots = zoneSlots[zoneId];
+            var slotNum = 1;
+            if (slots) {
+                for (var i = 0; i < slots.length; i++) {
+                    if (!slots[i]) {
+                        slotNum = i + 1;
+                        break;
+                    }
+                }
+            }
             document.getElementById('book-zone-id').value = z.id;
             document.getElementById('book-zone-name').value = z.name;
-            document.getElementById('book-slot').value = z.name + '-' + String(z.free).padStart(2,'0');
+            // Extract zone prefix (e.g. "Zone C" -> "C")
+            var zonePrefix = z.name.replace('Zone ', '');
+            document.getElementById('book-slot').value = zonePrefix + '-' + String(slotNum).padStart(2, '0');
             // Reset to fixed by default
             setBookingType('fixed');
             updateEstimatedCost();
@@ -616,6 +661,23 @@
             if (!z) return;
             if (z.free <= 0) { showToast('error', 'Sorry, no slots available in ' + z.name + '.'); return; }
 
+            // Find the first free slot index and mark it occupied
+            var slots = zoneSlots[zoneId];
+            var slotIndex = -1;
+            if (slots) {
+                for (var si = 0; si < slots.length; si++) {
+                    if (!slots[si]) {
+                        slots[si] = true; // Mark occupied
+                        slotIndex = si;
+                        break;
+                    }
+                }
+            }
+            if (slotIndex === -1) {
+                showToast('error', 'No free slots available in ' + z.name + '.');
+                return;
+            }
+
             var bookingType = document.getElementById('book-booking-type').value;
             var booking;
 
@@ -631,6 +693,7 @@
                     zone: z.name,
                     zoneId: z.id,
                     slot: document.getElementById('book-slot').value,
+                    slotIndex: slotIndex,
                     date: document.getElementById('book-date').value,
                     entryTime: document.getElementById('book-time').value,
                     duration: 'Metered',
@@ -655,6 +718,7 @@
                     zone: z.name,
                     zoneId: z.id,
                     slot: document.getElementById('book-slot').value,
+                    slotIndex: slotIndex,
                     date: document.getElementById('book-date').value,
                     entryTime: document.getElementById('book-time').value,
                     duration: duration,
