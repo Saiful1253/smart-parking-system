@@ -17,40 +17,6 @@
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        .sidebar {
-            width: 250px;
-            min-height: 100vh;
-            background: #111821;
-            display: flex;
-            flex-direction: column;
-            flex-shrink: 0;
-        }
-        .sidebar-link {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 20px;
-            font-size: 14px;
-            font-weight: 500;
-            color: #94a3b8;
-            border-radius: 10px;
-            text-decoration: none;
-            transition: all 0.2s;
-        }
-        .sidebar-link:hover {
-            color: #e2e8f0;
-            background: #1e293b;
-        }
-        .sidebar-link.active {
-            background: #258BE5;
-            color: #ffffff;
-            font-weight: 600;
-        }
-        .sidebar-link i {
-            width: 20px;
-            text-align: center;
-            font-size: 16px;
-        }
         .digital-timer {
             font-family: 'Courier New', monospace;
             font-size: 36px;
@@ -81,55 +47,76 @@
             border: 1.5px solid #bfdbfe;
             border-radius: 16px;
         }
-        @media (max-width: 768px) {
-            .sidebar { width: 60px; }
-            .sidebar-link span { display: none; }
-            .sidebar-link { justify-content: center; padding: 12px; }
-            .sidebar-link i { width: auto; }
-            .sidebar .p-6 { justify-content: center; }
-            .sidebar .p-6 div { display: none; }
-        }
     </style>
 </head>
-<body class="flex">
+<body>
 
-    <!-- ===================== SIDEBAR ===================== -->
-    <aside class="sidebar">
-        <div class="p-6 flex items-center gap-3 border-b border-slate-800/50">
-            <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-md shadow-blue-500/20 flex-shrink-0">
-                <i class="fa-solid fa-car text-white text-lg"></i>
+    <!-- ===================== TOP NAVBAR ===================== -->
+    <header class="bg-slate-950 border-b border-slate-800 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6">
+            <div class="flex items-center justify-between h-16">
+                <!-- Left: Logo -->
+                <div class="flex items-center gap-3">
+                    <a href="customer.html" class="flex items-center gap-2.5 no-underline">
+                        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                            <i class="fa-solid fa-square-p text-white text-lg"></i>
+                        </div>
+                        <div>
+                            <span class="text-lg font-extrabold tracking-wider bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">SmartPark</span>
+                            <span class="block text-[9px] text-slate-500 font-semibold tracking-widest uppercase leading-none">Parking System</span>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Center: Desktop Nav -->
+                <nav class="hidden lg:flex items-center gap-1">
+                    <a href="book-parking.html" class="px-4 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all duration-300">
+                        <i class="fa-solid fa-calendar-check mr-1.5"></i>Book Parking
+                    </a>
+                    <a href="my-sessions.html" class="px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white shadow-lg shadow-blue-500/20 transition-all duration-300">
+                        <i class="fa-solid fa-car-side mr-1.5"></i>My Sessions
+                    </a>
+                    <a href="my-history.html" class="px-4 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all duration-300">
+                        <i class="fa-solid fa-clock-rotate-left mr-1.5"></i>My History
+                    </a>
+                </nav>
+
+                <!-- Right: Actions -->
+                <div class="flex items-center gap-3">
+                    <button onclick="refreshData()" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors" title="Refresh">
+                        <i class="fa-solid fa-rotate"></i>
+                    </button>
+                    <a href="index.html" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg transition-all border border-red-500/20 no-underline">
+                        <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+                    </a>
+                    <!-- Mobile Hamburger -->
+                    <button onclick="toggleMobileMenu()" class="lg:hidden w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors" title="Menu">
+                        <i class="fa-solid fa-bars text-base" id="hamburger-icon"></i>
+                    </button>
+                </div>
             </div>
-            <div>
-                <h1 class="text-base font-bold text-white tracking-wider">SmartPark</h1>
-                <p class="text-[9px] text-slate-500 font-semibold tracking-widest uppercase leading-none">Parking System</p>
+            <!-- Mobile Dropdown Menu -->
+            <div id="mobile-menu" class="lg:hidden hidden border-t border-slate-800 py-3 px-2 space-y-1">
+                <a href="book-parking.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all">
+                    <i class="fa-solid fa-calendar-check w-5 text-center"></i> Book Parking
+                </a>
+                <a href="my-sessions.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-semibold rounded-lg bg-blue-600 text-white transition-all">
+                    <i class="fa-solid fa-car-side w-5 text-center"></i> My Sessions
+                </a>
+                <a href="my-history.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all">
+                    <i class="fa-solid fa-clock-rotate-left w-5 text-center"></i> My History
+                </a>
+                <a href="index.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-red-400 hover:text-red-300 hover:bg-slate-800 transition-all sm:hidden">
+                    <i class="fa-solid fa-right-from-bracket w-5 text-center"></i> Sign Out
+                </a>
             </div>
         </div>
-        <nav class="p-4 space-y-1 flex-1">
-            <a href="book-parking.html" class="sidebar-link">
-                <i class="fa-regular fa-calendar-check"></i>
-                <span>Book Parking</span>
-            </a>
-            <a href="my-sessions.html" class="sidebar-link active">
-                <i class="fa-solid fa-car-side"></i>
-                <span>My Sessions</span>
-            </a>
-            <a href="my-history.html" class="sidebar-link">
-                <i class="fa-regular fa-clock"></i>
-                <span>My History</span>
-            </a>
-        </nav>
-        <div class="p-4 border-t border-slate-800/50">
-            <a href="index.html" class="sidebar-link text-slate-500 hover:text-red-400">
-                <i class="fa-solid fa-right-from-bracket"></i>
-                <span>Sign Out</span>
-            </a>
-        </div>
-    </aside>
+    </header>
 
     <!-- ===================== MAIN CONTENT ===================== -->
-    <main class="flex-1 p-8 lg:p-10">
-        <div class="mb-8">
-            <h2 class="text-3xl font-extrabold text-slate-900">My Sessions</h2>
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        <div class="mb-6">
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900">My Sessions</h2>
             <p class="text-sm text-slate-500 mt-1" id="my-sessions-subtitle">Loading active sessions...</p>
         </div>
         <div id="session-card-container" class="max-w-2xl mx-auto"></div>
@@ -587,26 +574,56 @@
             if (s.slotIndex !== undefined && s.zoneId && zoneSlots[s.zoneId]) {
                 zoneSlots[s.zoneId][s.slotIndex] = false;
             }
-            var durationLabel = s.durationHours ? s.durationHours + 'h' : s.duration + 'h';
+            var durationLabel = s.durationHours ? s.durationHours + 'h' : (s.duration || '1h');
+            
+            // Format current time for exit
+            var now = new Date();
+            var exitHr = now.getHours();
+            var exitMin = now.getMinutes();
+            var exitTimeStr = String(exitHr).padStart(2,'0') + ':' + String(exitMin).padStart(2,'0');
+            
+            // Ensure entryTime is in HH:MM format
+            var entryTimeStr = s.entryTime || '00:00';
+            if (entryTimeStr.length > 5) {
+                entryTimeStr = entryTimeStr.slice(0,5);
+            }
+            
             var hist = {
                 id: nextHistoryId++,
                 bookingId: s.id,
-                name: s.name,
-                vehicle: s.vehicle,
-                zone: s.zone,
-                slot: s.slot,
-                date: s.date,
-                entryTime: s.entryTime,
-                exitTime: new Date().toTimeString().slice(0,5),
+                name: s.name || s.customerName || 'Customer',
+                vehicle: s.vehicle || 'N/A',
+                zone: s.zone || 'N/A',
+                slot: s.slot || 'N/A',
+                date: s.date || now.toISOString().split('T')[0],
+                entryTime: entryTimeStr,
+                exitTime: exitTimeStr,
                 duration: durationLabel,
-                cost: s.cost,
-                payment: s.payment,
+                cost: s.cost || 0,
+                payment: s.payment || 'Cash',
                 paymentStatus: 'Paid'
             };
             history.push(hist);
             saveData();
             renderSessions();
             showToast('success', 'Session #' + s.id + ' ended. Paid via ' + s.payment + '. Total: \u09F3' + s.cost.toFixed(2));
+        }
+
+        // ============================================================
+        // MOBILE MENU TOGGLE
+        // ============================================================
+        function toggleMobileMenu() {
+            var menu = document.getElementById('mobile-menu');
+            var icon = document.getElementById('hamburger-icon');
+            if (menu.classList.contains('hidden')) {
+                menu.classList.remove('hidden');
+                icon.classList.remove('fa-bars');
+                icon.classList.add('fa-xmark');
+            } else {
+                menu.classList.add('hidden');
+                icon.classList.remove('fa-xmark');
+                icon.classList.add('fa-bars');
+            }
         }
 
         // ============================================================

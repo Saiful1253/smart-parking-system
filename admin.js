@@ -685,7 +685,11 @@ function deleteZone(zoneId) {
 // PARKING HISTORY
 // ==========================================
 
-// Global History Data (with dates)
+// ==========================================
+// PARKING HISTORY (Admin - Completely separate from Customer)
+// ==========================================
+
+// Admin's own history data — never mixed with customer data
 let historyData = [
     { id: 1, plate: 'DHK-METRO-9999', zone: 'Zone C', spot: 'C-05', duration: '2h 30m', fee: 50.00, payment: 'bKash', date: '2025-01-10' },
     { id: 2, plate: 'DHK-METRO-8888', zone: 'Zone A', spot: 'A-02', duration: '1h 05m', fee: 20.00, payment: 'Nagad', date: '2025-01-11' },

@@ -87,7 +87,26 @@
                     <a href="index.html" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg transition-all border border-red-500/20 no-underline">
                         <i class="fa-solid fa-right-from-bracket"></i> Sign Out
                     </a>
+                    <!-- Mobile Hamburger -->
+                    <button onclick="toggleMobileMenu()" class="lg:hidden w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors" title="Menu">
+                        <i class="fa-solid fa-bars text-base" id="hamburger-icon"></i>
+                    </button>
                 </div>
+            </div>
+            <!-- Mobile Dropdown Menu -->
+            <div id="mobile-menu" class="lg:hidden hidden border-t border-slate-800 py-3 px-2 space-y-1">
+                <a href="book-parking.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-semibold rounded-lg bg-blue-600 text-white transition-all">
+                    <i class="fa-solid fa-calendar-check w-5 text-center"></i> Book Parking
+                </a>
+                <a href="my-sessions.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all">
+                    <i class="fa-solid fa-car-side w-5 text-center"></i> My Sessions
+                </a>
+                <a href="my-history.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all">
+                    <i class="fa-solid fa-clock-rotate-left w-5 text-center"></i> My History
+                </a>
+                <a href="index.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-red-400 hover:text-red-300 hover:bg-slate-800 transition-all sm:hidden">
+                    <i class="fa-solid fa-right-from-bracket w-5 text-center"></i> Sign Out
+                </a>
             </div>
         </div>
     </header>
@@ -919,6 +938,23 @@
                 });
                 localStorage.setItem('smartParkPayments', JSON.stringify(payments));
             } catch(e) {}
+        }
+
+        // ============================================================
+        // MOBILE MENU TOGGLE
+        // ============================================================
+        function toggleMobileMenu() {
+            var menu = document.getElementById('mobile-menu');
+            var icon = document.getElementById('hamburger-icon');
+            if (menu.classList.contains('hidden')) {
+                menu.classList.remove('hidden');
+                icon.classList.remove('fa-bars');
+                icon.classList.add('fa-xmark');
+            } else {
+                menu.classList.add('hidden');
+                icon.classList.remove('fa-xmark');
+                icon.classList.add('fa-bars');
+            }
         }
 
         function retryMap() {

@@ -4,11 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SmartPark - My History</title>
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <!-- Google Fonts (Poppins) -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -17,254 +14,440 @@
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .filter-chip { padding: 6px 14px; border-radius: 9999px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; border: 1.5px solid transparent; }
+        .filter-chip.active { background: #2563eb; color: white; border-color: #2563eb; }
+        .filter-chip.inactive { background: #f1f5f9; color: #64748b; border-color: #e2e8f0; }
+        .filter-chip.inactive:hover { background: #e2e8f0; color: #334155; }
     </style>
 </head>
 <body>
-
-    <!-- ===================== TOP NAVBAR ===================== -->
     <header class="bg-slate-950 border-b border-slate-800 sticky top-0 z-30">
         <div class="max-w-7xl mx-auto px-4 sm:px-6">
             <div class="flex items-center justify-between h-16">
-                <!-- Left: Logo -->
                 <div class="flex items-center gap-3">
                     <a href="customer.html" class="flex items-center gap-2.5 no-underline">
-                        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                            <i class="fa-solid fa-square-p text-white text-lg"></i>
-                        </div>
-                        <div>
-                            <span class="text-lg font-extrabold tracking-wider bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">SmartPark</span>
-                            <span class="block text-[9px] text-slate-500 font-semibold tracking-widest uppercase leading-none">Parking System</span>
-                        </div>
+                        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-emerald-500 flex items-center justify-center shadow-lg"><i class="fa-solid fa-square-p text-white text-lg"></i></div>
+                        <div><span class="text-lg font-extrabold tracking-wider bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">SmartPark</span><span class="block text-[9px] text-slate-500 font-semibold tracking-widest uppercase leading-none">Parking System</span></div>
                     </a>
                 </div>
-
-                <!-- Center: Desktop Nav -->
                 <nav class="hidden lg:flex items-center gap-1">
-                    <a href="book-parking.html" class="px-4 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all duration-300">
-                        <i class="fa-solid fa-calendar-check mr-1.5"></i>Book Parking
-                    </a>
-                    <a href="my-sessions.html" class="px-4 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all duration-300">
-                        <i class="fa-solid fa-car-side mr-1.5"></i>My Sessions
-                    </a>
-                    <a href="my-history.html" class="px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white shadow-lg shadow-blue-500/20 transition-all duration-300">
-                        <i class="fa-solid fa-clock-rotate-left mr-1.5"></i>My History
-                    </a>
+                    <a href="book-parking.html" class="px-4 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all"><i class="fa-solid fa-calendar-check mr-1.5"></i>Book Parking</a>
+                    <a href="my-sessions.html" class="px-4 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all"><i class="fa-solid fa-car-side mr-1.5"></i>My Sessions</a>
+                    <a href="my-history.html" class="px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white shadow-lg transition-all"><i class="fa-solid fa-clock-rotate-left mr-1.5"></i>My History</a>
                 </nav>
-
-                <!-- Right: Actions -->
                 <div class="flex items-center gap-3">
-                    <button onclick="refreshData()" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors" title="Refresh">
-                        <i class="fa-solid fa-rotate"></i>
-                    </button>
-                    <a href="index.html" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg transition-all border border-red-500/20 no-underline">
-                        <i class="fa-solid fa-right-from-bracket"></i> Sign Out
-                    </a>
+                    <button onclick="refreshData()" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors" title="Refresh"><i class="fa-solid fa-rotate"></i></button>
+                    <a href="index.html" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg border border-red-500/20 no-underline"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</a>
+                    <button onclick="toggleMenu()" class="lg:hidden w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors"><i class="fa-solid fa-bars text-base" id="menu-icon"></i></button>
                 </div>
+            </div>
+            <div id="mobile-menu" class="lg:hidden hidden border-t border-slate-800 py-3 px-2 space-y-1">
+                <a href="book-parking.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800"><i class="fa-solid fa-calendar-check w-5 text-center"></i> Book Parking</a>
+                <a href="my-sessions.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800"><i class="fa-solid fa-car-side w-5 text-center"></i> My Sessions</a>
+                <a href="my-history.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-semibold rounded-lg bg-blue-600 text-white"><i class="fa-solid fa-clock-rotate-left w-5 text-center"></i> My History</a>
+                <a href="index.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-red-400 hover:bg-slate-800 sm:hidden"><i class="fa-solid fa-right-from-bracket w-5 text-center"></i> Sign Out</a>
             </div>
         </div>
     </header>
-
-    <!-- ===================== MAIN CONTENT ===================== -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-
-        <div class="mb-6">
-            <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900">My History</h2>
-            <p class="text-sm text-slate-500 mt-1">View all your completed parking sessions.</p>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div><h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900">My History</h2><p class="text-sm text-slate-500 mt-1" id="subtitle">View all your completed parking sessions</p></div>
+            <div class="flex items-center gap-2">
+                <button onclick="exportPDF()" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg border border-blue-200"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                <button onclick="exportCSV()" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg border border-emerald-200"><i class="fa-solid fa-file-csv"></i> CSV</button>
+            </div>
         </div>
-
-        <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                <h3 class="text-lg font-bold text-slate-900">Parking History</h3>
-                <div class="flex flex-wrap items-center gap-2">
-                    <input type="date" id="my-history-from" class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 outline-none focus:border-blue-500" onchange="filterMyHistory()">
-                    <span class="text-xs text-slate-400">to</span>
-                    <input type="date" id="my-history-to" class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 outline-none focus:border-blue-500" onchange="filterMyHistory()">
-                    <button onclick="exportMyHistoryPDF()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors border border-blue-200">
-                        <i class="fa-solid fa-file-pdf"></i> PDF
-                    </button>
-                    <button onclick="exportMyHistoryCSV()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg transition-colors border border-emerald-200">
-                        <i class="fa-solid fa-file-csv"></i> CSV
-                    </button>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Bookings</p><p class="text-2xl font-extrabold text-slate-900 mt-1" id="stat-total">0</p></div>
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Completed</p><p class="text-2xl font-extrabold text-emerald-600 mt-1" id="stat-completed">0</p></div>
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cancelled</p><p class="text-2xl font-extrabold text-red-500 mt-1" id="stat-cancelled">0</p></div>
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm"><p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Spent</p><p class="text-2xl font-extrabold text-blue-600 mt-1" id="stat-spent">BDT 0</p></div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm mb-6">
+            <div class="flex flex-col sm:flex-row gap-4">
+                <div class="flex-1 relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" id="search" placeholder="Search by Booking ID, Zone, Slot, or Vehicle..." oninput="apply()" class="w-full bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 pl-9 pr-4 text-sm outline-none">
+                    <button onclick="clearSearch()" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="date" id="from" onchange="apply()" class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-2 text-slate-700 outline-none focus:border-blue-500">
+                    <span class="text-xs text-slate-400">—</span>
+                    <input type="date" id="to" onchange="apply()" class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-2 text-slate-700 outline-none focus:border-blue-500">
                 </div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                            <th class="pb-3.5 px-3">Booking ID</th>
-                            <th class="pb-3.5 px-3">Zone</th>
-                            <th class="pb-3.5 px-3">Date</th>
-                            <th class="pb-3.5 px-3">Entry Time</th>
-                            <th class="pb-3.5 px-3">Exit Time</th>
-                            <th class="pb-3.5 px-3">Duration</th>
-                            <th class="pb-3.5 px-3">Total Cost</th>
-                            <th class="pb-3.5 px-3">Payment</th>
-                        </tr>
-                    </thead>
-                    <tbody id="my-history-table-body" class="text-xs text-slate-700 font-medium"></tbody>
-                </table>
+            <div class="flex flex-wrap items-center gap-2 mt-4" id="filters">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Status:</span>
+                <span class="filter-chip active" onclick="setFilter('all',this)">All</span>
+                <span class="filter-chip inactive" onclick="setFilter('Paid',this)">Paid</span>
+                <span class="filter-chip inactive" onclick="setFilter('Pending',this)">Pending</span>
+                <span class="filter-chip inactive" onclick="setFilter('Completed',this)">Completed</span>
+                <span class="filter-chip inactive" onclick="setFilter('Cancelled',this)">Cancelled</span>
             </div>
         </div>
-
+        <p class="text-xs text-slate-500 mb-3" id="count">Showing 0 records</p>
+        <div id="cards" class="space-y-3"></div>
+        <div id="empty" class="hidden text-center py-20">
+            <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4"><i class="fa-solid fa-clock-rotate-left text-slate-300 text-2xl"></i></div>
+            <p class="text-sm font-semibold text-slate-500">No history records found</p>
+            <p class="text-xs text-slate-400 mt-1">Try adjusting your search or filter criteria.</p>
+        </div>
     </main>
+    <div id="details-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
+        <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl transform scale-95 transition-all duration-300 overflow-y-auto max-h-[90vh]" id="dm-card">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-4">
+                    <div><h3 class="text-lg font-extrabold text-slate-900" id="dm-title">Booking Details</h3><p class="text-xs text-slate-500" id="dm-id">#0000</p></div>
+                    <button onclick="closeDetails()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div id="dm-content" class="space-y-4"></div>
+                <div class="flex justify-end gap-3 border-t border-slate-100 pt-4 mt-4">
+                    <button onclick="closeDetails()" class="px-5 py-2.5 text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl">Close</button>
+                    <button onclick="printReceipt()" class="px-5 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg flex items-center gap-2"><i class="fa-solid fa-print"></i> Print Receipt</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="toast" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
 
-    <!-- ===================== TOAST CONTAINER ===================== -->
-    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
+<script>
+var historyData = [];
+var currentFilter = 'all';
+var currentDetail = null;
 
-    <!-- ===================== JAVASCRIPT ===================== -->
-    <script>
-        // ============================================================
-        // DATA
-        // ============================================================
-        let sessions = [];
-        let history = [];
-        let nextBookingId = 1000;
-        let nextHistoryId = 2000;
+document.addEventListener('DOMContentLoaded', function() { loadData(); renderCards(); });
+function refreshData() { loadData(); renderCards(); showToastMsg('info', 'Data refreshed!'); }
 
-        // ============================================================
-        // INIT
-        // ============================================================
-        document.addEventListener('DOMContentLoaded', function() {
-            loadData();
-            renderHistory();
+function loadData() {
+    try {
+        var saved = localStorage.getItem('customerParkingData');
+        if (saved) { 
+            var d = JSON.parse(saved); 
+            historyData = d.history || []; 
+        }
+    } catch(e) {}
+    // Seed sample data if no history exists
+    if (historyData.length === 0) {
+        seedSampleHistory();
+    }
+}
+
+function seedSampleHistory() {
+    var zones = ['Zone A', 'Zone B', 'Zone C', 'Zone D'];
+    var slots = ['A-01', 'B-05', 'C-12', 'D-03', 'A-08', 'B-15', 'C-22', 'D-07', 'A-03', 'B-10'];
+    var vehicles = ['DHA-1234', 'DHA-5678', 'CTG-9012', 'DHA-3456', 'SYL-7890', 'DHA-2345', 'KHL-6789', 'DHA-8901', 'BAR-4567', 'DHA-0123'];
+    var names = ['Rahim Khan', 'Karim Uddin', 'Fatima Begum', 'Hasan Ali', 'Nusrat Jahan', 'Kabir Hossain', 'Shamim Reza', 'Tahmina Akter', 'Jahid Hasan', 'Morshed Alam'];
+    var payments = ['bKash', 'Nagad', 'Cash', 'Visa Card'];
+    var statuses = ['Paid', 'Paid', 'Paid', 'Completed', 'Paid', 'Cancelled', 'Paid', 'Paid', 'Paid', 'Paid'];
+    
+    var now = new Date();
+    var sampleHistory = [];
+    
+    for (var i = 0; i < 10; i++) {
+        var dayOffset = i + 1;
+        var bookingDate = new Date(now);
+        bookingDate.setDate(bookingDate.getDate() - dayOffset);
+        var dateStr = bookingDate.toISOString().split('T')[0];
+        
+        var entryHr = 6 + Math.floor(Math.random() * 12);
+        var entryMin = Math.floor(Math.random() * 60);
+        var exitHr = entryHr + 1 + Math.floor(Math.random() * 4);
+        var exitMin = Math.floor(Math.random() * 60);
+        
+        var entryTime = String(entryHr).padStart(2,'0') + ':' + String(entryMin).padStart(2,'0');
+        var exitTime = String(exitHr).padStart(2,'0') + ':' + String(exitMin).padStart(2,'0');
+        
+        var durationHrs = (exitHr - entryHr) + (exitMin - entryMin) / 60;
+        if (durationHrs < 1) durationHrs = 1;
+        
+        var rate = 2 + Math.floor(Math.random() * 4);
+        var cost = parseFloat((rate * durationHrs).toFixed(2));
+        
+        sampleHistory.push({
+            id: 2000 + i,
+            bookingId: 1001 + i,
+            name: names[i],
+            vehicle: vehicles[i],
+            zone: zones[i % zones.length],
+            slot: slots[i],
+            date: dateStr,
+            entryTime: entryTime,
+            exitTime: exitTime,
+            duration: Math.round(durationHrs) + 'h',
+            cost: cost,
+            payment: payments[i % payments.length],
+            paymentStatus: statuses[i]
         });
+    }
+    
+    try {
+        var saved = localStorage.getItem('customerParkingData');
+        var d = saved ? JSON.parse(saved) : { sessions: [], history: [], nextId: 1000, nextHistId: 2000, zoneSlots: {} };
+        d.history = sampleHistory;
+        d.nextHistId = 3000;
+        localStorage.setItem('customerParkingData', JSON.stringify(d));
+        historyData = sampleHistory;
+    } catch(e) {}
+}
 
-        // ============================================================
-        // REFRESH
-        // ============================================================
-        function refreshData() {
-            loadData();
-            renderHistory();
-            showToast('info', 'Data refreshed!');
-        }
+function formatTimeAMPM(timeStr) {
+    if (!timeStr || timeStr === '-') return '-';
+    var parts = timeStr.split(':');
+    if (parts.length < 2) return timeStr;
+    var h = parseInt(parts[0], 10);
+    var m = parts[1];
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    if (h > 12) h = h - 12;
+    if (h === 0) h = 12;
+    return h + ':' + m + ' ' + ampm;
+}
 
-        // ============================================================
-        // LOCAL STORAGE (shared across all 3 pages)
-        // ============================================================
-        function loadData() {
-            try {
-                var saved = localStorage.getItem('customerParkingData');
-                if (saved) {
-                    var d = JSON.parse(saved);
-                    sessions = d.sessions || [];
-                    history = d.history || [];
-                    nextBookingId = d.nextId || 1000;
-                    nextHistoryId = d.nextHistId || 2000;
-                }
-            } catch(e) {}
-        }
-        function saveData() {
-            localStorage.setItem('customerParkingData', JSON.stringify({
-                sessions: sessions,
-                history: history,
-                nextId: nextBookingId,
-                nextHistId: nextHistoryId
-            }));
-        }
+function escHtml(str) { return String(str || '').replace(/&/g,'&amp;').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"'); }
+function safe(str) { return escHtml(str) || '-'; }
 
-        // ============================================================
-        // MY HISTORY
-        // ============================================================
-        function renderHistory() {
-            var tbody = document.getElementById('my-history-table-body');
-            if (!tbody) return;
-            var from = document.getElementById('my-history-from').value;
-            var to = document.getElementById('my-history-to').value;
-            var filtered = history.slice();
-            if (from) filtered = filtered.filter(function(h) { return h.date >= from; });
-            if (to) filtered = filtered.filter(function(h) { return h.date <= to; });
-            tbody.innerHTML = '';
-            if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="py-8 text-center text-slate-400"><i class="fa-solid fa-clock-rotate-left text-2xl mb-2"></i><p class="text-xs font-medium">No history records</p></td></tr>';
-                return;
-            }
-            filtered.forEach(function(h) {
-                tbody.innerHTML += '<tr class="border-b border-slate-100 hover:bg-slate-50/50">' +
-                    '<td class="py-3.5 px-3 font-bold text-slate-900">#' + h.bookingId + '</td>' +
-                    '<td class="py-3.5 px-3 text-slate-600">' + h.zone + '</td>' +
-                    '<td class="py-3.5 px-3 text-slate-500">' + h.date + '</td>' +
-                    '<td class="py-3.5 px-3 text-slate-500">' + h.entryTime + '</td>' +
-                    '<td class="py-3.5 px-3 text-slate-500">' + (h.exitTime || '\u2014') + '</td>' +
-                    '<td class="py-3.5 px-3 text-slate-500">' + h.duration + '</td>' +
-                    '<td class="py-3.5 px-3 font-bold text-slate-700">&#x9F3;' + h.cost.toFixed(2) + '</td>' +
-                    '<td class="py-3.5 px-3"><span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">' + h.paymentStatus + '</span></td></tr>';
-            });
+function renderCards() {
+    var filtered = getFiltered();
+    document.getElementById('count').textContent = 'Showing ' + filtered.length + ' of ' + historyData.length + ' records';
+    var total = historyData.length;
+    document.getElementById('stat-total').textContent = total;
+    document.getElementById('stat-completed').textContent = historyData.filter(function(h) { var ps = h.paymentStatus || 'Paid'; return ps === 'Paid' || ps === 'Completed'; }).length;
+    document.getElementById('stat-cancelled').textContent = historyData.filter(function(h) { return (h.paymentStatus || '') === 'Cancelled'; }).length;
+    var spent = historyData.reduce(function(s, h) { return s + (h.cost || 0); }, 0);
+    document.getElementById('stat-spent').textContent = 'BDT ' + spent.toFixed(2);
+    document.getElementById('subtitle').textContent = total + ' total booking' + (total !== 1 ? 's' : '');
+    var cardsEl = document.getElementById('cards');
+    var emptyEl = document.getElementById('empty');
+    if (filtered.length === 0) { 
+        cardsEl.innerHTML = ''; 
+        emptyEl.classList.remove('hidden'); 
+        if (historyData.length > 0) {
+            emptyEl.querySelector('p').textContent = 'No records match your filter';
+            emptyEl.querySelector('.text-xs').textContent = 'Try adjusting your search or filter criteria.';
         }
+        return; 
+    }
+    emptyEl.classList.add('hidden');
+    var html = '';
+    for (var i = 0; i < filtered.length; i++) {
+        var h = filtered[i];
+        var ps = h.paymentStatus || 'Paid';
+        var bid = Number(h.bookingId) || 0;
+        var entryFormatted = formatTimeAMPM(h.entryTime);
+        var exitFormatted = formatTimeAMPM(h.exitTime);
+        
+        // Determine status badge style
+        var statusBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        if (ps === 'Cancelled') statusBadgeClass = 'bg-red-50 text-red-700 border-red-200';
+        else if (ps === 'Pending') statusBadgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
+        
+        html += '<div class="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 hover:shadow-md transition-shadow">' +
+            '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">' +
+            '<div class="flex-1 min-w-0">' +
+            '<div class="flex items-center gap-2.5 mb-1.5">' +
+            '<span class="text-sm font-extrabold text-slate-900">#' + safe(h.bookingId) + '</span>' +
+            '<span class="text-[10px] text-slate-400">|</span>' +
+            '<span class="text-xs font-semibold text-slate-600">' + safe(h.zone) + '</span>' +
+            '<span class="text-[10px] text-slate-400">|</span>' +
+            '<span class="text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">' + safe(h.slot) + '</span></div>' +
+            '<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">' +
+            '<span><i class="fa-regular fa-calendar mr-1"></i>' + safe(h.date) + '</span>' +
+            '<span><i class="fa-regular fa-clock mr-1 text-emerald-600"></i>In: ' + entryFormatted + '</span>' +
+            '<span><i class="fa-regular fa-clock mr-1 text-red-500"></i>Out: ' + exitFormatted + '</span>' +
+            '<span><i class="fa-solid fa-car mr-1"></i>' + safe(h.vehicle) + '</span>' +
+            '<span><i class="fa-solid fa-hourglass-half mr-1 text-slate-400"></i>' + safe(h.duration) + '</span></div>' +
+            '<div class="flex items-center gap-2 mt-2">' +
+            '<span class="text-sm font-extrabold text-slate-800">BDT ' + (h.cost || 0).toFixed(2) + '</span>' +
+            '<span class="text-[10px] text-slate-400">|</span>' +
+            '<span class="inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold border ' + statusBadgeClass + '">' + ps + '</span>' +
+            '<span class="text-[10px] text-slate-400 flex items-center gap-1"><i class="fa-solid fa-credit-card"></i>' + safe(h.payment) + '</span></div></div>' +
+            '<div class="flex items-center gap-2 flex-shrink-0">' +
+            '<button onclick="viewDetails(' + bid + ')" class="px-3 py-2 text-[10px] font-bold rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 transition-all hover:shadow"><i class="fa-solid fa-eye"></i> View</button>' +
+            '<button onclick="printOne(' + bid + ')" class="px-3 py-2 text-[10px] font-bold rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 transition-all hover:shadow"><i class="fa-solid fa-print"></i> Receipt</button></div></div></div>';
+    }
+    cardsEl.innerHTML = html;
+}
 
-        function filterMyHistory() {
-            renderHistory();
+function getFiltered() {
+    var searchVal = (document.getElementById('search').value || '').toLowerCase().trim();
+    var fromDate = document.getElementById('from').value;
+    var toDate = document.getElementById('to').value;
+    return historyData.filter(function(h) {
+        if (searchVal) {
+            var found = false;
+            var fields = [String(h.bookingId || ''), h.zone || '', h.slot || '', h.vehicle || '', h.name || '', h.date || ''];
+            for (var f = 0; f < fields.length; f++) { if (fields[f].toLowerCase().indexOf(searchVal) !== -1) { found = true; break; } }
+            if (!found) return false;
         }
+        if (fromDate && h.date && h.date < fromDate) return false;
+        if (toDate && h.date && h.date > toDate) return false;
+        if (currentFilter !== 'all' && (h.paymentStatus || 'Paid') !== currentFilter) return false;
+        return true;
+    });
+}
 
-        // ============================================================
-        // EXPORTS
-        // ============================================================
-        function exportMyHistoryPDF() {
-            if (history.length === 0) { showToast('info', 'No history records to export.'); return; }
-            var w = window.open('', '_blank');
-            var rows = '';
-            history.forEach(function(h) {
-                rows += '<tr><td style="padding:8px;border-bottom:1px solid #e2e8f0;font-weight:600;">#' + h.bookingId + '</td>' +
-                    '<td style="padding:8px;border-bottom:1px solid #e2e8f0;">' + h.zone + '</td>' +
-                    '<td style="padding:8px;border-bottom:1px solid #e2e8f0;">' + h.date + '</td>' +
-                    '<td style="padding:8px;border-bottom:1px solid #e2e8f0;">' + h.entryTime + '</td>' +
-                    '<td style="padding:8px;border-bottom:1px solid #e2e8f0;">' + (h.exitTime || '\u2014') + '</td>' +
-                    '<td style="padding:8px;border-bottom:1px solid #e2e8f0;">' + h.duration + '</td>' +
-                    '<td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right;">&#x9F3;' + h.cost.toFixed(2) + '</td>' +
-                    '<td style="padding:8px;border-bottom:1px solid #e2e8f0;">' + h.paymentStatus + '</td></tr>';
-            });
-            var totalRevenue = history.reduce(function(s, h) { return s + h.cost; }, 0);
-            var htmlContent = '<html><head><title>SmartPark - Parking History Report</title>' +
-                '<style>body{font-family:Poppins,sans-serif;padding:30px;background:#f8fafc;}' +
-                'table{width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.05);}' +
-                'th{background:#1e293b;color:white;padding:10px 8px;font-size:11px;text-align:left;}' +
-                'td{font-size:12px;color:#1e293b;}h2{color:#1e293b;}p{color:#64748b;font-size:13px;}' +
-                '</style></head><body>' +
-                '<h2>SmartPark - Parking History Report</h2>' +
-                '<p>Generated: ' + new Date().toLocaleString() + '</p>' +
-                '<table><thead><tr><th>Booking ID</th><th>Zone</th><th>Date</th><th>Entry</th><th>Exit</th><th>Duration</th><th style="text-align:right;">Cost</th><th>Payment</th></tr></thead>' +
-                '<tbody>' + rows + '</tbody></table>' +
-                '<p style="margin-top:16px;">Total: ' + history.length + ' records | Revenue: &#x9F3;' + totalRevenue.toFixed(2) + '</p>' +
-                '<button onclick="window.print()" style="margin-top:20px;padding:10px 24px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Print / Save PDF</button>' +
-                '</body></html>';
-            w.document.write(htmlContent);
-            w.document.close();
-            showToast('success', 'History report opened in new tab.');
-        }
+function apply() { renderCards(); }
+function clearSearch() { document.getElementById('search').value = ''; renderCards(); }
 
-        function exportMyHistoryCSV() {
-            if (history.length === 0) { showToast('info', 'No history records to export.'); return; }
-            var csv = 'Booking ID,Zone,Date,Entry Time,Exit Time,Duration,Cost,Payment Status\n';
-            history.forEach(function(h) {
-                csv += '#' + h.bookingId + ',"' + h.zone + '","' + h.date + '","' + h.entryTime + '","' + (h.exitTime || '') + '","' + h.duration + '",' + h.cost.toFixed(2) + ',"' + h.paymentStatus + '"\n';
-            });
-            var blob = new Blob([csv], { type: 'text/csv' });
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = 'SmartPark_Parking_History.csv';
-            a.click();
-            URL.revokeObjectURL(url);
-            showToast('success', 'CSV file downloaded with ' + history.length + ' records.');
-        }
+function setFilter(status, el) {
+    currentFilter = status;
+    var chips = document.querySelectorAll('#filters .filter-chip');
+    for (var i = 0; i < chips.length; i++) chips[i].className = 'filter-chip inactive';
+    el.className = 'filter-chip active';
+    renderCards();
+}
 
-        // ============================================================
-        // TOAST
-        // ============================================================
-        function showToast(type, message) {
-            var container = document.getElementById('toast-container');
-            if (!container) return;
-            var toast = document.createElement('div');
-            var borderClass = 'border-blue-500/30';
-            var iconClass = 'fa-solid fa-circle-info text-blue-400';
-            if (type === 'success') { borderClass = 'border-emerald-500/30'; iconClass = 'fa-solid fa-circle-check text-emerald-400'; }
-            else if (type === 'error') { borderClass = 'border-red-500/30'; iconClass = 'fa-solid fa-circle-exclamation text-red-400'; }
-            toast.className = 'flex items-center gap-3 p-4 rounded-xl border ' + borderClass + ' bg-slate-900/95 shadow-2xl pointer-events-auto max-w-sm w-full transition-all duration-300 transform translate-y-2 opacity-0';
-            toast.innerHTML = '<div class="flex-shrink-0 text-lg"><i class="' + iconClass + '"></i></div><div class="flex-grow"><p class="text-xs font-semibold text-slate-200">' + message + '</p></div><button class="text-slate-500 hover:text-slate-300 transition-colors" onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark text-xs"></i></button>';
-            container.appendChild(toast);
-            setTimeout(function() { toast.classList.remove('translate-y-2', 'opacity-0'); }, 50);
-            setTimeout(function() { toast.classList.add('opacity-0', 'translate-y-2'); setTimeout(function() { toast.remove(); }, 300); }, 4000);
-        }
-    </script>
+function viewDetails(id) {
+    var record = null;
+    for (var i = 0; i < historyData.length; i++) { if (Number(historyData[i].bookingId) === id) { record = historyData[i]; break; } }
+    if (!record) { showToastMsg('error','Record not found.'); return; }
+    currentDetail = record;
+    document.getElementById('dm-title').textContent = 'Booking Details';
+    document.getElementById('dm-id').textContent = '#' + record.bookingId;
+    var ps = record.paymentStatus || 'Paid';
+    document.getElementById('dm-content').innerHTML =
+        '<div class="grid grid-cols-2 gap-4">' +
+        '<div class="bg-slate-50 rounded-xl p-3"><p class="text-[10px] font-bold text-slate-400 uppercase">Booking ID</p><p class="text-sm font-extrabold text-slate-900 mt-0.5">#' + escHtml(record.bookingId) + '</p></div>' +
+        '<div class="bg-slate-50 rounded-xl p-3"><p class="text-[10px] font-bold text-slate-400 uppercase">Customer</p><p class="text-sm font-semibold text-slate-900 mt-0.5">' + escHtml(record.name) + '</p></div>' +
+        '<div class="bg-slate-50 rounded-xl p-3"><p class="text-[10px] font-bold text-slate-400 uppercase">Zone</p><p class="text-sm font-semibold text-slate-900 mt-0.5">' + escHtml(record.zone) + '</p></div>' +
+        '<div class="bg-slate-50 rounded-xl p-3"><p class="text-[10px] font-bold text-slate-400 uppercase">Slot</p><p class="text-sm font-semibold text-blue-600 mt-0.5">' + escHtml(record.slot) + '</p></div>' +
+        '<div class="bg-slate-50 rounded-xl p-3"><p class="text-[10px] font-bold text-slate-400 uppercase">Vehicle</p><p class="text-sm font-semibold text-slate-900 mt-0.5">' + escHtml(record.vehicle) + '</p></div>' +
+        '<div class="bg-slate-50 rounded-xl p-3"><p class="text-[10px] font-bold text-slate-400 uppercase">Duration</p><p class="text-sm font-semibold text-slate-900 mt-0.5">' + escHtml(record.duration) + '</p></div>' +
+        '<div class="bg-slate-50 rounded-xl p-3"><p class="text-[10px] font-bold text-slate-400 uppercase">Date</p><p class="text-sm font-semibold text-slate-900 mt-0.5">' + (record.date || '') + '</p></div>' +
+        '<div class="bg-slate-50 rounded-xl p-3"><p class="text-[10px] font-bold text-slate-400 uppercase">Entry</p><p class="text-sm font-semibold text-slate-900 mt-0.5">' + escHtml(record.entryTime) + '</p></div>' +
+        '<div class="bg-slate-50 rounded-xl p-3"><p class="text-[10px] font-bold text-slate-400 uppercase">Exit</p><p class="text-sm font-semibold text-slate-900 mt-0.5">' + escHtml(record.exitTime) + '</p></div>' +
+        '<div class="bg-slate-50 rounded-xl p-3"><p class="text-[10px] font-bold text-slate-400 uppercase">Payment</p><p class="text-sm font-semibold text-slate-900 mt-0.5">' + escHtml(record.payment) + '</p></div></div>' +
+        '<div class="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-xl p-3"><div><p class="text-[10px] font-bold text-blue-600 uppercase">Total</p><p class="text-lg font-extrabold text-blue-700">BDT ' + (record.cost || 0).toFixed(2) + '</p></div>' +
+        '<span class="inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold border ' +
+        (ps === 'Paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200') + '">' + ps + '</span></div>';
+    var modal = document.getElementById('details-modal');
+    var card = document.getElementById('dm-card');
+    modal.classList.remove('opacity-0', 'pointer-events-none');
+    card.classList.remove('scale-95');
+    card.classList.add('scale-100');
+}
+
+function closeDetails() {
+    var modal = document.getElementById('details-modal');
+    var card = document.getElementById('dm-card');
+    card.classList.remove('scale-100');
+    card.classList.add('scale-95');
+    setTimeout(function() { modal.classList.add('opacity-0', 'pointer-events-none'); }, 150);
+    currentDetail = null;
+}
+
+function printOne(id) {
+    for (var i = 0; i < historyData.length; i++) { if (Number(historyData[i].bookingId) === id) { printReceiptFor(historyData[i]); return; } }
+    showToastMsg('error','Record not found.');
+}
+
+function printReceipt() {
+    if (currentDetail) printReceiptFor(currentDetail);
+    else showToastMsg('error','No record selected.');
+}
+
+function printReceiptFor(r) {
+    var w = window.open('', '_blank');
+    if (!w) { showToastMsg('error','Please allow popups to print.'); return; }
+    var ps = r.paymentStatus || 'Paid';
+    var doc = '<!DOCTYPE html><html><head><title>SmartPark - Receipt #' + escHtml(r.bookingId) + '</title>' +
+        '<style>body{font-family:Poppins,sans-serif;padding:40px;background:#f8fafc;color:#1e293b;}.r{max-width:500px;margin:0 auto;background:white;border-radius:16px;padding:30px;box-shadow:0 4px 20px rgba(0,0,0,0.06);}.h{text-align:center;border-bottom:2px dashed #e2e8f0;padding-bottom:16px;margin-bottom:20px;}.h h1{font-size:20px;font-weight:800;margin:0;}.h p{font-size:11px;color:#64748b;margin:2px 0 0;}.rw{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid #f1f5f9;}.l{color:#64748b;font-weight:500;}.v{font-weight:600;text-align:right;}.t{display:flex;justify-content:space-between;padding:12px 0 0;margin-top:8px;border-top:2px solid #1e293b;}.t .l{font-size:15px;font-weight:700;}.t .v{font-size:20px;font-weight:800;color:#2563eb;}.f{text-align:center;margin-top:24px;font-size:10px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:16px;}@media print{.np{display:none}}</style></head><body>' +
+        '<div class="r"><div class="h"><h1>SmartPark Parking Receipt</h1><p>#' + escHtml(r.bookingId) + ' | ' + (r.date || '') + '</p></div>' +
+        '<div class="rw"><span class="l">Customer</span><span class="v">' + escHtml(r.name) + '</span></div>' +
+        '<div class="rw"><span class="l">Vehicle</span><span class="v">' + escHtml(r.vehicle) + '</span></div>' +
+        '<div class="rw"><span class="l">Zone</span><span class="v">' + escHtml(r.zone) + '</span></div>' +
+        '<div class="rw"><span class="l">Slot</span><span class="v">' + escHtml(r.slot) + '</span></div>' +
+        '<div class="rw"><span class="l">Duration</span><span class="v">' + escHtml(r.duration) + '</span></div>' +
+        '<div class="rw"><span class="l">Entry</span><span class="v">' + escHtml(r.entryTime) + '</span></div>' +
+        '<div class="rw"><span class="l">Exit</span><span class="v">' + escHtml(r.exitTime) + '</span></div>' +
+        '<div class="rw"><span class="l">Payment</span><span class="v">' + escHtml(r.payment) + '</span></div>' +
+        '<div class="rw"><span class="l">Status</span><span class="v">' + ps + '</span></div>' +
+        '<div class="t"><span class="l">Total Paid</span><span class="v">BDT ' + (r.cost || 0).toFixed(2) + '</span></div>' +
+        '<div class="f">Thank you for choosing SmartPark!<br>This is a computer-generated receipt.</div>' +
+        '<div class="np" style="text-align:center;margin-top:20px;"><button onclick="window.print()" style="padding:10px 28px;background:#2563eb;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;">Print Receipt</button></div></div></body></html>';
+    w.document.write(doc);
+    w.document.close();
+}
+
+function exportPDF() {
+    if (historyData.length === 0) { showToastMsg('info','No records to export.'); return; }
+    var w = window.open('', '_blank');
+    if (!w) { showToastMsg('error','Please allow popups.'); return; }
+    var rows = '';
+    for (var i = 0; i < historyData.length; i++) {
+        var h = historyData[i];
+        rows += '<tr><td style="padding:8px;border-bottom:1px solid #e2e8f0;font-weight:600;">#' + escHtml(h.bookingId) + '</td>' +
+            '<td style="padding:8px;border-bottom:1px solid #e2e8f0;">' + escHtml(h.zone) + '</td>' +
+            '<td style="padding:8px;border-bottom:1px solid #e2e8f0;">' + (h.slot || '') + '</td>' +
+            '<td style="padding:8px;border-bottom:1px solid #e2e8f0;">' + (h.date || '') + '</td>' +
+            '<td style="padding:8px;border-bottom:1px solid #e2e8f0;">' + escHtml(h.entryTime) + '</td>' +
+            '<td style="padding:8px;border-bottom:1px solid #e2e8f0;">' + escHtml(h.exitTime) + '</td>' +
+            '<td style="padding:8px;border-bottom:1px solid #e2e8f0;">' + escHtml(h.duration) + '</td>' +
+            '<td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right;">BDT ' + (h.cost || 0).toFixed(2) + '</td>' +
+            '<td style="padding:8px;border-bottom:1px solid #e2e8f0;">' + (h.paymentStatus || 'Paid') + '</td></tr>';
+    }
+    var totalRev = historyData.reduce(function(s, h) { return s + (h.cost || 0); }, 0);
+    w.document.write(
+        '<!DOCTYPE html><html><head><title>SmartPark - Parking History Report</title>' +
+        '<style>body{font-family:Poppins,sans-serif;padding:30px;background:#f8fafc;}table{width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden;}th{background:#1e293b;color:white;padding:10px 8px;font-size:11px;text-align:left;}td{font-size:12px;color:#1e293b;}</style></head><body>' +
+        '<h2>SmartPark - Parking History Report</h2>' +
+        '<p>Generated: ' + new Date().toLocaleString() + ' | Records: ' + historyData.length + '</p>' +
+        '<table><thead><tr><th>Booking ID</th><th>Zone</th><th>Slot</th><th>Date</th><th>Entry</th><th>Exit</th><th>Duration</th><th style="text-align:right;">Cost</th><th>Payment</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+        '<p style="margin-top:16px;font-size:14px;font-weight:700;">Total Revenue: BDT ' + totalRev.toFixed(2) + '</p>' +
+        '<button onclick="window.print()" style="margin-top:20px;padding:10px 24px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Print / Save PDF</button></body></html>'
+    );
+    w.document.close();
+    showToastMsg('success', 'Report opened with ' + historyData.length + ' records.');
+}
+
+function exportCSV() {
+    if (historyData.length === 0) { showToastMsg('info','No records to export.'); return; }
+    var csv = 'Booking ID,Zone,Slot,Date,Entry Time,Exit Time,Duration,Cost,Payment Status\n';
+    for (var i = 0; i < historyData.length; i++) {
+        var h = historyData[i];
+        csv += '"#' + (h.bookingId || '') + '",';
+        csv += '"' + (h.zone || '') + '",';
+        csv += '"' + (h.slot || '') + '",';
+        csv += '"' + (h.date || '') + '",';
+        csv += '"' + (h.entryTime || '') + '",';
+        csv += '"' + (h.exitTime || '') + '",';
+        csv += '"' + (h.duration || '') + '",';
+        csv += '"BDT ' + (h.cost || 0).toFixed(2) + '",';
+        csv += '"' + (h.paymentStatus || 'Paid') + '"\n';
+    }
+    var blob = new Blob([csv], {type: 'text/csv'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'SmartPark_History.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToastMsg('success', 'CSV file downloaded with ' + historyData.length + ' records.');
+}
+
+function toggleMenu() {
+    var menu = document.getElementById('mobile-menu');
+    var icon = document.getElementById('menu-icon');
+    if (menu.classList.contains('hidden')) { menu.classList.remove('hidden'); icon.classList.remove('fa-bars'); icon.classList.add('fa-xmark'); }
+    else { menu.classList.add('hidden'); icon.classList.remove('fa-xmark'); icon.classList.add('fa-bars'); }
+}
+
+function showToastMsg(type, message) {
+    var container = document.getElementById('toast');
+    if (!container) return;
+    var toast = document.createElement('div');
+    var borderClass = 'border-blue-500/30';
+    var iconClass = 'fa-solid fa-circle-info text-blue-400';
+    if (type === 'success') { borderClass = 'border-emerald-500/30'; iconClass = 'fa-solid fa-circle-check text-emerald-400'; }
+    else if (type === 'error') { borderClass = 'border-red-500/30'; iconClass = 'fa-solid fa-circle-exclamation text-red-400'; }
+    toast.className = 'flex items-center gap-3 p-4 rounded-xl border ' + borderClass + ' bg-slate-900/95 shadow-2xl pointer-events-auto max-w-sm w-full transition-all duration-300 transform translate-y-2 opacity-0';
+    toast.innerHTML = '<div class="flex-shrink-0 text-lg"><i class="' + iconClass + '"></i></div><div class="flex-grow"><p class="text-xs font-semibold text-slate-200">' + message + '</p></div><button class="text-slate-500 hover:text-slate-300 transition-colors" onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark text-xs"></i></button>';
+    container.appendChild(toast);
+    setTimeout(function() { toast.classList.remove('translate-y-2', 'opacity-0'); }, 50);
+    setTimeout(function() { toast.classList.add('opacity-0', 'translate-y-2'); setTimeout(function() { toast.remove(); }, 300); }, 4000);
+}
+</script>
 </body>
 </html>
 
