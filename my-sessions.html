@@ -188,6 +188,7 @@
     <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
 
     <!-- ===================== JAVASCRIPT ===================== -->
+    <script src="script.js"></script>
     <script>
         // ============================================================
         // DATA
@@ -211,78 +212,58 @@
         // ============================================================
         // INIT
         // ============================================================
-        document.addEventListener('DOMContentLoaded', function() {
-            loadData();
+        document.addEventListener('DOMContentLoaded', async function() {
+            const loggedInUser = getLoggedInUser();
+            if (!loggedInUser) {
+                window.location.href = 'index.html'; // Redirect to login if not logged in
+                return;
+            }
+            await loadData(); // Make loadData async
             renderSessions();
         });
 
         // ============================================================
         // REFRESH
         // ============================================================
-        function refreshData() {
-            loadData();
+        async function refreshData() { // Make refreshData async
+            await loadData();
             renderSessions();
             showToast('info', 'Data refreshed!');
         }
 
         // ============================================================
-        // LOCAL STORAGE
+        // LOCAL STORAGE (modified to use backend calls)
         // ============================================================
-        function initZoneSlots() {
-            Object.keys(zonesData).forEach(function(key) {
-                var z = zonesData[key];
-                if (!zoneSlots[key]) {
-                    zoneSlots[key] = new Array(z.spots).fill(false);
-                }
-            });
-            sessions.forEach(function(s) {
-                if (s.status === 'Active' && s.slotIndex !== undefined) {
-                    var zKey = s.zoneId;
-                    if (zoneSlots[zKey] && zoneSlots[zKey][s.slotIndex] !== undefined) {
-                        zoneSlots[zKey][s.slotIndex] = true;
-                    }
-                }
-            });
-        }
+        async function loadData() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                sessions = [];
+                return;
+            }
 
-        function loadData() {
             try {
-                var saved = localStorage.getItem('customerParkingData');
-                if (saved) {
-                    var d = JSON.parse(saved);
-                    sessions = d.sessions || [];
-                    history = d.history || [];
-                    nextBookingId = d.nextId || 1000;
-                    nextHistoryId = d.nextHistId || 2000;
-                    zoneSlots = d.zoneSlots || {};
-                    if (Object.keys(zoneSlots).length === 0) {
-                        initZoneSlots();
+                const response = await fetch('http://localhost:3000/api/parking/my-sessions', {
+                    method: 'GET',
+                    headers: {
+                        'x-auth-token': token,
+                        'Content-Type': 'application/json'
                     }
-                }
-            } catch(e) {}
-        }
+                });
 
-        function saveData() {
-            localStorage.setItem('customerParkingData', JSON.stringify({
-                sessions: sessions,
-                history: history,
-                nextId: nextBookingId,
-                nextHistId: nextHistoryId,
-                zoneSlots: zoneSlots
-            }));
-        }
+                const data = await response.json();
 
-        function syncZoneOccupancy() {
-            Object.values(zonesData).forEach(function(z) { z.occupied = 0; });
-            sessions.forEach(function(s) {
-                if (s.status === 'Active') {
-                    var zone = Object.values(zonesData).find(function(z) { return z.name === s.zone; });
-                    if (zone) zone.occupied = (zone.occupied || 0) + 1;
+                if (response.ok) {
+                    sessions = data;
+                } else {
+                    console.error('Error fetching user sessions:', data.msg);
+                    showToast('error', data.msg || 'Failed to fetch user sessions.');
+                    sessions = [];
                 }
-            });
-            Object.values(zonesData).forEach(function(z) {
-                z.free = Math.max(0, z.spots - z.occupied);
-            });
+            } catch (error) {
+                console.error('Network error fetching user sessions:', error);
+                showToast('error', 'Network error fetching user sessions.');
+                sessions = [];
+            }
         }
 
         // ============================================================
@@ -556,7 +537,7 @@
         // ============================================================
         // END SESSION
         // ============================================================
-        function endSession(sessionId, skipConfirm) {
+        async function endSession(sessionId, skipConfirm) {
             var idx = sessions.findIndex(function(s) { return s.id == sessionId; });
             if (idx === -1) { showToast('error', 'Session not found for ending.'); return; }
             var s = sessions[idx];
@@ -566,6 +547,26 @@
             if (liveTimers[s.id]) {
                 clearInterval(liveTimers[s.id]);
                 delete liveTimers[s.id];
+            }
+
+            var endTime = new Date().toISOString();
+            var cost = s.cost || 0;
+
+            // Update backend
+            const token = localStorage.getItem('token');
+            if (token) {
+                try {
+                    await fetch('http://localhost:3000/api/parking/' + sessionId, {
+                        method: 'PUT',
+                        headers: {
+                            'x-auth-token': token,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ endTime: endTime, cost: cost })
+                    });
+                } catch (error) {
+                    console.error('Error updating session on backend:', error);
+                }
             }
 
             s.status = 'Completed';

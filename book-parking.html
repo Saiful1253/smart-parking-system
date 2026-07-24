@@ -904,6 +904,31 @@
             // Save payment to admin payment system
             savePaymentToAdmin(booking, customerNumber, trxId);
 
+            // Save booking to backend
+            const token = localStorage.getItem('token');
+            if (token) {
+                const startTime = new Date(booking.date + 'T' + booking.entryTime).toISOString();
+                fetch('http://localhost:3000/api/parking', {
+                    method: 'POST',
+                    headers: {
+                        'x-auth-token': token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        plateNumber: booking.vehicle,
+                        zone: booking.zone,
+                        startTime: startTime,
+                        cost: booking.cost
+                    })
+                }).then(function(res) { return res.json(); }).then(function(data) {
+                    if (data && data._id) {
+                        booking.backendId = data._id;
+                    }
+                }).catch(function(err) {
+                    console.error('Error saving booking to backend:', err);
+                });
+            }
+
             renderZones();
             addMarkers();
             closePaymentModal();

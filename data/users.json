@@ -1,0 +1,16 @@
+[
+  {
+    "email": "test@example.com",
+    "password": "$2b$10$kVAnOZ9rF4VaqSRbIIEQge/6iZxpIGXXBFhBeuT.qlY/TKejHzqPe",
+    "role": "user",
+    "_id": "mryzboa4j9jtt5kf4",
+    "createdAt": "2026-07-24T13:31:54.412Z"
+  },
+  {
+    "email": "tanvinislam3273@gmail.com",
+    "password": "$2b$10$ZHeUu95lkqHFeqyPdtFdWuNzF3GVrHKU32OfNsr9FQiV3bCy1oZ9q",
+    "role": "user",
+    "_id": "mryzharn3a35hgba9",
+    "createdAt": "2026-07-24T13:36:16.835Z"
+  }
+]

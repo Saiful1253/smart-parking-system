@@ -391,6 +391,8 @@
     <!-- ===================== TOAST CONTAINER ===================== -->
     <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
 
+    <!-- ===================== JAVASCRIPT ===================== -->
+    <script src="script.js"></script>
     <script>
         /* ============================================================
            SMARTPARK - My History (v2.1)
@@ -402,81 +404,61 @@
         // ============================================================
         // INIT
         // ============================================================
-        document.addEventListener('DOMContentLoaded', function() {
-            loadData();
-            renderCards();
+        document.addEventListener('DOMContentLoaded', async function() {
+            const loggedInUser = getLoggedInUser();
+            if (!loggedInUser) {
+                window.location.href = 'index.html'; // Redirect to login if not logged in
+                return;
+            }
+            await loadData();
+            applyFilters();
         });
 
         // ============================================================
         // REFRESH
         // ============================================================
-        function refreshData() {
-            loadData();
-            renderCards();
+        async function refreshData() {
+            await loadData();
+            applyFilters();
             showToast('info', 'Data refreshed!');
         }
 
         // ============================================================
         // LOCAL STORAGE & SEED DATA
         // ============================================================
-        function loadData() {
-            try {
-                var saved = localStorage.getItem('customerParkingData');
-                if (saved) {
-                    var d = JSON.parse(saved);
-                    historyData = d.history || [];
-                }
-            } catch(e) {}
+        async function loadData() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                historyData = [];
+                return;
+            }
 
-            // Seed with exact sample data if no history exists
-            if (historyData.length === 0) {
-                seedSampleHistory();
+            try {
+                const response = await fetch('http://localhost:3000/api/parking/my-history', {
+                    method: 'GET',
+                    headers: {
+                        'x-auth-token': token,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    historyData = data;
+                } else {
+                    console.error('Error fetching user history:', data.msg);
+                    showToast('error', data.msg || 'Failed to fetch user history.');
+                    historyData = [];
+                }
+            } catch (error) {
+                console.error('Network error fetching user history:', error);
+                showToast('error', 'Network error fetching user history.');
+                historyData = [];
             }
         }
 
-        function seedSampleHistory() {
-            var sampleHistory = [
-                {
-                    id: 2000,
-                    bookingId: 1000,
-                    name: 'Rahim Khan',
-                    vehicle: 'ABC-1251',
-                    zone: 'Zone C',
-                    slot: 'Zone C-22',
-                    date: '2026-07-23',
-                    entryTime: '22:00',
-                    exitTime: '03:43',
-                    duration: '5h 43m',
-                    cost: 26.93,
-                    payment: 'bKash',
-                    paymentStatus: 'Paid'
-                },
-                {
-                    id: 2001,
-                    bookingId: 1001,
-                    name: 'Rahim Khan',
-                    vehicle: 'ABC-1251',
-                    zone: 'Zone D',
-                    slot: 'D-01',
-                    date: '2026-07-23',
-                    entryTime: '22:18',
-                    exitTime: '22:21',
-                    duration: '3m',
-                    cost: 1.50,
-                    payment: 'bKash',
-                    paymentStatus: 'Paid'
-                }
-            ];
 
-            try {
-                var saved = localStorage.getItem('customerParkingData');
-                var d = saved ? JSON.parse(saved) : { sessions: [], history: [], nextId: 1000, nextHistId: 2000, zoneSlots: {} };
-                d.history = sampleHistory;
-                d.nextHistId = 3000;
-                localStorage.setItem('customerParkingData', JSON.stringify(d));
-                historyData = sampleHistory;
-            } catch(e) {}
-        }
 
         // ============================================================
         // HELPERS

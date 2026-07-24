@@ -1,4 +1,5 @@
 // SmartPark - Interactive JavaScript
+const API_BASE = 'http://localhost:3000';
 
 document.addEventListener('DOMContentLoaded', () => {
     // Check for remembered email
@@ -11,6 +12,148 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
+
+async function fetchUserSessions() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        console.warn('No token found, user not logged in.');
+        return [];
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/api/parking/my-sessions`, {
+            method: 'GET',
+            headers: {
+                'x-auth-token': token,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            return data;
+        } else {
+            console.error('Error fetching user sessions:', data.msg);
+            showToast('error', data.msg || 'Failed to fetch user sessions.');
+            return [];
+        }
+    } catch (error) {
+        console.error('Network error fetching user sessions:', error);
+        showToast('error', 'Network error fetching user sessions.');
+        return [];
+    }
+}
+
+async function saveParkingSession(sessionData) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        showToast('error', 'You must be logged in to reserve a spot.');
+        return null;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/api/parking`, {
+            method: 'POST',
+            headers: {
+                'x-auth-token': token,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(sessionData)
+        });
+        const data = await response.json();
+        if (response.ok) {
+            showToast('success', `Spot ${sessionData.zone} reserved successfully!`);
+            return data;
+        } else {
+            console.error('Error saving parking session:', data.msg);
+            showToast('error', data.msg || 'Failed to reserve spot.');
+            return null;
+        }
+    } catch (error) {
+        console.error('Network error saving parking session:', error);
+        showToast('error', 'Network error saving parking session.');
+        return null;
+    }
+}
+
+async function deleteParkingSession(sessionId) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        showToast('error', 'You must be logged in to cancel a reservation.');
+        return false;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/api/parking/${sessionId}`, {
+            method: 'DELETE',
+            headers: {
+                'x-auth-token': token,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showToast('info', 'Reservation cancelled successfully.');
+            return true;
+        } else {
+            console.error('Error deleting parking session:', data.msg);
+            showToast('error', data.msg || 'Failed to cancel reservation.');
+            return false;
+        }
+    } catch (error) {
+        console.error('Network error deleting parking session:', error);
+        showToast('error', 'Network error cancelling reservation.');
+        return false;
+    }
+}
+
+// Utility functions for user-specific data in localStorage
+function getLoggedInUser() {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+
+    try {
+        // Decode JWT token (client-side decoding is generally safe for non-sensitive data like role)
+        // In a real app, you might want to verify this with the backend
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const decodedPayload = JSON.parse(window.atob(base64));
+        return { email: decodedPayload.user.email, role: decodedPayload.user.role, id: decodedPayload.user.id };
+    } catch (error) {
+        console.error('Error decoding token:', error);
+        return null;
+    }
+}
+
+function getUserData(key, defaultValue = []) {
+    const user = getLoggedInUser();
+    if (!user) return defaultValue;
+    const allData = JSON.parse(localStorage.getItem(key)) || {};
+    return allData[user.email] || defaultValue;
+}
+
+function saveUserData(key, data) {
+    const user = getLoggedInUser();
+    if (!user) return;
+    let allData = JSON.parse(localStorage.getItem(key)) || {};
+    allData[user.email] = data;
+    localStorage.setItem(key, JSON.stringify(allData));
+}
+
+// fetchUserSessions and saveParkingSession are defined above with full error handling and token headers.
+// The duplicate definitions below have been removed to prevent overwriting the primary implementations.
+
+
+function getUserHistory() {
+    return getUserData('userHistory', []);
+}
+
+function saveUserHistory(history) {
+    saveUserData('userHistory', history);
+}
 
 // Role Switching Logic
 let currentRole = 'customer';
@@ -131,32 +274,55 @@ function togglePassword(inputId, button) {
 }
 
 // Interactive Parking Grid Simulation
-let freeSpotsCount = 3;
+let freeSpotsCount = 3; // This should ideally be fetched from the backend
 
-function toggleSlot(element, slotId) {
+async function toggleSlot(element, slotId) {
     const statusSpan = element.querySelector('.slot-status');
     const icon = element.querySelector('i');
+    const user = getLoggedInUser();
+
+    if (!user) {
+        showToast('error', 'Please log in to reserve or cancel spots.');
+        return;
+    }
 
     if (element.classList.contains('available')) {
-        // Reserve the spot
-        element.classList.remove('available', 'border-emerald-500/30', 'bg-emerald-500/5', 'hover:bg-emerald-500/10');
-        element.classList.add('reserved');
-        statusSpan.textContent = 'RESERVED';
-        statusSpan.className = 'text-[9px] font-semibold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 slot-status';
-        icon.className = 'fa-solid fa-circle-check text-blue-500 text-2xl my-1';
-        
-        freeSpotsCount--;
-        showToast('success', `Spot ${slotId} reserved successfully!`);
+        // Simulate reserving the spot
+        const sessionData = {
+            plateNumber: 'SIM-123', // Placeholder, ideally this would come from user input
+            zone: slotId,
+            startTime: new Date(),
+            // endTime will be set when session ends
+            cost: 0 // Cost will be calculated on end
+        };
+        const newSession = await saveParkingSession(sessionData);
+        if (newSession) {
+            element.classList.remove('available', 'border-emerald-500/30', 'bg-emerald-500/5', 'hover:bg-emerald-500/10');
+            element.classList.add('reserved');
+            statusSpan.textContent = 'RESERVED';
+            statusSpan.className = 'text-[9px] font-semibold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 slot-status';
+            icon.className = 'fa-solid fa-circle-check text-blue-500 text-2xl my-1';
+            element.dataset.sessionId = newSession._id; // Store session ID for later
+            
+            freeSpotsCount--;
+        }
     } else if (element.classList.contains('reserved')) {
-        // Cancel reservation
-        element.classList.remove('reserved');
-        element.classList.add('available', 'border-emerald-500/30', 'bg-emerald-500/5', 'hover:bg-emerald-500/10');
-        statusSpan.textContent = 'FREE';
-        statusSpan.className = 'text-[9px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 slot-status';
-        icon.className = 'fa-solid fa-square-p text-emerald-500 text-2xl my-1';
-        
-        freeSpotsCount++;
-        showToast('info', `Reservation for ${slotId} cancelled.`);
+        const sessionId = element.dataset.sessionId;
+        if (!sessionId) {
+            showToast('error', 'No session ID found for this reservation.');
+            return;
+        }
+        const success = await deleteParkingSession(sessionId);
+        if (success) {
+            element.classList.remove('reserved');
+            element.classList.add('available', 'border-emerald-500/30', 'bg-emerald-500/5', 'hover:bg-emerald-500/10');
+            statusSpan.textContent = 'FREE';
+            statusSpan.className = 'text-[9px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 slot-status';
+            icon.className = 'fa-solid fa-square-p text-emerald-500 text-2xl my-1';
+            delete element.dataset.sessionId;
+            
+            freeSpotsCount++;
+        }
     }
 
     // Update Counter UI
@@ -188,87 +354,114 @@ function closeModal(modalId) {
 }
 
 // Form Submissions
-function handleLogin(event) {
+async function handleLogin(event) {
     event.preventDefault();
     const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
     const rememberMe = document.getElementById('remember-me').checked;
     const submitBtn = document.getElementById('login-submit-btn');
     const originalContent = submitBtn.innerHTML;
 
-    // Save or clear remembered email
     if (rememberMe && currentRole === 'customer') {
         localStorage.setItem('rememberedEmail', email);
     } else {
         localStorage.removeItem('rememberedEmail');
     }
 
-    // Show Loading State
     submitBtn.disabled = true;
-    
-    if (currentRole === 'admin') {
-        const adminKey = document.getElementById('login-admin-key').value;
-        submitBtn.innerHTML = `
-            <i class="fa-solid fa-circle-notch animate-spin mr-2"></i>
-            Verifying admin credentials...
-        `;
 
-        setTimeout(() => {
-            if (adminKey === 'admin123') { // Simple simulation key
-                showToast('success', 'Admin authentication successful! Redirecting to Control Panel...');
-                setTimeout(() => {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalContent;
-                    window.location.href = 'admin.html';
-                }, 1500);
-            } else {
-                showToast('error', 'Invalid Admin Security Key! (Try "admin123" for simulation)');
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalContent;
-            }
-        }, 1500);
-    } else {
-        submitBtn.innerHTML = `
-            <i class="fa-solid fa-circle-notch animate-spin mr-2"></i>
-            Securing your spot...
-        `;
+    // Determine the role to send to the backend
+    const roleToSend = currentRole;
 
-        setTimeout(() => {
+    submitBtn.innerHTML = `
+        <i class="fa-solid fa-circle-notch animate-spin mr-2"></i>
+        ${currentRole === 'admin' ? 'Verifying admin credentials...' : 'Securing your spot...'}
+    `;
+
+    try {
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, password, role: roleToSend }),
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            localStorage.setItem('token', data.token); // Store the JWT token
+            localStorage.setItem('loggedInUser', JSON.stringify({ email, role: roleToSend })); // Store basic user info (without sensitive data)
             showToast('success', 'Login successful! Redirecting to dashboard...');
             setTimeout(() => {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalContent;
-                window.location.href = 'book-parking.html';
+                if (roleToSend === 'admin') {
+                    window.location.href = 'admin.html';
+                } else {
+                    window.location.href = 'book-parking.html';
+                }
             }, 1500);
-        }, 1500);
+        } else {
+            showToast('error', data.msg || 'Login failed.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalContent;
+        }
+    } catch (err) {
+        console.error(err);
+        showToast('error', 'Server error during login.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalContent;
     }
 }
 
-function handleRegister(event) {
+async function handleRegister(event) {
     event.preventDefault();
-    const name = document.getElementById('reg-name').value;
+    const name = document.getElementById('reg-name').value; // Name is not used in backend, but kept for consistency
+    const email = document.getElementById('reg-email').value;
+    const password = document.getElementById('reg-password').value;
     const submitBtn = event.target.querySelector('button[type="submit"]');
     const originalContent = submitBtn.innerHTML;
 
-    // Show Loading State
     submitBtn.disabled = true;
     submitBtn.innerHTML = `
         <i class="fa-solid fa-circle-notch animate-spin mr-2"></i>
         Creating account...
     `;
 
-    setTimeout(() => {
-        showToast('success', `Welcome, ${name}! Account created successfully.`);
-        setTimeout(() => {
+    try {
+        const res = await fetch(`${API_BASE}/api/auth/register`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, password, role: 'user' }), // Default role to 'user'
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            showToast('success', `Welcome, ${name}! Account created successfully.`);
+            // Optionally, log in the user directly after registration
+            // localStorage.setItem('token', data.token); // Store token if auto-logging in
+            setTimeout(() => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalContent;
+                switchTab('login');
+                document.getElementById('login-email').value = email;
+                event.target.reset();
+            }, 1500);
+        } else {
+            showToast('error', data.msg || 'Registration failed.');
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalContent;
-            // Switch to login tab
-            switchTab('login');
-            // Pre-fill email
-            document.getElementById('login-email').value = document.getElementById('reg-email').value;
-            // Clear register form
-            event.target.reset();
-        }, 1500);
-    }, 1500);
+        }
+    } catch (err) {
+        console.error(err);
+        showToast('error', 'Server error during registration.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalContent;
+    }
 }
 
 function handleForgotPassword(event) {
