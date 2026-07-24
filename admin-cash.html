@@ -17,6 +17,32 @@
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 h-screen flex overflow-hidden">
+<script>
+(function() {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = 'index.html';
+            return;
+        }
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const decodedPayload = JSON.parse(window.atob(base64));
+        const role = decodedPayload.user.role;
+        if (role !== 'admin') {
+            localStorage.removeItem('token');
+            localStorage.removeItem('loggedInUser');
+            window.location.href = 'index.html';
+            return;
+        }
+    } catch (error) {
+        console.error('Auth guard error:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('loggedInUser');
+        window.location.href = 'index.html';
+    }
+})();
+</script>
 
     <!-- Sidebar (Left) -->
     <aside class="w-64 bg-slate-950 text-slate-400 flex flex-col justify-between flex-shrink-0 border-r border-slate-800 z-20 transition-all duration-300 md:translate-x-0 -translate-x-full fixed md:relative h-screen" id="sidebar">
@@ -42,7 +68,7 @@
             </nav>
         </div>
         <div class="p-4 border-t border-slate-900">
-            <a href="index.html" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-red-500/10 hover:text-red-400 transition-all duration-300"><i class="fa-solid fa-right-from-bracket text-lg"></i><span>Sign Out</span></a>
+            <a href="#" onclick="logout(); return false;" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-red-500/10 hover:text-red-400 transition-all duration-300"><i class="fa-solid fa-right-from-bracket text-lg"></i><span>Sign Out</span></a>
         </div>
     </aside>
 
@@ -134,15 +160,41 @@
         // ============================================================
         // SHARED PAYMENT LEDGER
         // ============================================================
+        function getAllPayments() {
+            var payments = [];
+            try {
+                var saved = localStorage.getItem('smartParkPayments_by_user');
+                if (saved) {
+                    var allByUser = JSON.parse(saved);
+                    Object.values(allByUser).forEach(function(userPayments) {
+                        if (Array.isArray(userPayments)) {
+                            userPayments.forEach(function(p) {
+                                payments.push(p);
+                            });
+                        }
+                    });
+                }
+            } catch(e) {}
+            return payments;
+        }
+
+        function saveAllPayments(payments) {
+            var currentUser = getLoggedInUser();
+            if (!currentUser) return;
+            var allByUser = {};
+            try {
+                var saved = localStorage.getItem('smartParkPayments_by_user');
+                if (saved) allByUser = JSON.parse(saved);
+            } catch(e) {}
+            allByUser[currentUser.email] = payments;
+            localStorage.setItem('smartParkPayments_by_user', JSON.stringify(allByUser));
+        }
+
         function loadPayments() {
             var tbody = document.getElementById('payments-table-body');
             if (!tbody) return;
             
-            var payments = [];
-            try {
-                var saved = localStorage.getItem('smartParkPayments');
-                if (saved) payments = JSON.parse(saved);
-            } catch(e) {}
+            var payments = getAllPayments();
 
             // Update summary
             document.getElementById('total-payments').textContent = payments.length;

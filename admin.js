@@ -1,5 +1,32 @@
 // SmartPark - Admin Dashboard JavaScript
 
+// Admin Auth Guard
+(function() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = 'index.html';
+        return;
+    }
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const decodedPayload = JSON.parse(window.atob(base64));
+        const role = decodedPayload.user.role;
+        if (role !== 'admin') {
+            localStorage.removeItem('token');
+            localStorage.removeItem('loggedInUser');
+            window.location.href = 'index.html';
+            return;
+        }
+    } catch (error) {
+        console.error('Error decoding token:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('loggedInUser');
+        window.location.href = 'index.html';
+        return;
+    }
+})();
+
 // Global Zones Data
 let zonesData = {
     'Zone-C': { id: 'Zone-C', name: 'Zone C', location: 'Underground Parking, B1', spots: 120, occupied: 98, free: 22, rate: 5.00, type: 'Underground', status: 'Active', lat: 23.80700, lng: 90.40600 },
@@ -62,7 +89,6 @@ function renderZonesGrid() {
                         <i class="fa-solid fa-location-dot text-slate-400"></i> ${zone.location}
                     </p>
 
-                    <!-- Occupancy Progress -->
                     <div class="space-y-1.5 mb-5">
                         <div class="flex justify-between text-xs font-semibold">
                             <span class="text-slate-400">Occupancy</span>
@@ -70,6 +96,7 @@ function renderZonesGrid() {
                         </div>
                         <div class="w-full bg-slate-100 rounded-full h-2">
                             <div class="${progressBg} h-2 rounded-full" style="width: ${occupancyPercent}%"></div>
+                        </div>
                     </div>
 
                     <!-- Stats Boxes -->
@@ -86,29 +113,27 @@ function renderZonesGrid() {
                             <p class="text-lg font-extrabold text-emerald-600">${zone.free}</p>
                             <p class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Free</p>
                         </div>
-                </div>
-
-                <!-- Bottom Row -->
-                <div class="flex items-center justify-between border-t border-slate-100 pt-4">
-                    <div class="flex items-center gap-1 text-xs font-bold text-slate-700">
-                        <span class="text-slate-400">$</span>
-                    <div class="flex items-center gap-1 text-xs font-bold text-slate-700">
-                        <span class="text-slate-400">$</span>
-                        <span>৳${zone.rate.toFixed(2)}</span>
-                        <span class="text-slate-400 font-medium">/hr</span>
                     </div>
-                    <div class="flex items-center gap-3">
-                        <span class="text-xs font-semibold text-slate-400">${zone.type}</span>
-                        <div class="flex items-center gap-2 border-l border-slate-100 pl-3">
-                            <button onclick="openEditModal('${zone.id}')" class="text-slate-400 hover:text-slate-600 transition-colors">
-                                <i class="fa-solid fa-pencil text-sm"></i>
-                            </button>
-                            <button onclick="deleteZone('${zone.id}')" class="text-red-400 hover:text-red-600 transition-colors">
-                                <i class="fa-solid fa-trash-can text-sm"></i>
-                            </button>
+
+                    <!-- Bottom Row -->
+                    <div class="flex items-center justify-between border-t border-slate-100 pt-4">
+                        <div class="flex items-center gap-1 text-xs font-bold text-slate-700">
+                            <span class="text-slate-400">$</span>
+                            <span>৳${zone.rate.toFixed(2)}</span>
+                            <span class="text-slate-400 font-medium">/hr</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs font-semibold text-slate-400">${zone.type}</span>
+                            <div class="flex items-center gap-2 border-l border-slate-100 pl-3">
+                                <button onclick="openEditModal('${zone.id}')" class="text-slate-400 hover:text-slate-600 transition-colors">
+                                    <i class="fa-solid fa-pencil text-sm"></i>
+                                </button>
+                                <button onclick="deleteZone('${zone.id}')" class="text-red-400 hover:text-red-600 transition-colors">
+                                    <i class="fa-solid fa-trash-can text-sm"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
             </div>
         `;
         grid.insertAdjacentHTML('beforeend', cardHtml);
@@ -360,6 +385,12 @@ function clearActivity() {
 
 function viewAllActivity() {
     showToast('info', 'Loading full activity history...');
+}
+
+function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('loggedInUser');
+    window.location.href = 'index.html';
 }
 
 // Toast Notification System

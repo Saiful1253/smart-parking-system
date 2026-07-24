@@ -8,7 +8,7 @@ const ParkingSession = require('../models/ParkingSession');
 // @desc    Create a new parking session
 // @access  Private (User)
 router.post('/', auth, async (req, res) => {
-  const { plateNumber, zone, startTime, endTime, cost } = req.body;
+  const { plateNumber, zone, startTime, endTime, cost, payment, paymentStatus, customerNumber, trxId, status } = req.body;
 
   try {
     const newSession = new ParkingSession({
@@ -18,6 +18,11 @@ router.post('/', auth, async (req, res) => {
       startTime,
       endTime,
       cost,
+      payment,
+      paymentStatus,
+      customerNumber,
+      trxId,
+      status,
     });
 
     const session = await newSession.save();
@@ -86,15 +91,19 @@ router.get('/:id', auth, async (req, res) => {
 // @desc    Update a parking session by ID (only if it belongs to the user or if user is admin)
 // @access  Private (User or Admin)
 router.put('/:id', auth, async (req, res) => {
-  const { plateNumber, zone, startTime, endTime, cost } = req.body;
+  const { plateNumber, zone, startTime, endTime, cost, payment, paymentStatus, customerNumber, trxId, status } = req.body;
 
-  // Build session object
   const sessionFields = {};
   if (plateNumber) sessionFields.plateNumber = plateNumber;
   if (zone) sessionFields.zone = zone;
   if (startTime) sessionFields.startTime = startTime;
   if (endTime) sessionFields.endTime = endTime;
-  if (cost) sessionFields.cost = cost;
+  if (cost !== undefined) sessionFields.cost = cost;
+  if (payment) sessionFields.payment = payment;
+  if (paymentStatus) sessionFields.paymentStatus = paymentStatus;
+  if (customerNumber) sessionFields.customerNumber = customerNumber;
+  if (trxId) sessionFields.trxId = trxId;
+  if (status) sessionFields.status = status;
 
   try {
     let session = await ParkingSession.findById(req.params.id);

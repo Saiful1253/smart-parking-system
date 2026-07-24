@@ -8,7 +8,17 @@ class ParkingSessionClass {
     this.startTime = doc.startTime || new Date();
     this.endTime = doc.endTime;
     this.cost = doc.cost || 0;
+    this.payment = doc.payment || 'Cash';
+    this.paymentStatus = doc.paymentStatus || 'Paid';
+    this.customerNumber = doc.customerNumber;
+    this.trxId = doc.trxId;
+    this.bookingType = doc.bookingType;
+    this.meterRate = doc.meterRate;
+    this.meterSeconds = doc.meterSeconds;
+    this.createdAt = doc.createdAt;
+    this.status = doc.status || 'Active';
     this._id = doc._id;
+    this.id = doc._id;
   }
 
   async save() {
@@ -19,6 +29,11 @@ class ParkingSessionClass {
       startTime: this.startTime,
       endTime: this.endTime,
       cost: this.cost,
+      payment: this.payment,
+      paymentStatus: this.paymentStatus,
+      customerNumber: this.customerNumber,
+      trxId: this.trxId,
+      status: this.status || 'Active',
     });
     this._id = session._id;
     return this;

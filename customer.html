@@ -99,12 +99,19 @@
     </main>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() { loadQuickStats(); });
+document.addEventListener('DOMContentLoaded', function() {
+    const loggedInUser = getLoggedInUser();
+    if (!loggedInUser) {
+        window.location.href = 'index.html';
+        return;
+    }
+    loadQuickStats();
+});
 function loadQuickStats() {
     try {
-        var saved = localStorage.getItem('customerParkingData');
+        var saved = getUserData('customerParkingData');
         if (saved) {
-            var d = JSON.parse(saved);
+            var d = saved;
             var sess = d.sessions || [];
             var hist = d.history || [];
             document.getElementById('stat-sessions').textContent = sess.filter(function(s) { return s.status === 'Active'; }).length;

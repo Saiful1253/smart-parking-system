@@ -8,9 +8,23 @@
   },
   {
     "email": "tanvinislam3273@gmail.com",
-    "password": "$2b$10$ZHeUu95lkqHFeqyPdtFdWuNzF3GVrHKU32OfNsr9FQiV3bCy1oZ9q",
-    "role": "user",
+    "password": "$2b$10$hDod4VH9qMgMBekabzG77uX3R/9rjDGudZU7tp13oPkZ7kuuL1S6y",
+    "role": "admin",
     "_id": "mryzharn3a35hgba9",
     "createdAt": "2026-07-24T13:36:16.835Z"
+  },
+  {
+    "email": "testadmin@example.com",
+    "password": "$2b$10$ygZOWgDxGRoOTRQXvyl5ReonKsLRj4ICg.gAtMsgfub5MjmOVatqm",
+    "role": "admin",
+    "_id": "mrz3430gqb3im6020",
+    "createdAt": "2026-07-24T15:17:58.720Z"
+  },
+  {
+    "email": "admin@smartpark.com",
+    "password": "$2b$10$Jy6aHRlM0C96VIk1E5In5OQCS1mqUW/6L/tAwDJzQWqTeLGGvIRXy",
+    "role": "admin",
+    "_id": "mrz4m61htexbyl1c3",
+    "createdAt": "2026-07-24T16:00:02.069Z"
   }
 ]

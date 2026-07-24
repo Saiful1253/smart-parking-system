@@ -13,6 +13,25 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-slate-950 text-slate-100 font-['Poppins'] min-h-screen flex items-center justify-center overflow-x-hidden relative">
+<script>
+(function() {
+    const token = localStorage.getItem('token');
+    if (token) {
+        try {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const decoded = JSON.parse(window.atob(base64));
+            if (decoded && decoded.user && decoded.user.role === 'admin') {
+                window.location.href = 'admin.html';
+                return;
+            }
+        } catch (e) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('loggedInUser');
+        }
+    }
+})();
+</script>
     <!-- Background Decorative Elements -->
     <div class="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
         <div class="absolute -top-40 -left-40 w-96 h-96 bg-blue-600 rounded-full filter blur-[120px] opacity-20 animate-pulse"></div>
@@ -175,7 +194,7 @@
                             <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
                                 <i class="fa-solid fa-shield-halved"></i>
                             </div>
-                            <input type="password" id="login-admin-key" class="w-full bg-slate-950/50 border border-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl py-3 pl-11 pr-12 text-sm text-white placeholder-slate-500 outline-none transition-all duration-300" placeholder="Enter Admin Key">
+                             <input type="password" id="login-admin-key" class="w-full bg-slate-950/50 border border-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl py-3 pl-11 pr-12 text-sm text-white placeholder-slate-500 outline-none transition-all duration-300" placeholder="Enter Admin Key">
                             <button type="button" onclick="togglePassword('login-admin-key', this)" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors">
                                 <i class="fa-solid fa-eye"></i>
                             </button>

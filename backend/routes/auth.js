@@ -36,7 +36,7 @@ router.post('/register', async (req, res) => {
 
     jwt.sign(
       payload,
-      'jwtSecret', // This should be in an environment variable in a real application
+      process.env.JWT_SECRET,
       { expiresIn: 360000 },
       (err, token) => {
         if (err) throw err;
@@ -53,7 +53,7 @@ router.post('/register', async (req, res) => {
 // @desc    Authenticate user & get token
 // @access  Public
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, role } = req.body;
 
   try {
     let user = await User.findOne({ email });
@@ -66,16 +66,26 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ msg: 'Invalid Credentials' });
     }
 
+    // If admin login requested, validate admin key
+    const requestedRole = role || user.role;
+    if (requestedRole === 'admin') {
+      const adminKey = String(req.body.adminKey || '');
+      const validAdminKey = String(process.env.ADMIN_KEY || '');
+      if (adminKey !== validAdminKey) {
+        return res.status(403).json({ msg: 'Invalid admin credentials' });
+      }
+    }
+
     const payload = {
       user: {
         id: user.id,
-        role: user.role,
+        role: requestedRole,
       },
     };
 
     jwt.sign(
       payload,
-      'jwtSecret', // This should be in an environment variable in a real application
+      process.env.JWT_SECRET,
       { expiresIn: 360000 },
       (err, token) => {
         if (err) throw err;

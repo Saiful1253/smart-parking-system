@@ -365,7 +365,7 @@
     <!-- ===================== TOAST CONTAINER ===================== -->
     <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
 
-    <!-- ===================== JAVASCRIPT ===================== -->
+    <script src="script.js"></script>
     <script>
         // ============================================================
         // DATA
@@ -397,6 +397,11 @@
         // INIT
         // ============================================================
         document.addEventListener('DOMContentLoaded', function() {
+            const loggedInUser = getLoggedInUser();
+            if (!loggedInUser) {
+                window.location.href = 'index.html';
+                return;
+            }
             var today = new Date().toISOString().split('T')[0];
             document.getElementById('book-date').value = today;
             document.getElementById('book-time').value = new Date().toTimeString().slice(0,5);
@@ -404,7 +409,6 @@
             renderZones();
             initMap();
             document.getElementById('zone-count-label').textContent = Object.keys(zonesData).length + ' zones';
-            // Add resize listener for map
             window.addEventListener('resize', function() {
                 if (map) setTimeout(function() { map.invalidateSize(); }, 100);
             });
@@ -443,35 +447,31 @@
 
         function loadData() {
             try {
-                var saved = localStorage.getItem('customerParkingData');
+                var saved = getUserData('customerParkingData');
                 if (saved) {
-                    var d = JSON.parse(saved);
+                    var d = saved;
                     sessions = d.sessions || [];
                     history = d.history || [];
                     nextBookingId = d.nextId || 1000;
                     nextHistoryId = d.nextHistId || 2000;
-                    // Restore zoneSlots from saved data
                     zoneSlots = d.zoneSlots || {};
-                    // Rebuild zoneSlots from sessions if missing
                     if (Object.keys(zoneSlots).length === 0) {
                         initZoneSlots();
                     }
-                    // Sync zone occupancy from sessions
                     syncZoneOccupancy();
                 } else {
-                    // First time: initialize fresh zoneSlots
                     initZoneSlots();
                 }
             } catch(e) {}
         }
         function saveData() {
-            localStorage.setItem('customerParkingData', JSON.stringify({
+            setUserData('customerParkingData', {
                 sessions: sessions,
                 history: history,
                 nextId: nextBookingId,
                 nextHistId: nextHistoryId,
                 zoneSlots: zoneSlots
-            }));
+            });
         }
 
         function syncZoneOccupancy() {
@@ -516,7 +516,7 @@
             }).addTo(map);
 
             // Hide loading when tiles start loading
-            map.on('load', function() {
+            tileLayer.on('load', function() {
                 var loadingEl = document.getElementById('map-loading');
                 if (loadingEl) loadingEl.classList.add('loaded');
             });
@@ -901,8 +901,24 @@
             z.free = Math.max(0, z.spots - z.occupied);
             saveData();
 
-            // Save payment to admin payment system
-            savePaymentToAdmin(booking, customerNumber, trxId);
+            // Save payment record to ledger
+            savePaymentRecord({
+                id: 'PAY-' + String((getPaymentsForUser()).length + 1).padStart(4, '0'),
+                bookingId: booking.id,
+                customerName: booking.name,
+                vehicle: booking.vehicle,
+                zone: booking.zone,
+                slot: booking.slot,
+                amount: booking.cost,
+                paymentMethod: booking.payment,
+                customerNumber: customerNumber,
+                trxId: trxId,
+                date: booking.date,
+                time: booking.entryTime,
+                status: 'Pending',
+                adminVerified: false,
+                createdAt: new Date().toISOString()
+            });
 
             // Save booking to backend
             const token = localStorage.getItem('token');
@@ -918,7 +934,11 @@
                         plateNumber: booking.vehicle,
                         zone: booking.zone,
                         startTime: startTime,
-                        cost: booking.cost
+                        cost: booking.cost,
+                        payment: booking.payment,
+                        paymentStatus: booking.paymentStatus,
+                        customerNumber: customerNumber,
+                        trxId: trxId
                     })
                 }).then(function(res) { return res.json(); }).then(function(data) {
                     if (data && data._id) {
@@ -939,30 +959,6 @@
             pendingBooking = null;
 
             showToast('success', 'Payment recorded! Slot ' + booking.slot + ' reserved for ' + booking.name + '. Waiting for admin verification.');
-        }
-
-        function savePaymentToAdmin(booking, customerNumber, trxId) {
-            try {
-                var payments = JSON.parse(localStorage.getItem('smartParkPayments')) || [];
-                payments.push({
-                    id: 'PAY-' + String(payments.length + 1).padStart(4, '0'),
-                    bookingId: booking.id,
-                    customerName: booking.name,
-                    vehicle: booking.vehicle,
-                    zone: booking.zone,
-                    slot: booking.slot,
-                    amount: booking.cost,
-                    paymentMethod: booking.payment,
-                    customerNumber: customerNumber,
-                    trxId: trxId,
-                    date: booking.date,
-                    time: booking.entryTime,
-                    status: 'Pending',
-                    adminVerified: false,
-                    createdAt: new Date().toISOString()
-                });
-                localStorage.setItem('smartParkPayments', JSON.stringify(payments));
-            } catch(e) {}
         }
 
         // ============================================================
@@ -997,23 +993,6 @@
             setTimeout(function() { initMap(); }, 500);
         }
 
-        // ============================================================
-        // TOAST
-        // ============================================================
-        function showToast(type, message) {
-            var container = document.getElementById('toast-container');
-            if (!container) return;
-            var toast = document.createElement('div');
-            var borderClass = 'border-blue-500/30';
-            var iconClass = 'fa-solid fa-circle-info text-blue-400';
-            if (type === 'success') { borderClass = 'border-emerald-500/30'; iconClass = 'fa-solid fa-circle-check text-emerald-400'; }
-            else if (type === 'error') { borderClass = 'border-red-500/30'; iconClass = 'fa-solid fa-circle-exclamation text-red-400'; }
-            toast.className = 'flex items-center gap-3 p-4 rounded-xl border ' + borderClass + ' bg-slate-900/95 shadow-2xl pointer-events-auto max-w-sm w-full transition-all duration-300 transform translate-y-2 opacity-0';
-            toast.innerHTML = '<div class="flex-shrink-0 text-lg"><i class="' + iconClass + '"></i></div><div class="flex-grow"><p class="text-xs font-semibold text-slate-200">' + message + '</p></div><button class="text-slate-500 hover:text-slate-300 transition-colors" onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark text-xs"></i></button>';
-            container.appendChild(toast);
-            setTimeout(function() { toast.classList.remove('translate-y-2', 'opacity-0'); }, 50);
-            setTimeout(function() { toast.classList.add('opacity-0', 'translate-y-2'); setTimeout(function() { toast.remove(); }, 300); }, 4000);
-        }
     </script>
 </body>
 </html>

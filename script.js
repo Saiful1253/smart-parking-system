@@ -116,8 +116,6 @@ function getLoggedInUser() {
     if (!token) return null;
 
     try {
-        // Decode JWT token (client-side decoding is generally safe for non-sensitive data like role)
-        // In a real app, you might want to verify this with the backend
         const base64Url = token.split('.')[1];
         const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
         const decodedPayload = JSON.parse(window.atob(base64));
@@ -131,16 +129,79 @@ function getLoggedInUser() {
 function getUserData(key, defaultValue = []) {
     const user = getLoggedInUser();
     if (!user) return defaultValue;
-    const allData = JSON.parse(localStorage.getItem(key)) || {};
+    const allData = JSON.parse(localStorage.getItem(key + '_by_user')) || {};
     return allData[user.email] || defaultValue;
 }
 
-function saveUserData(key, data) {
+function setUserData(key, data) {
     const user = getLoggedInUser();
     if (!user) return;
-    let allData = JSON.parse(localStorage.getItem(key)) || {};
+    let allData = JSON.parse(localStorage.getItem(key + '_by_user')) || {};
     allData[user.email] = data;
-    localStorage.setItem(key, JSON.stringify(allData));
+    localStorage.setItem(key + '_by_user', JSON.stringify(allData));
+}
+
+function getPaymentsForUser() {
+    const user = getLoggedInUser();
+    if (!user) return [];
+    const allPayments = JSON.parse(localStorage.getItem('smartParkPayments_by_user')) || {};
+    return allPayments[user.email] || [];
+}
+
+function savePaymentRecord(paymentRecord) {
+    const user = getLoggedInUser();
+    if (!user) return;
+    let allPayments = JSON.parse(localStorage.getItem('smartParkPayments_by_user')) || {};
+    if (!allPayments[user.email]) allPayments[user.email] = [];
+    allPayments[user.email].push(paymentRecord);
+    localStorage.setItem('smartParkPayments_by_user', JSON.stringify(allPayments));
+}
+
+function savePaymentToLedger(session, method) {
+    savePaymentRecord({
+        id: 'PAY-' + String(Date.now()).slice(-8),
+        bookingId: session.id || session.bookingId,
+        customerName: session.name || session.customerName || 'N/A',
+        vehicle: session.vehicle || 'N/A',
+        zone: session.zone || 'N/A',
+        slot: session.slot || 'N/A',
+        amount: session.cost || 0,
+        paymentMethod: method,
+        customerNumber: session.customerNumber || 'N/A',
+        trxId: session.trxId || 'N/A',
+        status: 'Pending',
+        createdAt: new Date().toISOString()
+    });
+}
+
+function savePaymentToAdmin(booking, customerNumber, trxId) {
+    savePaymentRecord({
+        id: 'PAY-' + String((getPaymentsForUser()).length + 1).padStart(4, '0'),
+        bookingId: booking.id,
+        customerName: booking.name,
+        vehicle: booking.vehicle,
+        zone: booking.zone,
+        slot: booking.slot,
+        amount: booking.cost,
+        paymentMethod: booking.payment,
+        customerNumber: customerNumber,
+        trxId: trxId,
+        date: booking.date,
+        time: booking.entryTime,
+        status: 'Pending',
+        adminVerified: false,
+        createdAt: new Date().toISOString()
+    });
+}
+
+function clearUserData() {
+    const user = getLoggedInUser();
+    if (!user) return;
+    ['customerParkingData_by_user', 'userHistory_by_user', 'smartParkPayments_by_user'].forEach(function(storageKey) {
+        let allData = JSON.parse(localStorage.getItem(storageKey)) || {};
+        delete allData[user.email];
+        localStorage.setItem(storageKey, JSON.stringify(allData));
+    });
 }
 
 // fetchUserSessions and saveParkingSession are defined above with full error handling and token headers.
@@ -153,6 +214,116 @@ function getUserHistory() {
 
 function saveUserHistory(history) {
     saveUserData('userHistory', history);
+}
+
+const zonesData = {
+    'Zone-A': { id: 'Zone-A', name: 'Zone A', location: 'Ground Floor, Main Building', spots: 50, occupied: 27, free: 23, rate: 3.50, type: 'Covered', status: 'Active', lat: 23.79400, lng: 90.40400 },
+    'Zone-B': { id: 'Zone-B', name: 'Zone B', location: 'Rooftop Level 5', spots: 80, occupied: 45, free: 35, rate: 2.00, type: 'Rooftop', status: 'Active', lat: 23.81500, lng: 90.40100 },
+    'Zone-C': { id: 'Zone-C', name: 'Zone C', location: 'Underground Parking, B1', spots: 120, occupied: 98, free: 22, rate: 5.00, type: 'Underground', status: 'Active', lat: 23.80700, lng: 90.40600 },
+    'Zone-D': { id: 'Zone-D', name: 'Zone D', location: 'Open Lot, East Wing', spots: 30, occupied: 12, free: 18, rate: 1.50, type: 'Open Air', status: 'Active', lat: 23.81200, lng: 90.41500 },
+    'Zone-E': { id: 'Zone-E', name: 'Zone E', location: 'West Annex', spots: 40, occupied: 0, free: 40, rate: 2.50, type: 'Covered', status: 'Maintenance', lat: 23.80100, lng: 90.39500 }
+};
+
+function getZonePrefix(zoneName) {
+    return zoneName.replace('Zone ', '');
+}
+
+function initZoneSlots(zoneSlots) {
+    Object.keys(zonesData).forEach(function(key) {
+        var z = zonesData[key];
+        if (!zoneSlots[key]) {
+            zoneSlots[key] = new Array(z.spots).fill(false);
+        }
+    });
+}
+
+function syncZoneOccupancy(sessions) {
+    Object.values(zonesData).forEach(function(z) { z.occupied = 0; });
+    sessions.forEach(function(s) {
+        if (s.status === 'Active') {
+            var zone = Object.values(zonesData).find(function(z) { return z.name === s.zone; });
+            if (zone) zone.occupied = (zone.occupied || 0) + 1;
+        }
+    });
+    Object.values(zonesData).forEach(function(z) {
+        z.free = Math.max(0, z.spots - z.occupied);
+    });
+}
+
+function saveData(sessions, history, nextBookingId, nextHistoryId, zoneSlots) {
+    setUserData('customerParkingData', {
+        sessions: sessions,
+        history: history,
+        nextId: nextBookingId,
+        nextHistId: nextHistoryId,
+        zoneSlots: zoneSlots
+    });
+}
+
+function loadParkingData() {
+    var sessions = [];
+    var history = [];
+    var nextBookingId = 1000;
+    var nextHistoryId = 2000;
+    var zoneSlots = {};
+    try {
+        var saved = getUserData('customerParkingData');
+        if (saved) {
+            sessions = saved.sessions || [];
+            history = saved.history || [];
+            nextBookingId = saved.nextId || 1000;
+            nextHistoryId = saved.nextHistId || 2000;
+            zoneSlots = saved.zoneSlots || {};
+            if (Object.keys(zoneSlots).length === 0) {
+                initZoneSlots(zoneSlots);
+            }
+            syncZoneOccupancy(sessions);
+        } else {
+            initZoneSlots(zoneSlots);
+        }
+    } catch(e) {}
+    return { sessions: sessions, history: history, nextBookingId: nextBookingId, nextHistoryId: nextHistoryId, zoneSlots: zoneSlots };
+}
+
+function formatTime(totalSeconds) {
+    var h = Math.floor(totalSeconds / 3600);
+    var m = Math.floor((totalSeconds % 3600) / 60);
+    var s = totalSeconds % 60;
+    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+function formatTimeAMPM(timeStr) {
+    if (!timeStr || timeStr === '-') return '-';
+    var parts = timeStr.split(':');
+    if (parts.length < 2) return timeStr;
+    var h = parseInt(parts[0], 10);
+    var m = parts[1];
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    if (h > 12) h = h - 12;
+    if (h === 0) h = 12;
+    return h + ':' + m + ' ' + ampm;
+}
+
+function escHtml(str) {
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function safe(str) { return escHtml(str); }
+
+function savePaymentForUser(paymentRecord) {
+    const user = getLoggedInUser();
+    if (!user) return;
+    let allPayments = JSON.parse(localStorage.getItem('smartParkPayments_by_user')) || {};
+    if (!allPayments[user.email]) allPayments[user.email] = [];
+    allPayments[user.email].push(paymentRecord);
+    localStorage.setItem('smartParkPayments_by_user', JSON.stringify(allPayments));
+}
+
+function getPaymentsForUser() {
+    const user = getLoggedInUser();
+    if (!user) return [];
+    const allPayments = JSON.parse(localStorage.getItem('smartParkPayments_by_user')) || {};
+    return allPayments[user.email] || [];
 }
 
 // Role Switching Logic
@@ -378,13 +549,26 @@ async function handleLogin(event) {
         ${currentRole === 'admin' ? 'Verifying admin credentials...' : 'Securing your spot...'}
     `;
 
+    const requestBody = {
+        email,
+        password,
+        role: roleToSend
+    };
+
+    if (roleToSend === 'admin') {
+        const adminKeyInput = document.getElementById('login-admin-key');
+        if (adminKeyInput && adminKeyInput.value.trim()) {
+            requestBody.adminKey = adminKeyInput.value.trim();
+        }
+    }
+
     try {
         const res = await fetch(`${API_BASE}/api/auth/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ email, password, role: roleToSend }),
+            body: JSON.stringify(requestBody),
         });
 
         const data = await res.json();

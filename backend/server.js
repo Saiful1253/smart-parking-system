@@ -1,11 +1,13 @@
 const express = require('express');
+const dotenv = require('dotenv').config({ path: '../.env' });
 const connectDB = require('./config/db');
 const cors = require('cors');
 const path = require('path');
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
-// Connect Database
+console.log('ADMIN_KEY:', process.env.ADMIN_KEY ? 'loaded' : 'missing');
+
 connectDB();
 
 app.use(cors({
@@ -13,18 +15,29 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json());
+
+app.use((req, res, next) => {
+    if (req.path.endsWith('.html')) {
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
+    }
+    next();
+});
 app.use(express.static(path.join(__dirname, '..')));
 
-// Define Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api', require('./routes/protected'));
 app.use('/api/parking', require('./routes/parking'));
 app.use('/api/admin', require('./routes/admin'));
 
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'index.html'));
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.sendFile(path.join(__dirname, '..', 'index.html'));
 });
 
 app.listen(port, () => {
-  console.log(`Backend listening at http://localhost:${port}`);
+    console.log(`Backend listening at http://localhost:${port}`);
 });
