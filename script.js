@@ -619,7 +619,8 @@ async function handleLogin(event) {
         }
     } catch (err) {
         console.error('Login error:', err);
-        showToast('error', 'Server error during login: ' + (err.message || 'Unknown error'));
+        const reason = err.message === 'Failed to fetch' ? 'Backend server not reachable. Update API URL or start server on port 3000.' : (err.message || 'Unknown error');
+        showToast('error', 'Server error during login: ' + reason);
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalContent;
     }
@@ -668,7 +669,8 @@ async function handleRegister(event) {
         }
     } catch (err) {
         console.error('Register error:', err);
-        showToast('error', 'Server error during registration: ' + (err.message || 'Unknown error'));
+        const reason = err.message === 'Failed to fetch' ? 'Backend server not reachable. Update API URL or start server on port 3000.' : (err.message || 'Unknown error');
+        showToast('error', 'Server error during registration: ' + reason);
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalContent;
     }
