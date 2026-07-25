@@ -39,20 +39,38 @@ function getAllowedOrigins() {
 const app = express();
 
 // CORS middleware - must be before body parsing
+// Allow all origins (needed for OAuth/social login and GitHub Pages)
+const allowedOrigins = getAllowedOrigins();
 app.use(cors({
     origin: function(origin, callback) {
         if (!origin) return callback(null, true);
-        const allowed = getAllowedOrigins();
-        if (allowed.indexOf(origin) !== -1) {
+        if (allowedOrigins.indexOf(origin) !== -1) {
             return callback(null, true);
         }
         if (origin.endsWith('.github.io') || origin.includes('.github.io')) {
             return callback(null, true);
         }
-        callback(new Error('Not allowed by CORS'));
+        callback(null, true);
     },
     credentials: true
 }));
+
+// Handle preflight OPTIONS requests for API routes
+app.options('/api/*', (req, res) => {
+    const origin = req.headers.origin;
+    if (origin && (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.github.io') || origin.includes('.github.io'))) {
+        res.header('Access-Control-Allow-Origin', origin);
+        res.header('Access-Control-Allow-Credentials', 'true');
+        res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS,PATCH');
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Auth-Token, Accept');
+        res.header('Access-Control-Max-Age', '86400');
+    }
+    res.sendStatus(204);
+});
+
+app.options('*', (req, res) => {
+    res.sendStatus(204);
+});
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
