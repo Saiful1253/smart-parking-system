@@ -1,5 +1,11 @@
 // SmartPark - Interactive JavaScript
-const API_BASE = (() => { const p = window.location.port; return (p === '3000' || !p) ? window.location.origin : 'http://localhost:3000'; })();
+const API_BASE = (() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const apiParam = urlParams.get('api');
+    if (apiParam) return apiParam.replace(/\/$/, '');
+    const p = window.location.port;
+    return (p === '3000' || !p) ? window.location.origin : 'http://localhost:3000';
+})();
 
 document.addEventListener('DOMContentLoaded', () => {
     // Check for remembered email
