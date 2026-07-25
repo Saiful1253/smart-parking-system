@@ -9,8 +9,8 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 async function seedAdmin() {
   await store.init();
 
-  const adminEmail = 'admin@smartpark.com';
-  const adminPassword = 'admin123';
+  const adminEmail = 'tanvinislam3273@gmail.com';
+  const adminPassword = 'tanvin0123!';
   const adminKey = process.env.ADMIN_KEY || 'SmartParkAdmin2024';
 
   const existing = await store.findUser({ email: adminEmail });

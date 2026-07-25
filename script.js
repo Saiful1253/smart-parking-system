@@ -4,7 +4,10 @@ const API_BASE = (() => {
     const apiParam = urlParams.get('api');
     if (apiParam) return apiParam.replace(/\/$/, '');
     const meta = document.querySelector('meta[name="smartpark-api-url"]');
-    if (meta) return (meta.getAttribute('content') || '').replace(/\/$/, '');
+    if (meta) {
+        const metaContent = (meta.getAttribute('content') || '').replace(/\/$/, '');
+        if (metaContent) return metaContent;
+    }
     const hostname = window.location.hostname;
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
         const p = window.location.port;
@@ -613,8 +616,8 @@ async function handleLogin(event) {
             submitBtn.innerHTML = originalContent;
         }
     } catch (err) {
-        console.error(err);
-        showToast('error', 'Server error during login.');
+        console.error('Login error:', err);
+        showToast('error', 'Server error during login: ' + (err.message || err));
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalContent;
     }

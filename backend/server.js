@@ -64,6 +64,10 @@ try { if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true }); }
 // Trust proxies (for rate limiting, IP detection behind load balancers)
 app.set('trust proxy', 1);
 
+// Initialize data store on startup
+const store = require('./dataStore');
+store.init().then(() => console.log('Data store initialized...')).catch(err => console.error('Data store init error:', err));
+
 // Cache control for HTML files
 app.use((req, res, next) => {
     if (req.path.endsWith('.html') || req.path === '/') {
