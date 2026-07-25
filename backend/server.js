@@ -56,16 +56,20 @@ app.use(cors({
 }));
 
 // Handle preflight OPTIONS requests for API routes
-app.options('/api/*', (req, res) => {
-    const origin = req.headers.origin;
-    if (origin && (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.github.io') || origin.includes('.github.io'))) {
-        res.header('Access-Control-Allow-Origin', origin);
-        res.header('Access-Control-Allow-Credentials', 'true');
-        res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS,PATCH');
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Auth-Token, Accept');
-        res.header('Access-Control-Max-Age', '86400');
+app.use((req, res, next) => {
+    if (req.method === 'OPTIONS' && req.path.startsWith('/api/')) {
+        const origin = req.headers.origin;
+        if (origin && (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.github.io') || origin.includes('.github.io'))) {
+            res.header('Access-Control-Allow-Origin', origin);
+            res.header('Access-Control-Allow-Credentials', 'true');
+            res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS,PATCH');
+            res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Auth-Token, Accept');
+            res.header('Access-Control-Max-Age', '86400');
+        }
+        res.sendStatus(204);
+    } else {
+        next();
     }
-    res.sendStatus(204);
 });
 
 app.options('*', (req, res) => {
