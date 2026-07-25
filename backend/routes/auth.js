@@ -39,7 +39,10 @@ router.post('/register', async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: 360000 },
       (err, token) => {
-        if (err) throw err;
+        if (err) {
+          console.error(err.message);
+          return res.status(500).send('Server error');
+        }
         res.json({ token });
       }
     );
@@ -88,7 +91,10 @@ router.post('/login', async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: 360000 },
       (err, token) => {
-        if (err) throw err;
+        if (err) {
+          console.error(err.message);
+          return res.status(500).send('Server error');
+        }
         res.json({ token });
       }
     );

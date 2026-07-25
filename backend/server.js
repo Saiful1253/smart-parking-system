@@ -84,7 +84,7 @@ app.set('trust proxy', 1);
 
 // Initialize data store on startup
 const store = require('./dataStore');
-store.init().then(() => console.log('Data store initialized...')).catch(err => console.error('Data store init error:', err));
+store.init().then(() => console.log('Data store initialized...')).catch(err => { console.error('Data store init error:', err); process.exit(1); });
 
 // Cache control for HTML files
 app.use((req, res, next) => {
