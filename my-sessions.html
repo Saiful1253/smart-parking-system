@@ -225,38 +225,18 @@
         }
 
         // ============================================================
-        // LOCAL STORAGE (modified to use backend calls)
+        // LOCAL STORAGE (uses shared functions from script.js)
         // ============================================================
+        var history = [];
+        var nextHistoryId = 2000;
+
         async function loadData() {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                sessions = [];
-                return;
-            }
-
-            try {
-                const response = await fetch('http://localhost:3000/api/parking/my-sessions', {
-                    method: 'GET',
-                    headers: {
-                        'x-auth-token': token,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    sessions = data;
-                } else {
-                    console.error('Error fetching user sessions:', data.msg);
-                    showToast('error', data.msg || 'Failed to fetch user sessions.');
-                    sessions = [];
-                }
-            } catch (error) {
-                console.error('Network error fetching user sessions:', error);
-                showToast('error', 'Network error fetching user sessions.');
-                sessions = [];
-            }
+            var data = loadParkingData();
+            sessions = data.sessions;
+            history = data.history;
+            nextBookingId = data.nextBookingId;
+            nextHistoryId = data.nextHistoryId;
+            zoneSlots = data.zoneSlots;
         }
 
         // ============================================================
@@ -348,20 +328,13 @@
                             '</div>' +
                         '</div>' +
 
-                        (s.payment ? '<div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mt-5 flex items-center justify-between"><div class="flex items-center gap-3"><i class="fa-solid fa-circle-check text-emerald-600 text-xl"></i><div><p class="text-sm font-bold text-emerald-700">Payment Recorded</p><p class="text-xs text-emerald-600">' + (s.payment || '') + ' | BDT ' + s.cost.toFixed(2) + '</p>' + (s.customerNumber ? '<p class="text-xs text-emerald-600">' + (s.customerNumber || '') + '</p>' : '') + (s.trxId ? '<p class="text-xs text-emerald-600">TrxID: ' + (s.trxId || '') + '</p>' : '') + '</div></div></div>' : '<div class="grid grid-cols-2 gap-3 mt-5">' +
-                            '<button onclick="payWith(\'' + s.id + '\', \'bKash\')" class="pay-btn" style="background:#e91e8c;color:white;">' +
-                                '<i class="fa-solid fa-phone"></i> bKash' +
-                            '</button>' +
-                            '<button onclick="payWith(\'' + s.id + '\', \'Nagad\')" class="pay-btn" style="background:#f97316;color:white;">' +
-                                '<i class="fa-solid fa-phone"></i> Nagad' +
-                            '</button>' +
-                            '<button onclick="payWith(\'' + s.id + '\', \'Rocket\')" class="pay-btn" style="background:#8b5cf6;color:white;">' +
-                                '<i class="fa-solid fa-phone"></i> Rocket' +
-                            '</button>' +
-                            '<button onclick="payWith(\'' + s.id + '\', \'Cash\')" class="pay-btn" style="background:white;color:#059669;border:2px solid #059669;">' +
-                                '<i class="fa-solid fa-money-bill-wave"></i> Cash' +
-                            '</button>' +
-                        '</div>') +
+                        (s.paid ? '<div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mt-5 flex items-center justify-between"><div class="flex items-center gap-3"><i class="fa-solid fa-circle-check text-emerald-600 text-xl"></i><div><p class="text-sm font-bold text-emerald-700">Payment Recorded</p><p class="text-xs text-emerald-600">' + (s.payment || '') + ' | BDT ' + s.cost.toFixed(2) + '</p>' + (s.customerNumber ? '<p class="text-xs text-emerald-600">' + (s.customerNumber || '') + '</p>' : '') + (s.trxId ? '<p class="text-xs text-emerald-600">TrxID: ' + (s.trxId || '') + '</p>' : '') + '</div></div></div>' : (isFixed ? '<div class="grid grid-cols-2 gap-3 mt-5">' +
+                            '<button onclick="payWith(\'' + s.id + '\', \'bKash\')" class="pay-btn" style="background:#e91e8c;color:white;"><i class="fa-solid fa-phone"></i> bKash</button>' +
+                            '<button onclick="payWith(\'' + s.id + '\', \'Nagad\')" class="pay-btn" style="background:#f97316;color:white;"><i class="fa-solid fa-phone"></i> Nagad</button>' +
+                            '<button onclick="payWith(\'' + s.id + '\', \'Rocket\')" class="pay-btn" style="background:#8b5cf6;color:white;"><i class="fa-solid fa-phone"></i> Rocket</button>' +
+                            '<button onclick="payWith(\'' + s.id + '\', \'Cash\')" class="pay-btn" style="background:white;color:#059669;border:2px solid #059669;"><i class="fa-solid fa-money-bill-wave"></i> Cash</button>' +
+                        '</div>' : '<button onclick="payWith(\'' + s.id + '\', \'' + (s.payment || 'bKash') + '\')" class="pay-btn" style="background:#2563eb;color:white;"><i class="fa-solid fa-credit-card"></i> Pay Now (৳' + s.cost.toFixed(2) + ')</button>')) +
+                        '<button onclick="endSession(\'' + s.id + '\', false)" class="pay-btn mt-3" style="background:#ef4444;color:white;border:2px solid #ef4444;"><i class="fa-solid fa-stop-circle"></i> End Session</button></div>' +
                     '</div>' +
                 '</div>';
 
@@ -458,33 +431,35 @@
             var s = sessions[idx];
             if (s.status !== 'Active') { showToast('error', 'Session is not active.'); closePaymentModal(); return; }
 
-            // Calculate running cost (only for metered bookings)
+            // Calculate running cost for metered bookings at payment time
             var isFixed = s.bookingType !== 'meter';
             if (!isFixed) {
                 var createdAt = s.createdAt ? new Date(s.createdAt).getTime() : Date.now();
                 var elapsedSeconds = Math.floor((Date.now() - createdAt) / 1000);
                 var rate = s.meterRate || 5.00;
                 var runningCost = (rate / 3600) * elapsedSeconds;
-                if (runningCost < s.cost) runningCost = s.cost; // minimum charge
+                if (runningCost < s.cost) runningCost = s.cost;
                 s.cost = runningCost;
             }
             // For fixed bookings, cost stays as originally set
             s.payment = pendingPaymentMethod;
             s.customerNumber = customerNumber;
             s.trxId = trxId;
+            s.paid = true;
+            s.paymentStatus = 'Pending';
 
             // Save payment to ledger
             savePaymentRecord({
                 id: 'PAY-' + String(Date.now()).slice(-8),
-                bookingId: session.id,
-                customerName: session.name || 'N/A',
-                vehicle: session.vehicle || 'N/A',
-                customerNumber: session.customerNumber || 'N/A',
-                trxId: session.trxId || 'N/A',
-                zone: session.zone,
-                slot: session.slot,
-                amount: session.cost,
-                paymentMethod: method,
+                bookingId: s.id,
+                customerName: s.name || 'N/A',
+                vehicle: s.vehicle || 'N/A',
+                customerNumber: s.customerNumber || 'N/A',
+                trxId: s.trxId || 'N/A',
+                zone: s.zone,
+                slot: s.slot,
+                amount: s.cost,
+                paymentMethod: pendingPaymentMethod,
                 status: 'Pending',
                 createdAt: new Date().toISOString(),
                 date: new Date().toLocaleDateString('en-CA'),
@@ -511,6 +486,21 @@
             var idx = sessions.findIndex(function(s) { return s.id == sessionId; });
             if (idx === -1) { showToast('error', 'Session not found for ending.'); return; }
             var s = sessions[idx];
+
+            // For unpaid metered bookings, require payment first
+            if (s.bookingType === 'meter' && s.paid !== true) {
+                var createdAt = s.createdAt ? new Date(s.createdAt).getTime() : Date.now();
+                var elapsedSeconds = Math.floor((Date.now() - createdAt) / 1000);
+                var rate = s.meterRate || 5.00;
+                var runningCost = (rate / 3600) * elapsedSeconds;
+                if (runningCost < s.cost) runningCost = s.cost;
+                s.cost = runningCost;
+                saveData(sessions, history, nextBookingId, nextHistoryId, zoneSlots);
+                pendingPaymentMethod = s.payment || 'Cash';
+                openPaymentModal(sessionId, pendingPaymentMethod);
+                return;
+            }
+
             if (!skipConfirm && !confirm('End session for ' + s.vehicle + ' at ' + s.slot + '? Total: \u09F3' + s.cost.toFixed(2))) return;
 
             // Stop live timer
@@ -584,7 +574,7 @@
                 paymentStatus: 'Paid'
             };
             history.push(hist);
-            saveData();
+            saveData(sessions, history, nextBookingId, nextHistoryId, zoneSlots);
             renderSessions();
             showToast('success', 'Session #' + s.id + ' ended. Paid via ' + s.payment + '. Total: \u09F3' + s.cost.toFixed(2));
         }

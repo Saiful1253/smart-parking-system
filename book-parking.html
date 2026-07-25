@@ -29,9 +29,9 @@
         @media (max-width: 768px) { #customer-map { height: 280px; } }
         .progress-bar { transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
         /* Map Loading & Error States */
-        #map-loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8fafc; border-radius: 1rem; z-index: 20; transition: opacity 0.5s; }
+        #map-loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8fafc; border-radius: 1rem; z-index: 9999; transition: opacity 0.5s; }
         #map-loading.loaded { opacity: 0; pointer-events: none; }
-        #map-error { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; background: #fef2f2; border-radius: 1rem; z-index: 20; padding: 20px; text-align: center; }
+        #map-error { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; background: #fef2f2; border-radius: 1rem; z-index: 9999; padding: 20px; text-align: center; }
         #map-fallback-canvas { width: 100%; height: 100%; border-radius: 1rem; display: none; background: #f1f5f9; }
         /* Booking Type Toggle */
         .booking-type-btn { flex: 1; padding: 10px 16px; font-size: 12px; font-weight: 700; border-radius: 12px; cursor: pointer; transition: all 0.3s; border: 2px solid transparent; text-align: center; }
@@ -367,16 +367,6 @@
 
     <script src="script.js"></script>
     <script>
-        // ============================================================
-        // DATA
-        // ============================================================
-        const zonesData = {
-            'Zone-A': { id: 'Zone-A', name: 'Zone A', location: 'Ground Floor, Main Building', spots: 50, occupied: 27, free: 23, rate: 3.50, type: 'Covered', status: 'Active', lat: 23.79400, lng: 90.40400 },
-            'Zone-B': { id: 'Zone-B', name: 'Zone B', location: 'Rooftop Level 5', spots: 80, occupied: 45, free: 35, rate: 2.00, type: 'Rooftop', status: 'Active', lat: 23.81500, lng: 90.40100 },
-            'Zone-C': { id: 'Zone-C', name: 'Zone C', location: 'Underground Parking, B1', spots: 120, occupied: 98, free: 22, rate: 5.00, type: 'Underground', status: 'Active', lat: 23.80700, lng: 90.40600 },
-            'Zone-D': { id: 'Zone-D', name: 'Zone D', location: 'Open Lot, East Wing', spots: 30, occupied: 12, free: 18, rate: 1.50, type: 'Open Air', status: 'Active', lat: 23.81200, lng: 90.41500 },
-            'Zone-E': { id: 'Zone-E', name: 'Zone E', location: 'West Annex', spots: 40, occupied: 0, free: 40, rate: 2.50, type: 'Covered', status: 'Maintenance', lat: 23.80100, lng: 90.39500 }
-        };
         let sessions = [];
         let history = [];
         let nextBookingId = 1000;
@@ -772,9 +762,12 @@
                 // Keep form data in the form fields
             };
 
-            // Show payment modal instead of completing booking immediately
-            closeBookingModal();
-            openPaymentModal(z, cost, bookingType);
+            if (bookingType === 'meter') {
+                createMeterBooking();
+            } else {
+                closeBookingModal();
+                openPaymentModal(z, cost, bookingType);
+            }
         }
 
         function openPaymentModal(z, amount, bookingType) {
@@ -820,90 +813,125 @@
             }
         }
 
+        function createMeterBooking() {
+            var zoneId = document.getElementById('book-zone-id').value;
+            var z = zonesData[zoneId];
+            if (!z || !pendingBooking) return;
+
+            var formData = {
+                name: document.getElementById('book-name').value.trim(),
+                vehicle: document.getElementById('book-vehicle').value.trim(),
+                vehicleType: document.getElementById('book-vehicle-type').value,
+                entryTime: document.getElementById('book-time').value,
+                date: document.getElementById('book-date').value,
+                paymentMethod: document.getElementById('book-payment-meter').value
+            };
+            if (!formData.name || !formData.vehicle) {
+                showToast('error', 'Please fill in all required fields.');
+                return;
+            }
+
+            var slotIndex = pendingBooking.slotIndex;
+            var meterCost = (currentMeterRate / 3600) * meterElapsedSeconds;
+            var cost = meterCost > 0.01 ? meterCost : currentMeterRate * 0.01;
+
+            var booking = {
+                id: nextBookingId++,
+                name: formData.name,
+                vehicle: formData.vehicle,
+                vehicleType: formData.vehicleType,
+                zone: z.name,
+                zoneId: z.id,
+                slot: document.getElementById('book-slot').value,
+                slotIndex: slotIndex,
+                date: formData.date,
+                entryTime: formData.entryTime,
+                duration: 'Metered',
+                durationHours: 0,
+                payment: formData.paymentMethod,
+                cost: cost,
+                bookingType: 'meter',
+                meterRate: currentMeterRate,
+                meterSeconds: meterElapsedSeconds,
+                status: 'Active',
+                paid: false,
+                paymentStatus: 'Pending',
+                customerNumber: '',
+                trxId: '',
+                createdAt: new Date().toISOString()
+            };
+
+            stopMeter();
+            sessions.push(booking);
+            z.occupied += 1;
+            z.free = Math.max(0, z.spots - z.occupied);
+            saveData();
+            renderZones();
+            addMarkers();
+            pendingBooking = null;
+            closeBookingModal();
+            document.getElementById('booking-form').reset();
+            document.getElementById('book-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('book-time').value = new Date().toTimeString().slice(0,5);
+            setBookingType('fixed');
+            pendingBooking = null;
+            showToast('success', 'Meter booking created for ' + booking.slot + '. Payment will be collected when you end your session.');
+        }
+
         function confirmPaymentFromBooking() {
-            // Validate payment details
+            if (!pendingBooking) { showToast('error', 'No pending booking found.'); return; }
+
+            if (pendingBooking.bookingType === 'meter') {
+                createMeterBooking();
+                return;
+            }
+
+            // FIXED booking path remains the same (collect payment now)
             var customerNumber = document.getElementById('pay-customer-number').value.trim();
             var trxId = document.getElementById('pay-trx-id').value.trim();
 
             if (!customerNumber) { showToast('error', 'Please enter your mobile number.'); return; }
-            // Auto-generate TrxID if empty (for testing)
             if (!trxId) {
                 trxId = 'TRX' + String(Date.now()).slice(-8) + 'DEMO';
                 document.getElementById('pay-trx-id').value = trxId;
             }
 
-            if (!pendingBooking) { showToast('error', 'No pending booking found.'); return; }
-
             var zoneId = pendingBooking.zoneId;
             var z = zonesData[zoneId];
             if (!z) { showToast('error', 'Zone not found.'); return; }
 
-            // Complete the booking
-            var bookingType = pendingBooking.bookingType;
-            var booking;
-
-            if (bookingType === 'meter') {
-                booking = {
-                    id: nextBookingId++,
-                    name: document.getElementById('book-name').value,
-                    vehicle: document.getElementById('book-vehicle').value,
-                    vehicleType: document.getElementById('book-vehicle-type').value,
-                    zone: z.name,
-                    zoneId: z.id,
-                    slot: document.getElementById('book-slot').value,
-                    slotIndex: pendingBooking.slotIndex,
-                    date: document.getElementById('book-date').value,
-                    entryTime: document.getElementById('book-time').value,
-                    duration: 'Metered',
-                    durationHours: 0,
-                    payment: document.getElementById('book-payment-meter').value,
-                    cost: pendingBooking.cost,
-                    bookingType: 'meter',
-                    meterRate: currentMeterRate,
-                    meterSeconds: meterElapsedSeconds,
-                    status: 'Active',
-                    paid: true,
-                    customerNumber: customerNumber,
-                    trxId: trxId,
-                    paymentStatus: 'Pending',
-                    createdAt: new Date().toISOString()
-                };
-                stopMeter();
-            } else {
-                var duration = parseInt(document.getElementById('book-duration').value) || 1;
-                booking = {
-                    id: nextBookingId++,
-                    name: document.getElementById('book-name').value,
-                    vehicle: document.getElementById('book-vehicle').value,
-                    vehicleType: document.getElementById('book-vehicle-type').value,
-                    zone: z.name,
-                    zoneId: z.id,
-                    slot: document.getElementById('book-slot').value,
-                    slotIndex: pendingBooking.slotIndex,
-                    date: document.getElementById('book-date').value,
-                    entryTime: document.getElementById('book-time').value,
-                    duration: duration,
-                    durationHours: duration,
-                    payment: document.getElementById('book-payment').value,
-                    cost: pendingBooking.cost,
-                    bookingType: 'fixed',
-                    status: 'Active',
-                    paid: true,
-                    customerNumber: customerNumber,
-                    trxId: trxId,
-                    paymentStatus: 'Pending',
-                    createdAt: new Date().toISOString()
-                };
-            }
+            var duration = parseInt(document.getElementById('book-duration').value) || 1;
+            var booking = {
+                id: nextBookingId++,
+                name: document.getElementById('book-name').value,
+                vehicle: document.getElementById('book-vehicle').value,
+                vehicleType: document.getElementById('book-vehicle-type').value,
+                zone: z.name,
+                zoneId: z.id,
+                slot: document.getElementById('book-slot').value,
+                slotIndex: pendingBooking.slotIndex,
+                date: document.getElementById('book-date').value,
+                entryTime: document.getElementById('book-time').value,
+                duration: duration,
+                durationHours: duration,
+                payment: document.getElementById('book-payment').value,
+                cost: pendingBooking.cost,
+                bookingType: 'fixed',
+                status: 'Active',
+                paid: true,
+                customerNumber: customerNumber,
+                trxId: trxId,
+                paymentStatus: 'Pending',
+                createdAt: new Date().toISOString()
+            };
 
             sessions.push(booking);
             z.occupied += 1;
             z.free = Math.max(0, z.spots - z.occupied);
             saveData();
 
-            // Save payment record to ledger
             savePaymentRecord({
-                id: 'PAY-' + String((getPaymentsForUser()).length + 1).padStart(4, '0'),
+                id: 'PAY-' + String(Date.now()).slice(-8),
                 bookingId: booking.id,
                 customerName: booking.name,
                 vehicle: booking.vehicle,
@@ -920,7 +948,6 @@
                 createdAt: new Date().toISOString()
             });
 
-            // Save booking to backend
             const token = localStorage.getItem('token');
             if (token) {
                 const startTime = new Date(booking.date + 'T' + booking.entryTime).toISOString();
