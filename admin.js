@@ -29,27 +29,132 @@
 
 // Global Zones Data
 let zonesData = {
-    'Zone-C': { id: 'Zone-C', name: 'Zone C', location: 'Underground Parking, B1', spots: 120, occupied: 98, free: 22, rate: 5.00, type: 'Underground', status: 'Active', lat: 23.80700, lng: 90.40600 },
-    'Zone-A': { id: 'Zone-A', name: 'Zone A', location: 'Ground Floor, Main Building', spots: 50, occupied: 27, free: 23, rate: 3.50, type: 'Covered', status: 'Active', lat: 23.79400, lng: 90.40400 },
-    'Zone-D': { id: 'Zone-D', name: 'Zone D', location: 'Open Lot, East Wing', spots: 30, occupied: 12, free: 18, rate: 1.50, type: 'Open Air', status: 'Active', lat: 23.81200, lng: 90.41500 },
-    'Zone-E': { id: 'Zone-E', name: 'Zone E', location: 'West Annex', spots: 40, occupied: 0, free: 40, rate: 2.50, type: 'Covered', status: 'Maintenance', lat: 23.80100, lng: 90.39500 },
-    'Zone-B': { id: 'Zone-B', name: 'Zone B', location: 'Rooftop Level 5', spots: 80, occupied: 45, free: 35, rate: 2.00, type: 'Rooftop', status: 'Active', lat: 23.81500, lng: 90.40100 }
+    'Zone-C': { 
+        id: 'Zone-C', name: 'Zone C', location: 'Underground Parking, B1', spots: 120, occupied: 98, free: 22, rate: 5.00, type: 'Underground', status: 'Active', lat: 23.80700, lng: 90.40600,
+        spotStatus: Array.from({length: 120}, (_, i) => ({ id: 'C-' + String(i+1).padStart(2,'0'), index: i, occupied: false, plate: null, sessionId: null }))
+    },
+    'Zone-A': { 
+        id: 'Zone-A', name: 'Zone A', location: 'Ground Floor, Main Building', spots: 50, occupied: 27, free: 23, rate: 3.50, type: 'Covered', status: 'Active', lat: 23.79400, lng: 90.40400,
+        spotStatus: Array.from({length: 50}, (_, i) => ({ id: 'A-' + String(i+1).padStart(2,'0'), index: i, occupied: false, plate: null, sessionId: null }))
+    },
+    'Zone-D': { 
+        id: 'Zone-D', name: 'Zone D', location: 'Open Lot, East Wing', spots: 30, occupied: 12, free: 18, rate: 1.50, type: 'Open Air', status: 'Active', lat: 23.81200, lng: 90.41500,
+        spotStatus: Array.from({length: 30}, (_, i) => ({ id: 'D-' + String(i+1).padStart(2,'0'), index: i, occupied: false, plate: null, sessionId: null }))
+    },
+    'Zone-E': { 
+        id: 'Zone-E', name: 'Zone E', location: 'West Annex', spots: 40, occupied: 0, free: 40, rate: 2.50, type: 'Covered', status: 'Maintenance', lat: 23.80100, lng: 90.39500,
+        spotStatus: Array.from({length: 40}, (_, i) => ({ id: 'E-' + String(i+1).padStart(2,'0'), index: i, occupied: false, plate: null, sessionId: null }))
+    },
+    'Zone-B': { 
+        id: 'Zone-B', name: 'Zone B', location: 'Rooftop Level 5', spots: 80, occupied: 45, free: 35, rate: 2.00, type: 'Rooftop', status: 'Active', lat: 23.81500, lng: 90.40100,
+        spotStatus: Array.from({length: 80}, (_, i) => ({ id: 'B-' + String(i+1).padStart(2,'0'), index: i, occupied: false, plate: null, sessionId: null }))
+    }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
+async function loadZonesFromAPI() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE || 'http://localhost:3000'}/api/admin/zones`, {
+            method: 'GET',
+            headers: {
+                'x-auth-token': token,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            const newZonesData = {};
+            data.forEach(zone => {
+                newZonesData[zone.id] = zone;
+            });
+            zonesData = newZonesData;
+        }
+    } catch (error) {
+        console.error('Failed to load zones from API:', error);
+    }
+}
+
+async function loadDashboardStats() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:3000/api/admin/dashboard-stats', {
+            method: 'GET',
+            headers: {
+                'x-auth-token': token,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            updateSpottedVehiclesUI(data);
+        }
+    } catch (error) {
+        console.error('Failed to load dashboard stats:', error);
+    }
+}
+
+function updateSpottedVehiclesUI(stats) {
+    const spottedCountEl = document.getElementById('spotted-vehicles-count');
+    if (spottedCountEl && stats.spottedVehicles !== undefined) {
+        spottedCountEl.textContent = stats.spottedVehicles;
+    }
+}
+
+async function refreshZones() {
+    const refreshIcon = document.querySelector('header button i');
+    if (refreshIcon) refreshIcon.classList.add('fa-spin');
+    
+    try {
+        await loadZonesFromAPI();
+        if (document.getElementById('zones-grid')) {
+            renderZonesGrid();
+        }
+        updateChartFromZones();
+        if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+    } catch (err) {
+        console.error('Failed to refresh zones:', err);
+        if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+    }
+}
+
+// Auto-refresh zones every 5 seconds
+setInterval(async () => {
+    if (document.getElementById('zones-grid')) {
+        await loadZonesFromAPI();
+        renderZonesGrid();
+        updateChartFromZones();
+    }
+}, 5000);
+
+// Auto-refresh dashboard stats every 10 seconds
+setInterval(async () => {
+    await loadDashboardStats();
+    await loadAnomalies();
+}, 10000);
+
+document.addEventListener('DOMContentLoaded', async () => {
     // Initialize Chart.js if element exists
     if (document.getElementById('occupancyChart')) {
         initOccupancyChart();
     }
 
-    // Simulate live active sessions counter if element exists
-    if (document.getElementById('active-sessions-count')) {
-        simulateLiveCounter();
+    // Load zones from API first, then render
+    if (document.getElementById('zones-grid')) {
+        await loadZonesFromAPI();
+        renderZonesGrid();
+        updateChartFromZones();
     }
 
-    // Render dynamic zones grid if element exists
-    if (document.getElementById('zones-grid')) {
-        renderZonesGrid();
+    // Load dashboard stats (including spotted vehicles)
+    await loadDashboardStats();
+
+    // Load anomalies if on dashboard page
+    if (document.getElementById('anomaly-list')) {
+        await loadAnomalies();
     }
 
     // Render dynamic sessions table if element exists
@@ -78,6 +183,30 @@ function renderZonesGrid() {
 
         const progressBg = zone.status.toLowerCase() === 'active' ? 'bg-blue-600' : 'bg-slate-200';
 
+        // Build spot grid - show max 20 spots in UI to avoid overwhelming
+        const maxDisplaySpots = Math.min(zone.spots, 20);
+        const spotStatus = zone.spotStatus || [];
+        let spotGridHtml = '';
+        
+        for (let i = 0; i < maxDisplaySpots; i++) {
+            const spot = spotStatus[i] || { occupied: false, id: '?' };
+            const spotClass = spot.occupied 
+                ? 'bg-red-500 border-red-600 text-white' 
+                : 'bg-emerald-500 border-emerald-600 text-white';
+            const spotIcon = spot.occupied ? 'fa-car' : 'fa-square-p';
+            const spotTitle = spot.occupied && spot.plate ? `${spot.id}: ${spot.plate}` : `${spot.id}: Free`;
+            
+            spotGridHtml += `
+                <div class="w-8 h-8 rounded-lg ${spotClass} border flex items-center justify-center text-[10px] font-bold" title="${spotTitle}">
+                    <i class="fa-solid ${spotIcon} text-xs"></i>
+                </div>
+            `;
+        }
+        
+        if (zone.spots > 20) {
+            spotGridHtml += `<div class="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500">+${zone.spots - 20}</div>`;
+        }
+
         const cardHtml = `
             <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col justify-between min-h-[280px]">
                 <div>
@@ -89,13 +218,21 @@ function renderZonesGrid() {
                         <i class="fa-solid fa-location-dot text-slate-400"></i> ${zone.location}
                     </p>
 
-                    <div class="space-y-1.5 mb-5">
+                    <div class="space-y-1.5 mb-4">
                         <div class="flex justify-between text-xs font-semibold">
                             <span class="text-slate-400">Occupancy</span>
                             <span class="text-slate-800">${occupancyPercent}%</span>
                         </div>
                         <div class="w-full bg-slate-100 rounded-full h-2">
                             <div class="${progressBg} h-2 rounded-full" style="width: ${occupancyPercent}%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Spot Grid -->
+                    <div class="mb-4">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Live Spots</p>
+                        <div class="flex flex-wrap gap-1.5">
+                            ${spotGridHtml}
                         </div>
                     </div>
 
@@ -221,13 +358,13 @@ function initOccupancyChart() {
             labels: ['Zone A', 'Zone B', 'Zone C', 'Zone D', 'Zone E'],
             datasets: [{
                 label: 'Occupancy %',
-                data: [66, 75, 98, 40, 20],
+                data: [0, 0, 0, 0, 0],
                 backgroundColor: [
-                    'rgba(59, 130, 246, 0.8)',  // Blue
-                    'rgba(59, 130, 246, 0.8)',  // Blue
-                    'rgba(239, 68, 68, 0.8)',   // Red (High occupancy / Anomaly)
-                    'rgba(59, 130, 246, 0.8)',  // Blue
-                    'rgba(59, 130, 246, 0.8)'   // Blue
+                    'rgba(59, 130, 246, 0.8)',
+                    'rgba(59, 130, 246, 0.8)',
+                    'rgba(239, 68, 68, 0.8)',
+                    'rgba(59, 130, 246, 0.8)',
+                    'rgba(59, 130, 246, 0.8)'
                 ],
                 borderColor: [
                     '#3b82f6',
@@ -290,72 +427,135 @@ function initOccupancyChart() {
         }
     });
 }
-// Live Counter Simulation
-function simulateLiveCounter() {
-    const counter = document.getElementById('active-sessions-count');
-    let count = 142; // Start with a realistic number of active sessions
-    if (counter) {
-        counter.textContent = count;
 
-        setInterval(() => {
-            // Randomly add or subtract sessions to simulate real-time activity
-            const change = Math.floor(Math.random() * 3) - 1; // -1, 0, or +1
-            count = Math.max(0, count + change);
-            counter.textContent = count;
+function updateChartFromZones() {
+    if (!occupancyChart) return;
 
-            // Dynamically update chart data slightly to match
-            if (occupancyChart) {
-                const zoneIndex = Math.floor(Math.random() * 5);
-                const currentVal = occupancyChart.data.datasets[0].data[zoneIndex];
-                const newVal = Math.min(100, Math.max(10, currentVal + (change * 2)));
-                occupancyChart.data.datasets[0].data[zoneIndex] = newVal;
+    const zoneOrder = ['Zone-A', 'Zone-B', 'Zone-C', 'Zone-D', 'Zone-E'];
+    const data = [];
+    const bgColors = [];
+    const borderColors = [];
 
-                // Update color if occupancy is extremely high
-                if (newVal >= 90) {
-                    occupancyChart.data.datasets[0].backgroundColor[zoneIndex] = 'rgba(239, 68, 68, 0.8)';
-                    occupancyChart.data.datasets[0].borderColor[zoneIndex] = '#ef4444';
-                } else {
-                    occupancyChart.data.datasets[0].backgroundColor[zoneIndex] = 'rgba(59, 130, 246, 0.8)';
-                    occupancyChart.data.datasets[0].borderColor[zoneIndex] = '#3b82f6';
-                }
+    zoneOrder.forEach(id => {
+        const zone = zonesData[id];
+        const percent = zone ? Math.round((zone.occupied / zone.spots) * 100) : 0;
+        data.push(percent);
 
-                occupancyChart.update('none'); // Update without full animation for smoothness
-            }
-        }, 4000);
-    }
+        if (percent >= 90) {
+            bgColors.push('rgba(239, 68, 68, 0.8)');
+            borderColors.push('#ef4444');
+        } else {
+            bgColors.push('rgba(59, 130, 246, 0.8)');
+            borderColors.push('#3b82f6');
+        }
+    });
+
+    occupancyChart.data.datasets[0].data = data;
+    occupancyChart.data.datasets[0].backgroundColor = bgColors;
+    occupancyChart.data.datasets[0].borderColor = borderColors;
+    occupancyChart.update();
 }
-
 // Refresh Dashboard Data
-function triggerRefresh() {
+async function triggerRefresh() {
     const refreshIcon = document.querySelector('header button i');
-    refreshIcon.classList.add('fa-spin');
+    if (refreshIcon) refreshIcon.classList.add('fa-spin');
 
     showToast('info', 'Refreshing system data...');
 
-    setTimeout(() => {
-        refreshIcon.classList.remove('fa-spin');
-        showToast('success', 'System data refreshed successfully!');
-
-        // Randomize chart data slightly on refresh
-        if (occupancyChart) {
-            occupancyChart.data.datasets[0].data = [
-                Math.floor(Math.random() * 20) + 50,
-                Math.floor(Math.random() * 20) + 60,
-                Math.floor(Math.random() * 10) + 90,
-                Math.floor(Math.random() * 30) + 30,
-                Math.floor(Math.random() * 20) + 15
-            ];
-            occupancyChart.update();
+    try {
+        await loadZonesFromAPI();
+        await loadDashboardStats();
+        await loadAnomalies();
+        
+        if (document.getElementById('zones-grid')) {
+            renderZonesGrid();
         }
-    }, 1200);
+        updateChartFromZones();
+        if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+        showToast('success', 'System data refreshed successfully!');
+    } catch (err) {
+        console.error('Failed to refresh dashboard:', err);
+        if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+        showToast('error', 'Failed to refresh dashboard data.');
+    }
 }
 
 // Anomaly Alert Controls
+async function loadAnomalies() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:3000/api/admin/dashboard-stats', {
+            method: 'GET',
+            headers: {
+                'x-auth-token': token,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            // Use spotted vehicles from dashboard stats
+            const spotted = (data.spottedVehiclesList || []).map(v => ({
+                zone: v.zone,
+                type: 'spotted',
+                message: `${v.plate} in ${v.zone} (Spot: ${v.spot}) — sensor issue detected`,
+                severity: 'warning',
+                vehicles: [v]
+            }));
+            renderAnomalies(spotted);
+        }
+    } catch (err) {
+        console.error('Failed to load anomalies:', err);
+    }
+}
+
+function renderAnomalies(anomalies) {
+    const alertBox = document.getElementById('anomaly-alert');
+    const anomalyList = document.getElementById('anomaly-list');
+    if (!alertBox || !anomalyList) return;
+
+    if (!anomalies || anomalies.length === 0) {
+        alertBox.classList.add('hidden');
+        return;
+    }
+
+    alertBox.classList.remove('hidden');
+    const titleEl = alertBox.querySelector('h3');
+    if (titleEl) {
+        titleEl.textContent = `Slot Anomaly Detected (${anomalies.length} alert${anomalies.length !== 1 ? 's' : ''})`;
+    }
+
+    anomalyList.innerHTML = anomalies.map(anomaly => `
+        <div class="bg-white/80 border border-red-100 rounded-xl p-3.5 shadow-sm">
+            <div class="flex items-start gap-3">
+                <span class="px-2.5 py-1 text-xs font-bold bg-red-100 text-red-700 rounded-lg">${anomaly.zone}</span>
+                <div class="flex-1">
+                    <p class="text-xs text-slate-700 font-medium">${anomaly.message}</p>
+                    ${anomaly.vehicles && anomaly.vehicles.length > 0 ? `
+                        <div class="mt-2 space-y-1">
+                            ${anomaly.vehicles.map(v => `
+                                <div class="flex items-center gap-2 text-[10px] font-mono bg-slate-50 rounded-lg px-2 py-1 border border-slate-100">
+                                    <i class="fa-solid fa-car text-red-500"></i>
+                                    <span class="font-bold text-slate-700">${v.plate}</span>
+                                    <span class="text-slate-400">Spot: ${v.spot}</span>
+                                    ${v.sensorDetected === false ? '<span class="text-amber-600 font-bold">NO SENSOR</span>' : ''}
+                                    ${v.sensorVerified === false ? '<span class="text-orange-600 font-bold">UNVERIFIED</span>' : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
 function refreshAnomalies() {
     showToast('info', 'Scanning sensors for anomalies...');
-    setTimeout(() => {
-        showToast('success', 'Sensor scan complete. 4 anomalies verified.');
-    }, 1000);
+    loadAnomalies().then(() => {
+        showToast('success', 'Sensor scan complete.');
+    });
 }
 
 function dismissAnomalies() {
@@ -372,6 +572,8 @@ function dismissAnomalies() {
 // Recent Activity Controls
 function clearActivity() {
     const list = document.getElementById('activity-list');
+    const sensorLog = document.getElementById('sensor-log');
+    
     if (list) {
         list.innerHTML = `
             <div class="flex flex-col items-center justify-center py-8 text-center text-slate-400">
@@ -379,12 +581,39 @@ function clearActivity() {
                 <p class="text-xs font-medium">No recent activity</p>
             </div>
         `;
-        showToast('info', 'Activity log cleared.');
     }
+    
+    if (sensorLog) {
+        sensorLog.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-8 text-center text-slate-400">
+                <i class="fa-solid fa-satellite-dish text-2xl mb-2"></i>
+                <p class="text-xs font-medium">No recent sensor activity</p>
+            </div>
+        `;
+    }
+    
+    showToast('info', 'Activity log cleared.');
 }
 
 function viewAllActivity() {
     showToast('info', 'Loading full activity history...');
+}
+
+function clearSensorLog() {
+    const sensorLog = document.getElementById('sensor-log');
+    if (sensorLog) {
+        sensorLog.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-8 text-center text-slate-400">
+                <i class="fa-solid fa-satellite-dish text-2xl mb-2"></i>
+                <p class="text-xs font-medium">No recent sensor activity</p>
+            </div>
+        `;
+        showToast('info', 'Sensor log cleared.');
+    }
+}
+
+function viewAllSensorActivity() {
+    showToast('info', 'Loading full sensor logs...');
 }
 
 function logout() {

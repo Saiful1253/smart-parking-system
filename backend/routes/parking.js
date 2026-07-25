@@ -8,13 +8,15 @@ const ParkingSession = require('../models/ParkingSession');
 // @desc    Create a new parking session
 // @access  Private (User)
 router.post('/', auth, async (req, res) => {
-  const { plateNumber, zone, startTime, endTime, cost, payment, paymentStatus, customerNumber, trxId, status } = req.body;
+  const { plateNumber, zone, spot, slotIndex, startTime, endTime, cost, payment, paymentStatus, customerNumber, trxId, status, sensorDetected, sensorVerified, sensorType } = req.body;
 
   try {
     const newSession = new ParkingSession({
       user: req.user.id,
       plateNumber,
       zone,
+      spot,
+      slotIndex,
       startTime,
       endTime,
       cost,
@@ -23,6 +25,9 @@ router.post('/', auth, async (req, res) => {
       customerNumber,
       trxId,
       status,
+      sensorDetected,
+      sensorVerified,
+      sensorType,
     });
 
     const session = await newSession.save();

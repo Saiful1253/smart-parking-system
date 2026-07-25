@@ -64,6 +64,7 @@ async function saveParkingSession(sessionData) {
         const data = await response.json();
         if (response.ok) {
             showToast('success', `Spot ${sessionData.zone} reserved successfully!`);
+            showToast('info', `📡 Sensors active: plate=${sessionData.plate || 'SIM-123'}, ultrasonic=object-detected, camera=vehicle-image-captured`);
             return data;
         } else {
             console.error('Error saving parking session:', data.msg);
@@ -458,13 +459,21 @@ async function toggleSlot(element, slotId) {
     }
 
     if (element.classList.contains('available')) {
+        // Parse zone and spot from slotId (e.g. "A-02" -> zone="Zone A", spot="A-02", slotIndex=1)
+        const parts = slotId.split('-');
+        const spotNumber = parts.length > 1 ? parts[1] : '01';
+        const zonePrefix = parts[0];
+        const zoneName = 'Zone ' + zonePrefix;
+        const slotIndex = parseInt(spotNumber, 10) - 1;
+        
         // Simulate reserving the spot
         const sessionData = {
-            plateNumber: 'SIM-123', // Placeholder, ideally this would come from user input
-            zone: slotId,
+            plateNumber: 'SIM-123',
+            zone: zoneName,
+            spot: slotId,
+            slotIndex: slotIndex,
             startTime: new Date(),
-            // endTime will be set when session ends
-            cost: 0 // Cost will be calculated on end
+            cost: 0
         };
         const newSession = await saveParkingSession(sessionData);
         if (newSession) {
@@ -473,7 +482,7 @@ async function toggleSlot(element, slotId) {
             statusSpan.textContent = 'RESERVED';
             statusSpan.className = 'text-[9px] font-semibold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 slot-status';
             icon.className = 'fa-solid fa-circle-check text-blue-500 text-2xl my-1';
-            element.dataset.sessionId = newSession._id; // Store session ID for later
+            element.dataset.sessionId = newSession._id;
             
             freeSpotsCount--;
         }

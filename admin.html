@@ -132,7 +132,7 @@
                             <i class="fa-solid fa-triangle-exclamation text-lg animate-pulse"></i>
                         </div>
                         <div>
-                            <h3 class="text-base font-bold text-red-900">Slot Anomaly Detected (4 alerts)</h3>
+                            <h3 class="text-base font-bold text-red-900">Slot Anomaly Detected</h3>
                             <p class="text-xs text-red-600 font-medium">Unregistered vehicles or sensor mismatches found in active zones.</p>
                         </div>
                     </div>
@@ -148,22 +148,6 @@
 
                 <!-- Alert Items -->
                 <div class="space-y-2.5" id="anomaly-list">
-                    <div class="bg-white/80 border border-red-100 rounded-xl p-3.5 flex items-start gap-3 shadow-sm">
-                        <span class="px-2.5 py-1 text-xs font-bold bg-red-100 text-red-700 rounded-lg">Zone C</span>
-                        <p class="text-xs text-slate-700 font-medium mt-0.5">98 spot(s) marked occupied but no active session found — possible unregistered vehicle detected!</p>
-                    </div>
-                    <div class="bg-white/80 border border-red-100 rounded-xl p-3.5 flex items-start gap-3 shadow-sm">
-                        <span class="px-2.5 py-1 text-xs font-bold bg-red-100 text-red-700 rounded-lg">Zone A</span>
-                        <p class="text-xs text-slate-700 font-medium mt-0.5">27 spot(s) marked occupied but no active session found — possible unregistered vehicle detected!</p>
-                    </div>
-                    <div class="bg-white/80 border border-red-100 rounded-xl p-3.5 flex items-start gap-3 shadow-sm">
-                        <span class="px-2.5 py-1 text-xs font-bold bg-red-100 text-red-700 rounded-lg">Zone D</span>
-                        <p class="text-xs text-slate-700 font-medium mt-0.5">12 spot(s) marked occupied but no active session found — possible unregistered vehicle detected!</p>
-                    </div>
-                    <div class="bg-white/80 border border-red-100 rounded-xl p-3.5 flex items-start gap-3 shadow-sm">
-                        <span class="px-2.5 py-1 text-xs font-bold bg-red-100 text-red-700 rounded-lg">Zone B</span>
-                        <p class="text-xs text-slate-700 font-medium mt-0.5">45 spot(s) marked occupied but no active session found — possible unregistered vehicle detected!</p>
-                    </div>
                 </div>
             </div>
             <!-- Stats Cards Grid -->
@@ -206,7 +190,19 @@
                     </div>
                 </div>
 
-                <!-- Card 4: Revenue -->
+                <!-- Card 4: Spotted Vehicles -->
+                <div class="bg-white border border-red-200 rounded-2xl p-5 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow duration-300">
+                    <div class="space-y-1">
+                        <p class="text-xs font-semibold text-red-400 uppercase tracking-wider">Spotted Vehicles</p>
+                        <h4 class="text-3xl font-extrabold text-red-600" id="spotted-vehicles-count">0</h4>
+                        <p class="text-[10px] text-slate-500 font-medium">Sensor anomalies detected</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center text-xl shadow-inner">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                </div>
+
+                <!-- Card 5: Revenue -->
                 <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow duration-300">
                     <div class="space-y-1">
                         <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Revenue</p>
@@ -242,27 +238,39 @@
                     <div>
                         <div class="flex items-center justify-between mb-6">
                             <div>
-                                <h3 class="text-base font-bold text-slate-900">Recent Activity</h3>
-                                <p class="text-xs text-slate-500">Latest parking events across all zones</p>
+                                <h3 class="text-base font-bold text-slate-900">Recent Sensor Activity</h3>
+                                <p class="text-xs text-slate-500">Live plate readers, ultrasonic, and camera feeds</p>
                             </div>
-                            <button onclick="clearActivity()" class="text-xs font-semibold text-blue-600 hover:text-blue-500 transition-colors">
+                            <button onclick="clearSensorLog()" class="text-xs font-semibold text-blue-600 hover:text-blue-500 transition-colors">
                                 Clear All
                             </button>
                         </div>
 
-                        <!-- Activity List -->
-                        <div class="space-y-4" id="activity-list">
+                        <!-- Sensor Log -->
+                        <div class="space-y-3" id="sensor-log">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm">
+                                        <i class="fa-solid fa-car"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-bold text-slate-800">ABC-1251 → Zone A</p>
+                                        <p class="text-[10px] text-slate-500 font-medium">Plate reader | Ultrasonic | Camera</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs font-semibold text-slate-400">Just now</span>
+                            </div>
                             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                                 <div class="flex items-center gap-3">
                                     <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-sm">
-                                        <i class="fa-solid fa-motorcycle"></i>
+                                        <i class="fa-solid fa-car"></i>
                                     </div>
                                     <div>
-                                        <p class="text-xs font-bold text-slate-800">123 Zone A</p>
-                                        <p class="text-[10px] text-slate-500 font-medium">Completed Session</p>
+                                        <p class="text-xs font-bold text-slate-800">SIM-123 → Zone B</p>
+                                        <p class="text-[10px] text-slate-500 font-medium">Plate reader | Ultrasonic | Camera</p>
                                     </div>
                                 </div>
-                                <span class="text-xs font-semibold text-slate-400">15:21</span>
+                                <span class="text-xs font-semibold text-slate-400">2 min ago</span>
                             </div>
                             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                                 <div class="flex items-center gap-3">
@@ -270,29 +278,17 @@
                                         <i class="fa-solid fa-car"></i>
                                     </div>
                                     <div>
-                                        <p class="text-xs font-bold text-slate-800">456 Zone B</p>
-                                        <p class="text-[10px] text-slate-500 font-medium">New Check-In</p>
+                                        <p class="text-xs font-bold text-slate-800">DHA-5521 → Zone C</p>
+                                        <p class="text-[10px] text-slate-500 font-medium">Plate reader | Ultrasonic | Camera</p>
                                     </div>
                                 </div>
-                                <span class="text-xs font-semibold text-slate-400">15:18</span>
-                            </div>
-                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-sm">
-                                        <i class="fa-solid fa-car"></i>
-                                    </div>
-                                    <div>
-                                        <p class="text-xs font-bold text-slate-800">789 Zone C</p>
-                                        <p class="text-[10px] text-slate-500 font-medium">Completed Session</p>
-                                    </div>
-                                </div>
-                                <span class="text-xs font-semibold text-slate-400">15:10</span>
+                                <span class="text-xs font-semibold text-slate-400">5 min ago</span>
                             </div>
                         </div>
                     </div>
 
-                    <button onclick="viewAllActivity()" class="w-full mt-4 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all duration-300">
-                        View All Activity
+                    <button onclick="viewAllSensorActivity()" class="w-full mt-4 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all duration-300">
+                        View All Sensor Activity
                     </button>
                 </div>
             </div>

@@ -5,6 +5,8 @@ class ParkingSessionClass {
     this.user = doc.user;
     this.plateNumber = doc.plateNumber;
     this.zone = doc.zone;
+    this.spot = doc.spot || null;
+    this.slotIndex = doc.slotIndex !== undefined ? doc.slotIndex : null;
     this.startTime = doc.startTime || new Date();
     this.endTime = doc.endTime;
     this.cost = doc.cost || 0;
@@ -17,6 +19,9 @@ class ParkingSessionClass {
     this.meterSeconds = doc.meterSeconds;
     this.createdAt = doc.createdAt;
     this.status = doc.status || 'Active';
+    this.sensorDetected = doc.sensorDetected !== undefined ? doc.sensorDetected : true;
+    this.sensorVerified = doc.sensorVerified !== undefined ? doc.sensorVerified : true;
+    this.sensorType = doc.sensorType || 'plate-reader,ultrasonic';
     this._id = doc._id;
     this.id = doc._id;
   }
@@ -26,6 +31,8 @@ class ParkingSessionClass {
       user: this.user,
       plateNumber: this.plateNumber,
       zone: this.zone,
+      spot: this.spot,
+      slotIndex: this.slotIndex,
       startTime: this.startTime,
       endTime: this.endTime,
       cost: this.cost,
@@ -34,6 +41,9 @@ class ParkingSessionClass {
       customerNumber: this.customerNumber,
       trxId: this.trxId,
       status: this.status || 'Active',
+      sensorDetected: this.sensorDetected,
+      sensorVerified: this.sensorVerified,
+      sensorType: this.sensorType,
     });
     this._id = session._id;
     return this;
@@ -42,6 +52,8 @@ class ParkingSessionClass {
 
 ParkingSessionClass.find = async function (query) {
   let sessions = store.getAllSessions();
+
+  query = query || {};
 
   if (query.user) {
     sessions = sessions.filter(s => s.user === query.user);
