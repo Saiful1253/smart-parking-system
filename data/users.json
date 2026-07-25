@@ -26,5 +26,12 @@
     "role": "admin",
     "_id": "mrz4m61htexbyl1c3",
     "createdAt": "2026-07-24T16:00:02.069Z"
+  },
+  {
+    "email": "test@test.com",
+    "password": "$2b$10$gihmMgk7QFfHvoYn78clxeX0Rf68tV.VRP5t7HZIL9I198HQh5hZO",
+    "role": "user",
+    "_id": "ms0mlakefiswtrujq",
+    "createdAt": "2026-07-25T17:11:00.543Z"
   }
 ]

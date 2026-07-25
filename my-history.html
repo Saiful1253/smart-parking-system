@@ -434,7 +434,7 @@
             }
 
             try {
-                const response = await fetch('http://localhost:3000/api/parking/my-history', {
+                const response = await fetch(API_BASE + '/api/parking/my-history', {
                     method: 'GET',
                     headers: {
                         'x-auth-token': token,

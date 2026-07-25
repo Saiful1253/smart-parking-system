@@ -1,6 +1,7 @@
 // SmartPark - Admin Dashboard JavaScript
 
 // Admin Auth Guard
+const API_BASE = (() => { const p = window.location.port; return (p === '3000' || !p) ? window.location.origin : 'http://localhost:3000'; })();
 (function() {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -54,7 +55,7 @@ let zonesData = {
 async function loadZonesFromAPI() {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE || 'http://localhost:3000'}/api/admin/zones`, {
+        const response = await fetch(`${API_BASE}/api/admin/zones`, {
             method: 'GET',
             headers: {
                 'x-auth-token': token,
@@ -79,7 +80,7 @@ async function loadZonesFromAPI() {
 async function loadDashboardStats() {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:3000/api/admin/dashboard-stats', {
+        const response = await fetch(`${API_BASE}/api/admin/dashboard-stats`, {
             method: 'GET',
             headers: {
                 'x-auth-token': token,
@@ -484,7 +485,7 @@ async function triggerRefresh() {
 async function loadAnomalies() {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:3000/api/admin/dashboard-stats', {
+        const response = await fetch(`${API_BASE}/api/admin/dashboard-stats`, {
             method: 'GET',
             headers: {
                 'x-auth-token': token,

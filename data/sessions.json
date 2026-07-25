@@ -309,5 +309,22 @@
     "sensorType": "plate-reader,ultrasonic",
     "_id": "ms0etnanzyh8wqh6m",
     "createdAt": "2026-07-25T13:33:33.359Z"
+  },
+  {
+    "user": "ms0mlakefiswtrujq",
+    "plateNumber": "SIM-123",
+    "zone": "Zone A",
+    "spot": "A-01",
+    "slotIndex": 0,
+    "startTime": "2026-07-25T23:00:00.000Z",
+    "cost": 0,
+    "payment": "Cash",
+    "paymentStatus": "Paid",
+    "status": "Active",
+    "sensorDetected": true,
+    "sensorVerified": true,
+    "sensorType": "plate-reader,ultrasonic",
+    "_id": "ms0mm0wrpbuqlp2u8",
+    "createdAt": "2026-07-25T17:11:34.683Z"
   }
 ]

@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const authorize = require('../middleware/authorize');
 const ParkingSession = require('../models/ParkingSession');
+const User = require('../models/User');
 
 // @route   POST /api/parking
 // @desc    Create a new parking session
