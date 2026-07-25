@@ -1,27 +1,25 @@
 {
-  "name": "smart-parking-syastem",
+  "name": "smart-parking-system",
   "version": "1.0.0",
-  "description": "",
-  "main": "admin.js",
+  "description": "SmartPark - Next-Gen Parking Solutions",
+  "main": "index.html",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "cd backend && node server.js",
+    "backend": "cd backend && node server.js",
+    "seed": "cd backend && node seedAdmin.js",
+    "update-url": "node update-backend-url.js",
+    "dev": "cd backend && npm install && node server.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Saiful1253/smart-parking-system.git"
   },
-  "keywords": [],
+  "keywords": ["parking", "smart-parking"],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/Saiful1253/smart-parking-system/issues"
   },
   "homepage": "https://github.com/Saiful1253/smart-parking-system#readme",
-  "dependencies": {
-    "bcryptjs": "^3.0.3",
-    "express": "^5.2.1",
-    "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.8.0"
-  }
+  "type": "commonjs"
 }

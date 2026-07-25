@@ -1,13 +1,21 @@
 services:
   - type: web
-    name: smart-parking-backend
-    runtime: node
-    plan: free
-    rootDir: .
-    buildCommand: npm install --prefix backend
+    name: smartpark-backend
+    runtime: docker
+    repo: https://github.com/saiful1253/smart-parking-system.git
+    branch: main
+    buildCommand: docker build -t smartpark-backend -f backend/Dockerfile .
     startCommand: node backend/server.js
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 3000
+      - key: JWT_SECRET
+        sync: false
+      - key: ADMIN_KEY
+        sync: false
+      - key: FRONTEND_URL
+        value: https://saiful1253.github.io
+      - key: CORS_ORIGIN
+        value: https://saiful1253.github.io

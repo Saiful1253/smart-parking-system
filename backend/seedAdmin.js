@@ -1,6 +1,10 @@
+#!/usr/bin/env node
+
 const bcrypt = require('bcryptjs');
+const path = require('path');
 const store = require('./dataStore');
-require('dotenv').config({ path: '../.env' });
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 async function seedAdmin() {
   await store.init();
