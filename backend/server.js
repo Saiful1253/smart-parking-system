@@ -1,6 +1,8 @@
 const express = require('express');
 const path = require('path');
 const dotenv = require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+if (!process.env.JWT_SECRET) process.env.JWT_SECRET = 'SmartParkJWTSecret' + Date.now();
+if (!process.env.ADMIN_KEY) process.env.ADMIN_KEY = 'SmartParkAdmin' + Date.now();
 const connectDB = require('./config/db');
 const cors = require('cors');
 const app = express();
