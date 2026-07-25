@@ -5,8 +5,14 @@ const API_BASE = (() => {
     const urlParams = new URLSearchParams(window.location.search);
     const apiParam = urlParams.get('api');
     if (apiParam) return apiParam.replace(/\/$/, '');
-    const p = window.location.port;
-    return (p === '3000') ? window.location.origin : 'http://localhost:3000';
+    const meta = document.querySelector('meta[name="smartpark-api-url"]');
+    if (meta) return (meta.getAttribute('content') || '').replace(/\/$/, '');
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        const p = window.location.port;
+        return (p === '3000' || !p) ? window.location.origin : 'http://localhost:3000';
+    }
+    return '';
 })();
 (function() {
     const token = localStorage.getItem('token');
