@@ -595,11 +595,13 @@ async function handleLogin(event) {
             body: JSON.stringify(requestBody),
         });
 
-        const data = await res.json();
+        const contentType = res.headers.get('content-type') || '';
+        const isJson = contentType.includes('application/json');
+        const data = isJson ? await res.json() : { msg: await res.text() };
 
-        if (res.ok) {
-            localStorage.setItem('token', data.token); // Store the JWT token
-            localStorage.setItem('loggedInUser', JSON.stringify({ email, role: roleToSend })); // Store basic user info (without sensitive data)
+        if (res.ok && data.token) {
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('loggedInUser', JSON.stringify({ email, role: roleToSend }));
             showToast('success', 'Login successful! Redirecting to dashboard...');
             setTimeout(() => {
                 submitBtn.disabled = false;
@@ -611,13 +613,13 @@ async function handleLogin(event) {
                 }
             }, 1500);
         } else {
-            showToast('error', data.msg || 'Login failed.');
+            showToast('error', data.msg || `Login failed (status ${res.status}).`);
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalContent;
         }
     } catch (err) {
         console.error('Login error:', err);
-        showToast('error', 'Server error during login: ' + (err.message || err));
+        showToast('error', 'Server error during login: ' + (err.message || 'Unknown error'));
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalContent;
     }
@@ -643,15 +645,15 @@ async function handleRegister(event) {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ email, password, role: 'user' }), // Default role to 'user'
+            body: JSON.stringify({ email, password, role: 'user' }),
         });
 
-        const data = await res.json();
+        const contentType = res.headers.get('content-type') || '';
+        const isJson = contentType.includes('application/json');
+        const data = isJson ? await res.json() : { msg: await res.text() };
 
         if (res.ok) {
-            showToast('success', `Welcome, ${name}! Account created successfully.`);
-            // Optionally, log in the user directly after registration
-            // localStorage.setItem('token', data.token); // Store token if auto-logging in
+            showToast('success', `Account created for ${email}. You can now log in.`);
             setTimeout(() => {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalContent;
@@ -665,8 +667,8 @@ async function handleRegister(event) {
             submitBtn.innerHTML = originalContent;
         }
     } catch (err) {
-        console.error(err);
-        showToast('error', 'Server error during registration.');
+        console.error('Register error:', err);
+        showToast('error', 'Server error during registration: ' + (err.message || 'Unknown error'));
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalContent;
     }
