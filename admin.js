@@ -75,7 +75,9 @@ async function loadZonesFromAPI() {
             }
         });
 
-        const data = await response.json();
+        const contentType = response.headers.get('content-type') || '';
+        const isJson = contentType.includes('application/json');
+        const data = isJson ? await response.json() : {};
 
         if (response.ok) {
             const newZonesData = {};
@@ -100,7 +102,9 @@ async function loadDashboardStats() {
             }
         });
 
-        const data = await response.json();
+        const contentType = response.headers.get('content-type') || '';
+        const isJson = contentType.includes('application/json');
+        const data = isJson ? await response.json() : {};
 
         if (response.ok) {
             updateSpottedVehiclesUI(data);
@@ -505,10 +509,11 @@ async function loadAnomalies() {
             }
         });
 
-        const data = await response.json();
+        const contentType = response.headers.get('content-type') || '';
+        const isJson = contentType.includes('application/json');
+        const data = isJson ? await response.json() : {};
 
         if (response.ok) {
-            // Use spotted vehicles from dashboard stats
             const spotted = (data.spottedVehiclesList || []).map(v => ({
                 zone: v.zone,
                 type: 'spotted',
