@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="smartpark-api-url" content="">
     <title>SmartPark - Customer View</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -14,6 +13,7 @@
     <!-- Leaflet Map CDN -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="script.js"></script>
     <style>
         body { font-family: 'Poppins', sans-serif; }
         #customer-map { height: 400px; border-radius: 1rem; z-index: 10; }
@@ -43,25 +43,34 @@
 <script>
 (function() {
     try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('token_admin');
         if (!token) {
             window.location.href = 'index.html';
             return;
         }
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const decodedPayload = JSON.parse(window.atob(base64));
-        const role = decodedPayload.user.role;
+        var role = null;
+        if (typeof token === 'string' && token.startsWith('static-')) {
+            var loggedInUser = localStorage.getItem('loggedInUser_admin');
+            if (loggedInUser) {
+                var userObj = JSON.parse(loggedInUser);
+                role = userObj.role;
+            }
+        } else {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const decodedPayload = JSON.parse(window.atob(base64));
+            role = decodedPayload.user.role;
+        }
         if (role !== 'admin') {
-            localStorage.removeItem('token');
-            localStorage.removeItem('loggedInUser');
+            localStorage.removeItem('token_admin');
+            localStorage.removeItem('loggedInUser_admin');
             window.location.href = 'index.html';
             return;
         }
     } catch (error) {
         console.error('Auth guard error:', error);
-        localStorage.removeItem('token');
-        localStorage.removeItem('loggedInUser');
+        localStorage.removeItem('token_admin');
+        localStorage.removeItem('loggedInUser_admin');
         window.location.href = 'index.html';
     }
 })();
@@ -102,7 +111,7 @@
                 <button onclick="switchCustomerView('my-sessions', this);toggleMobileMenu();" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 w-full text-left"><i class="fa-solid fa-car-side w-5 text-center"></i> My Sessions</button>
                 <button onclick="switchCustomerView('my-history', this);toggleMobileMenu();" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 w-full text-left"><i class="fa-solid fa-clock-rotate-left w-5 text-center"></i> My History</button>
                 <a href="admin.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all sm:hidden"><i class="fa-solid fa-arrow-left w-5 text-center"></i> Back to Admin</a>
-                <a href="#" onclick="logout(); return false;" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-red-400 hover:text-red-300 hover:bg-slate-800 transition-all"><i class="fa-solid fa-right-from-bracket w-5 text-center"></i> Sign Out</a>
+                <a href="#" onclick="localStorage.removeItem('token_admin'); localStorage.removeItem('loggedInUser_admin'); localStorage.removeItem('token_customer'); localStorage.removeItem('loggedInUser_customer'); window.location.href='index.html'; return false;" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-red-400 hover:text-red-300 hover:bg-slate-800 transition-all"><i class="fa-solid fa-right-from-bracket w-5 text-center"></i> Sign Out</a>
             </div>
         </div>
     </header>
@@ -761,9 +770,18 @@
 
         function savePaymentToAdmin(booking, customerNumber, trxId) {
             try {
-                var payments = JSON.parse(localStorage.getItem('smartParkPayments')) || [];
+                var currentUser = getLoggedInUser();
+                var userKey = currentUser ? currentUser.email : 'default';
+                var allByUser = {};
+                try {
+                    var saved = localStorage.getItem('smartParkPayments_by_user');
+                    if (saved) allByUser = JSON.parse(saved);
+                } catch(e) {}
+                if (!allByUser[userKey]) allByUser[userKey] = [];
+                var payments = allByUser[userKey];
                 payments.push({ id: 'PAY-' + String(payments.length+1).padStart(4,'0'), bookingId: booking.id, customerName: booking.name, vehicle: booking.vehicle, zone: booking.zone, slot: booking.slot, amount: booking.cost, paymentMethod: booking.payment, customerNumber: customerNumber, trxId: trxId, date: booking.date, time: booking.entryTime, status: 'Pending', adminVerified: false, createdAt: new Date().toISOString() });
-                localStorage.setItem('smartParkPayments', JSON.stringify(payments));
+                allByUser[userKey] = payments;
+                localStorage.setItem('smartParkPayments_by_user', JSON.stringify(allByUser));
             } catch(e) {}
         }
 

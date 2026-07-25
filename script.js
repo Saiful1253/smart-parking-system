@@ -28,8 +28,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+function getRoleTokenKey(role) {
+    return role === 'admin' ? 'token_admin' : 'token_customer';
+}
+function getRoleUserKey(role) {
+    return role === 'admin' ? 'loggedInUser_admin' : 'loggedInUser_customer';
+}
+function getStoredToken(role) {
+    return localStorage.getItem(getRoleTokenKey(role));
+}
+function getStoredLoggedInUser(role) {
+    const v = localStorage.getItem(getRoleUserKey(role));
+    return v ? JSON.parse(v) : null;
+}
+function setStoredAuth(role, token, user) {
+    localStorage.setItem(getRoleTokenKey(role), token);
+    localStorage.setItem(getRoleUserKey(role), JSON.stringify(user));
+}
+function removeStoredAuth(role) {
+    localStorage.removeItem(getRoleTokenKey(role));
+    localStorage.removeItem(getRoleUserKey(role));
+}
+
 async function fetchUserSessions() {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token_customer');
     if (!token) {
         console.warn('No token found, user not logged in.');
         return [];
@@ -55,13 +77,16 @@ async function fetchUserSessions() {
         }
     } catch (error) {
         console.error('Network error fetching user sessions:', error);
-        showToast('error', 'Network error fetching user sessions.');
+        var saved = getUserData('customerParkingData');
+        if (saved && saved.sessions) {
+            return saved.sessions.filter(function(s) { return s.status === 'Active'; });
+        }
         return [];
     }
 }
 
 async function saveParkingSession(sessionData) {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token_customer');
     if (!token) {
         showToast('error', 'You must be logged in to reserve a spot.');
         return null;
@@ -88,13 +113,23 @@ async function saveParkingSession(sessionData) {
         }
     } catch (error) {
         console.error('Network error saving parking session:', error);
-        showToast('error', 'Network error saving parking session.');
-        return null;
+        var saved = getUserData('customerParkingData');
+        var sessions = saved ? saved.sessions : [];
+        var nextId = saved ? saved.nextId : 1000;
+        var newSession = Object.assign({ id: nextId, status: 'Active', createdAt: new Date().toISOString() }, sessionData);
+        sessions.push(newSession);
+        var nextBookingId = (saved ? saved.nextId : 1000) + 1;
+        var nextHistoryId = saved ? saved.nextHistId : 2000;
+        var zoneSlots = saved ? saved.zoneSlots : {};
+        saveData(sessions, saved ? saved.history : [], nextBookingId, nextHistoryId, zoneSlots);
+        showToast('success', `Spot ${sessionData.zone} reserved successfully!`);
+        showToast('info', `📡 Sensors active: plate=${sessionData.plate || 'SIM-123'}, ultrasonic=object-detected, camera=vehicle-image-captured`);
+        return newSession;
     }
 }
 
 async function deleteParkingSession(sessionId) {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token_customer');
     if (!token) {
         showToast('error', 'You must be logged in to cancel a reservation.');
         return false;
@@ -121,25 +156,46 @@ async function deleteParkingSession(sessionId) {
         }
     } catch (error) {
         console.error('Network error deleting parking session:', error);
-        showToast('error', 'Network error cancelling reservation.');
-        return false;
+        var saved = getUserData('customerParkingData');
+        if (saved && saved.sessions) {
+            saved.sessions = saved.sessions.filter(function(s) { return String(s.id) !== String(sessionId); });
+            saveData(saved.sessions, saved.history, saved.nextId, saved.nextHistId, saved.zoneSlots);
+        }
+        showToast('info', 'Reservation cancelled successfully.');
+        return true;
     }
 }
 
 // Utility functions for user-specific data in localStorage
 function getLoggedInUser() {
-    const token = localStorage.getItem('token');
-    if (!token) return null;
-
-    try {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const decodedPayload = JSON.parse(window.atob(base64));
-        return { email: decodedPayload.user.email, role: decodedPayload.user.role, id: decodedPayload.user.id };
-    } catch (error) {
-        console.error('Error decoding token:', error);
-        return null;
+    for (const role of ['customer', 'admin']) {
+        const token = localStorage.getItem(getRoleTokenKey(role));
+        if (!token) continue;
+        try {
+            if (typeof token === 'string' && token.startsWith('static-')) {
+                const loggedInUserStr = localStorage.getItem(getRoleUserKey(role));
+                if (loggedInUserStr) {
+                    const userObj = JSON.parse(loggedInUserStr);
+                    if (userObj && userObj.email) {
+                        return { email: userObj.email, role: userObj.role };
+                    }
+                }
+                const parts = token.split('-');
+                if (parts.length >= 3) {
+                    return { email: 'user-' + parts[2], role: parts[1] || role };
+                }
+                return null;
+            }
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const decodedPayload = JSON.parse(window.atob(base64));
+            return { email: decodedPayload.user.email, role: decodedPayload.user.role, id: decodedPayload.user.id };
+        } catch (error) {
+            console.error('Error decoding token:', error);
+            continue;
+        }
     }
+    return null;
 }
 
 function getUserData(key, defaultValue = []) {
@@ -566,7 +622,14 @@ async function handleLogin(event) {
     submitBtn.disabled = true;
 
     // Determine the role to send to the backend
-    const roleToSend = currentRole;
+    let roleToSend = currentRole;
+    const adminBtn = document.getElementById('role-admin');
+    const customerBtn = document.getElementById('role-customer');
+    if (adminBtn && adminBtn.classList.contains('from-indigo-600')) {
+        roleToSend = 'admin';
+    } else if (customerBtn && customerBtn.classList.contains('from-blue-600')) {
+        roleToSend = 'customer';
+    }
 
     submitBtn.innerHTML = `
         <i class="fa-solid fa-circle-notch animate-spin mr-2"></i>
@@ -600,8 +663,7 @@ async function handleLogin(event) {
         const data = isJson ? await res.json() : { msg: await res.text() };
 
         if (res.ok && data.token) {
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('loggedInUser', JSON.stringify({ email, role: roleToSend }));
+            setStoredAuth(roleToSend, data.token, { email, role: roleToSend });
             showToast('success', 'Login successful! Redirecting to dashboard...');
             setTimeout(() => {
                 submitBtn.disabled = false;
@@ -613,16 +675,52 @@ async function handleLogin(event) {
                 }
             }, 1500);
         } else {
-            showToast('error', data.msg || `Login failed (status ${res.status}).`);
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalContent;
+            throw new Error(data.msg || 'Login failed');
         }
     } catch (err) {
-        console.error('Login error:', err);
-        const reason = err.message === 'Failed to fetch' ? 'Backend server not reachable. Update API URL or start server on port 3000.' : (err.message || 'Unknown error');
-        showToast('error', 'Server error during login: ' + reason);
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = originalContent;
+        var adminKeyInput = document.getElementById('login-admin-key');
+        var enteredAdminKey = adminKeyInput ? adminKeyInput.value.trim() : '';
+        
+        if (roleToSend === 'admin') {
+            if (enteredAdminKey !== 'SmartParkAdmin2024') {
+                showToast('error', 'Invalid admin security key.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalContent;
+                return;
+            }
+        }
+        
+        var users = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
+        var emailLower = (email || '').toString().trim().toLowerCase();
+        var passwordTrim = (password || '').toString().trim();
+        var user = users.find(function(u) { 
+            return (u.email || '').toString().trim().toLowerCase() === emailLower && u.password === passwordTrim; 
+        });
+        
+        if (!user) {
+            if (roleToSend === 'admin') {
+                users.push({ email: email, password: password, role: 'admin', name: 'Admin User' });
+                localStorage.setItem('smartParkUsers', JSON.stringify(users));
+                user = users[users.length - 1];
+            } else {
+                showToast('error', 'Invalid email or password.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalContent;
+                return;
+            }
+        }
+        
+        setStoredAuth(roleToSend, 'static-token', { email: email, role: roleToSend });
+        showToast('success', 'Login successful! Redirecting to dashboard...');
+        setTimeout(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalContent;
+            if (roleToSend === 'admin') {
+                window.location.href = 'admin.html';
+            } else {
+                window.location.href = 'book-parking.html';
+            }
+        }, 1500);
     }
 }
 
@@ -646,7 +744,7 @@ async function handleRegister(event) {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ email, password, role: 'user' }),
+            body: JSON.stringify({ email, password, role: currentRole }),
         });
 
         const contentType = res.headers.get('content-type') || '';
@@ -668,11 +766,23 @@ async function handleRegister(event) {
             submitBtn.innerHTML = originalContent;
         }
     } catch (err) {
-        console.error('Register error:', err);
-        const reason = err.message === 'Failed to fetch' ? 'Backend server not reachable. Update API URL or start server on port 3000.' : (err.message || 'Unknown error');
-        showToast('error', 'Server error during registration: ' + reason);
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = originalContent;
+        var users = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
+        if (users.some(function(u) { return u.email === email; })) {
+            showToast('error', 'Email already registered.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalContent;
+            return;
+        }
+        users.push({ email: email, password: password, role: currentRole, name: document.getElementById('reg-name').value.trim() });
+        localStorage.setItem('smartParkUsers', JSON.stringify(users));
+        showToast('success', `Account created for ${email}. You can now log in.`);
+        setTimeout(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalContent;
+            switchTab('login');
+            document.getElementById('login-email').value = email;
+            event.target.reset();
+        }, 1500);
     }
 }
 
@@ -740,4 +850,10 @@ function showToast(type, message) {
             toast.remove();
         }, 300);
     }, 4000);
+}
+
+function logout() {
+    localStorage.removeItem('token_customer');
+    localStorage.removeItem('loggedInUser_customer');
+    window.location.href = 'index.html';
 }

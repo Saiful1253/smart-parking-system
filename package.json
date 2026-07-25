@@ -4,11 +4,7 @@
   "description": "SmartPark - Next-Gen Parking Solutions",
   "main": "index.html",
   "scripts": {
-    "start": "cd backend && node server.js",
-    "backend": "cd backend && node server.js",
-    "seed": "cd backend && node seedAdmin.js",
-    "update-url": "node update-backend-url.js",
-    "dev": "cd backend && npm install && node server.js"
+    "dev": "npx serve ."
   },
   "repository": {
     "type": "git",
@@ -20,6 +16,5 @@
   "bugs": {
     "url": "https://github.com/Saiful1253/smart-parking-system/issues"
   },
-  "homepage": "https://github.com/Saiful1253/smart-parking-system#readme",
-  "type": "commonjs"
+  "homepage": "https://github.com/Saiful1253/smart-parking-system#readme"
 }

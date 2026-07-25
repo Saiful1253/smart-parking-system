@@ -15,26 +15,35 @@ const API_BASE = (() => {
     return '';
 })();
 (function() {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token_admin');
     if (!token) {
         window.location.href = 'index.html';
         return;
     }
     try {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const decodedPayload = JSON.parse(window.atob(base64));
-        const role = decodedPayload.user.role;
+        var role = null;
+        if (typeof token === 'string' && token.startsWith('static-')) {
+            var loggedInUserStr = localStorage.getItem('loggedInUser_admin');
+            if (loggedInUserStr) {
+                var userObj = JSON.parse(loggedInUserStr);
+                role = userObj.role;
+            }
+        } else {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const decodedPayload = JSON.parse(window.atob(base64));
+            role = decodedPayload.user.role;
+        }
         if (role !== 'admin') {
-            localStorage.removeItem('token');
-            localStorage.removeItem('loggedInUser');
+            localStorage.removeItem('token_admin');
+            localStorage.removeItem('loggedInUser_admin');
             window.location.href = 'index.html';
             return;
         }
     } catch (error) {
         console.error('Error decoding token:', error);
-        localStorage.removeItem('token');
-        localStorage.removeItem('loggedInUser');
+        localStorage.removeItem('token_admin');
+        localStorage.removeItem('loggedInUser_admin');
         window.location.href = 'index.html';
         return;
     }
@@ -66,7 +75,7 @@ let zonesData = {
 
 async function loadZonesFromAPI() {
     try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('token_admin');
         const response = await fetch(`${API_BASE}/api/admin/zones`, {
             method: 'GET',
             headers: {
@@ -87,13 +96,13 @@ async function loadZonesFromAPI() {
             zonesData = newZonesData;
         }
     } catch (error) {
-        console.error('Failed to load zones from API:', error);
+        console.error('Backend not available, using local zones data:', error);
     }
 }
 
 async function loadDashboardStats() {
     try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('token_admin');
         const response = await fetch(`${API_BASE}/api/admin/dashboard-stats`, {
             method: 'GET',
             headers: {
@@ -110,7 +119,14 @@ async function loadDashboardStats() {
             updateSpottedVehiclesUI(data);
         }
     } catch (error) {
-        console.error('Failed to load dashboard stats:', error);
+        console.error('Backend not available, using local stats:', error);
+        const saved = getUserData('customerParkingData');
+        var activeCount = 0;
+        if (saved && saved.sessions) {
+            activeCount = saved.sessions.filter(function(s) { return s.status === 'Active'; }).length;
+        }
+        const spottedEl = document.getElementById('spotted-vehicles-count');
+        if (spottedEl) spottedEl.textContent = '0';
     }
 }
 
@@ -272,7 +288,6 @@ function renderZonesGrid() {
                     <!-- Bottom Row -->
                     <div class="flex items-center justify-between border-t border-slate-100 pt-4">
                         <div class="flex items-center gap-1 text-xs font-bold text-slate-700">
-                            <span class="text-slate-400">$</span>
                             <span>৳${zone.rate.toFixed(2)}</span>
                             <span class="text-slate-400 font-medium">/hr</span>
                         </div>
@@ -500,7 +515,7 @@ async function triggerRefresh() {
 // Anomaly Alert Controls
 async function loadAnomalies() {
     try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('token_admin');
         const response = await fetch(`${API_BASE}/api/admin/dashboard-stats`, {
             method: 'GET',
             headers: {
@@ -524,7 +539,8 @@ async function loadAnomalies() {
             renderAnomalies(spotted);
         }
     } catch (err) {
-        console.error('Failed to load anomalies:', err);
+        console.error('Backend not available for anomalies:', err);
+        renderAnomalies([]);
     }
 }
 
@@ -635,8 +651,10 @@ function viewAllSensorActivity() {
 }
 
 function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('loggedInUser');
+    localStorage.removeItem('token_admin');
+    localStorage.removeItem('loggedInUser_admin');
+    localStorage.removeItem('token_customer');
+    localStorage.removeItem('loggedInUser_customer');
     window.location.href = 'index.html';
 }
 
@@ -958,10 +976,6 @@ function deleteZone(zoneId) {
     }
 }
 
-
-// ==========================================
-// PARKING HISTORY
-// ==========================================
 
 // ==========================================
 // PARKING HISTORY (Admin - Completely separate from Customer)
@@ -1380,6 +1394,17 @@ function downloadHistoryReport() {
 let sessionsData = [];
 let nextSessionId = 1;
 
+(function() {
+    try {
+        var stored = localStorage.getItem('adminSessionsData');
+        if (stored) {
+            var parsed = JSON.parse(stored);
+            sessionsData = parsed.sessionsData || [];
+            nextSessionId = parsed.nextSessionId || 1;
+        }
+    } catch(e) {}
+})();
+
 // Helper: Sync session counts with zone occupancy
 function syncZoneOccupancyFromSessions() {
     // Reset all zone occupancy to 0
@@ -1423,6 +1448,17 @@ function populateZoneDropdown(selectId) {
 
 // Initialize sessions with proper zone connections
 function initSessionsData() {
+    var stored = localStorage.getItem('adminSessionsData');
+    if (stored) {
+        try {
+            var parsed = JSON.parse(stored);
+            sessionsData = parsed.sessionsData || [];
+            nextSessionId = parsed.nextSessionId || 1;
+            syncZoneOccupancyFromSessions();
+            return;
+        } catch(e) {}
+    }
+    
     sessionsData = [];
     const zoneNames = Object.values(zonesData).map(z => z.name);
     
@@ -1457,6 +1493,16 @@ function initSessionsData() {
     }
     
     syncZoneOccupancyFromSessions();
+    persistSessionsData();
+}
+
+function persistSessionsData() {
+    try {
+        localStorage.setItem('adminSessionsData', JSON.stringify({
+            sessionsData: sessionsData,
+            nextSessionId: nextSessionId
+        }));
+    } catch(e) {}
 }
 
 // Call init on page load
@@ -1574,6 +1620,8 @@ function saveSession(event) {
     // Re-render sessions table
     renderSessionsTable();
     
+    persistSessionsData();
+    
     // Close modal
     closeSessionModal();
 }
@@ -1586,6 +1634,7 @@ function deleteSession(sessionId) {
         sessionsData = sessionsData.filter(s => s.id !== sessionId);
         syncZoneOccupancyFromSessions();
         renderSessionsTable();
+        persistSessionsData();
         showToast('success', `Session deleted successfully.`);
     }
 }

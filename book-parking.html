@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="smartpark-api-url" content="">
     <title>SmartPark - Book Parking</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -11,6 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <!-- Google Fonts (Poppins) -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
     <!-- Leaflet Map -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -85,7 +85,7 @@
                     <button onclick="refreshData()" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors" title="Refresh">
                         <i class="fa-solid fa-rotate"></i>
                     </button>
-                    <a href="index.html" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg transition-all border border-red-500/20 no-underline">
+                    <a href="#" onclick="logout(); return false;" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg transition-all border border-red-500/20 no-underline">
                         <i class="fa-solid fa-right-from-bracket"></i> Sign Out
                     </a>
                     <!-- Mobile Hamburger -->
@@ -105,7 +105,7 @@
                 <a href="my-history.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all">
                     <i class="fa-solid fa-clock-rotate-left w-5 text-center"></i> My History
                 </a>
-                <a href="index.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-red-400 hover:text-red-300 hover:bg-slate-800 transition-all sm:hidden">
+                <a href="#" onclick="logout(); return false;" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-red-400 hover:text-red-300 hover:bg-slate-800 transition-all sm:hidden">
                     <i class="fa-solid fa-right-from-bracket w-5 text-center"></i> Sign Out
                 </a>
             </div>
@@ -389,7 +389,7 @@
         // ============================================================
         document.addEventListener('DOMContentLoaded', function() {
             const loggedInUser = getLoggedInUser();
-            if (!loggedInUser) {
+            if (!loggedInUser || loggedInUser.role !== 'customer') {
                 window.location.href = 'index.html';
                 return;
             }
@@ -875,7 +875,6 @@
             document.getElementById('book-date').value = new Date().toISOString().split('T')[0];
             document.getElementById('book-time').value = new Date().toTimeString().slice(0,5);
             setBookingType('fixed');
-            pendingBooking = null;
             showToast('success', 'Meter booking created for ' + booking.slot + '. Payment will be collected when you end your session.');
         }
 
@@ -949,7 +948,7 @@
                 createdAt: new Date().toISOString()
             });
 
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('token_customer');
             if (token) {
                 const startTime = new Date(booking.date + 'T' + booking.entryTime).toISOString();
                 fetch(API_BASE + '/api/parking', {

@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="smartpark-api-url" content="">
     <title>SmartPark - Smart Parking System</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -16,19 +15,38 @@
 <body class="bg-slate-950 text-slate-100 font-['Poppins'] min-h-screen flex items-center justify-center overflow-x-hidden relative">
 <script>
 (function() {
-    const token = localStorage.getItem('token');
+    const adminToken = localStorage.getItem('token_admin');
+    const customerToken = localStorage.getItem('token_customer');
+    const token = adminToken || customerToken;
     if (token) {
         try {
-            const base64Url = token.split('.')[1];
-            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            const decoded = JSON.parse(window.atob(base64));
-            if (decoded && decoded.user && decoded.user.role === 'admin') {
+            var role = null;
+            if (typeof token === 'string' && token.startsWith('static-')) {
+                var key = adminToken ? 'loggedInUser_admin' : 'loggedInUser_customer';
+                var loggedInUser = localStorage.getItem(key);
+                if (loggedInUser) {
+                    var userObj = JSON.parse(loggedInUser);
+                    role = userObj.role;
+                }
+            } else {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const decoded = JSON.parse(window.atob(base64));
+                role = decoded && decoded.user ? decoded.user.role : null;
+            }
+            if (role === 'admin') {
                 window.location.href = 'admin.html';
                 return;
             }
+            if (role === 'user' || role === 'customer') {
+                window.location.href = 'book-parking.html';
+                return;
+            }
         } catch (e) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('loggedInUser');
+            localStorage.removeItem('token_admin');
+            localStorage.removeItem('loggedInUser_admin');
+            localStorage.removeItem('token_customer');
+            localStorage.removeItem('loggedInUser_customer');
         }
     }
 })();
