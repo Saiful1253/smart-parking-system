@@ -211,7 +211,7 @@ function adminVerifyPin() {
     const error = document.getElementById('admin-pin-error');
     const val = (input ? input.value : '').trim();
     if (!val) { if (error) error.textContent = 'Please enter PIN'; return; }
-    if (val === 'admin123') {
+    if (val === (window.SMARTPARK_ADMIN_PIN || 'admin123')) {
         try { sessionStorage.setItem('smartpark_admin_pin', '1'); } catch (e) {}
         location.reload();
     } else {

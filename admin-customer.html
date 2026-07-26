@@ -13,6 +13,7 @@
     <!-- Leaflet Map CDN -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="env.js"></script>
     <script src="script.js"></script>
     <script>
         tailwind.config = {
@@ -355,6 +356,8 @@
             var today = new Date().toISOString().split('T')[0];
             document.getElementById('book-date').value = today;
             document.getElementById('book-time').value = new Date().toTimeString().slice(0,5);
+            loadZonesFromLocalStorage();
+            customerZonesData = { ...zonesData };
             loadCustomerData();
             renderCustomerZones();
             initCustomerMap();
@@ -514,6 +517,14 @@
             var grid = document.getElementById('customer-zones-grid');
             if (!grid) return;
             grid.innerHTML = '';
+            if (Object.keys(customerZonesData).length === 0) {
+                loadZonesFromLocalStorage();
+                customerZonesData = { ...zonesData };
+                if (Object.keys(customerZonesData).length === 0) {
+                    grid.innerHTML = '<div class="col-span-full flex flex-col items-center justify-center py-16 text-center text-slate-400"><i class="fa-solid fa-map-location-dot text-4xl mb-3 text-slate-300"></i><p class="text-sm font-semibold">No parking zones available</p><p class="text-xs text-slate-400 mt-1">Add a zone from Admin Panel to start booking</p></div>';
+                    return;
+                }
+            }
             Object.values(customerZonesData).forEach(function(z) {
                 var pct = z.spots > 0 ? Math.round((z.occupied / z.spots) * 100) : 0;
                 var isA = z.status === 'Active';
@@ -1155,7 +1166,7 @@ function adminVerifyPin() {
     const error = document.getElementById('admin-pin-error');
     const val = (input ? input.value : '').trim();
     if (!val) { if (error) error.textContent = 'Please enter PIN'; return; }
-    if (val === 'admin123') {
+    if (val === (window.SMARTPARK_ADMIN_PIN || 'admin123')) {
         try { sessionStorage.setItem('smartpark_admin_pin', '1'); } catch (e) {}
         location.reload();
     } else {

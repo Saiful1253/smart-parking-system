@@ -462,8 +462,11 @@ function renderZones() {
     if (!grid) return;
     grid.innerHTML = '';
     if (Object.keys(zonesData).length === 0) {
-        grid.innerHTML = '<div class="col-span-full flex flex-col items-center justify-center py-16 text-center text-slate-500"><i class="fa-solid fa-map-location-dot text-4xl mb-3 text-slate-600"></i><p class="text-sm font-semibold text-slate-400">No parking zones available</p><p class="text-xs text-slate-500 mt-1">Add a zone to start booking parking</p></div>';
-        return;
+        initDemoZones();
+        if (Object.keys(zonesData).length === 0) {
+            grid.innerHTML = '<div class="col-span-full flex flex-col items-center justify-center py-16 text-center text-slate-500"><i class="fa-solid fa-map-location-dot text-4xl mb-3 text-slate-600"></i><p class="text-sm font-semibold text-slate-400">No parking zones available</p><p class="text-xs text-slate-500 mt-1">Add a zone to start booking parking</p></div>';
+            return;
+        }
     }
     var aiRecommendedId = sessionStorage.getItem('ai_recommended_zone');
     Object.values(zonesData).forEach(function(z) {
