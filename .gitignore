@@ -5,6 +5,13 @@
 .env.test.local
 .env.production.local
 
-# OS files
-.DS_Store
-Thumbs.db
+# Dependencies
+node_modules/
+
+# Backend
+backend/
+
+# Build outputs
+dist/
+build/
+
