@@ -129,15 +129,39 @@ function clearUserData() {
 function getUserHistory() { return getUserData('userHistory', []); }
 function saveUserHistory(history) { setUserData('userHistory', history); }
 
-const zonesData = {
-    'Zone-A': { id: 'Zone-A', name: 'Zone A', location: 'Ground Floor, Main Building', spots: 50, occupied: 27, free: 23, rate: 3.50, type: 'Covered', status: 'Active', lat: 23.79400, lng: 90.40400 },
-    'Zone-B': { id: 'Zone-B', name: 'Zone B', location: 'Rooftop Level 5', spots: 80, occupied: 45, free: 35, rate: 2.00, type: 'Rooftop', status: 'Active', lat: 23.81500, lng: 90.40100 },
-    'Zone-C': { id: 'Zone-C', name: 'Zone C', location: 'Underground Parking, B1', spots: 120, occupied: 98, free: 22, rate: 5.00, type: 'Underground', status: 'Active', lat: 23.80700, lng: 90.40600 },
-    'Zone-D': { id: 'Zone-D', name: 'Zone D', location: 'Open Lot, East Wing', spots: 30, occupied: 12, free: 18, rate: 1.50, type: 'Open Air', status: 'Active', lat: 23.81200, lng: 90.41500 },
-    'Zone-E': { id: 'Zone-E', name: 'Zone E', location: 'West Annex', spots: 40, occupied: 0, free: 40, rate: 2.50, type: 'Covered', status: 'Maintenance', lat: 23.80100, lng: 90.39500 }
-};
+let zonesData = {};
 
 function getZonePrefix(zoneName) { return zoneName.replace('Zone ', ''); }
+function loadZonesFromAPI() {
+    loadZonesFromLocalStorage();
+    return fetch(`${API_BASE}/api/zones`, { method: 'GET', headers: { 'Content-Type': 'application/json' } })
+    .then(r => r.json())
+    .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+            zonesData = {};
+            data.forEach(function(z) { zonesData[z.id] = z; });
+        }
+    })
+    .catch(err => { console.error('Backend not available, using local zones data:', err); });
+}
+function loadZonesFromLocalStorage() {
+    const key = 'smartParkZones_local';
+    try {
+        const zones = JSON.parse(localStorage.getItem(key)) || [];
+        if (zones.length > 0) {
+            zonesData = {};
+            zones.forEach(function(z) {
+                zonesData[z.id] = { ...z, occupied: 0, free: z.spots || 0, spotStatus: Array.from({length: z.spots || 0}, (_, i) => ({ id: (z.id || '').replace('Zone-','') + '-' + String(i+1).padStart(2,'0'), index: i, occupied: false, plate: null, sessionId: null })) };
+            });
+        }
+    } catch (e) { console.error('Failed to load zones from local storage:', e); }
+}
+window.addEventListener('storage', function(e) {
+    if (e.key === 'smartParkZones_local') {
+        loadZonesFromLocalStorage();
+        if (document.getElementById('customer-zones-grid') && typeof renderZones === 'function') renderZones();
+    }
+});
 function initZoneSlots(zoneSlots) { Object.keys(zonesData).forEach(function(key) { var z = zonesData[key]; if (!zoneSlots[key]) zoneSlots[key] = new Array(z.spots).fill(false); }); }
 function syncZoneOccupancy(sessions) {
     Object.values(zonesData).forEach(function(z) { z.occupied = 0; });
@@ -367,9 +391,14 @@ function sendAIMessage() {
     var input = document.getElementById('ai-chat-input');
     var msg = input.value.trim();
     if (!msg) return;
+    if (msg.toLowerCase().includes('image.png') || msg.toLowerCase().includes('.png') || msg.toLowerCase().includes('.jpg') || msg.toLowerCase().includes('.jpeg') || msg.toLowerCase().includes('.gif') || msg.toLowerCase().includes('.bmp')) {
+        appendAIChat('user', msg);
+        input.value = '';
+        setTimeout(() => appendAIChat('ai', 'I cannot process image files. Please describe your question in text and I\'ll be happy to help!'), 600);
+        return;
+    }
     appendAIChat('user', msg);
     input.value = '';
-    // AI response logic
     var response = getAIResponse(msg);
     setTimeout(() => appendAIChat('ai', response), 600);
 }
@@ -389,11 +418,11 @@ function getAIResponse(msg) {
         var bestZone = null; var bestScore = -1;
         Object.values(zonesData).forEach(function(z) { if (z.status !== 'Active') return; var freeRatio = z.free / z.spots; var score = freeRatio * 0.7 + (1 / (z.rate + 0.01)) * 0.3; if (score > bestScore) { bestScore = score; bestZone = z; } });
         if (bestZone) return '💡 Based on current data, I recommend ' + bestZone.name + ' at ' + bestZone.location + '. It has ' + bestZone.free + ' free spots at ৳' + bestZone.rate.toFixed(2) + '/hr. That\'s the best value right now!';
-        return 'All zones are currently full. Please try again later.';
+        return Object.keys(zonesData).length === 0 ? 'No parking zones have been added yet.' : 'All zones are currently full. Please try again later.';
     }
     if (lower.includes('cost') || lower.includes('price') || lower.includes('rate') || lower.includes('estimate')) {
         var rates = Object.values(zonesData).map(function(z) { return z.name + ': ৳' + z.rate.toFixed(2) + '/hr'; }).join(' | ');
-        return '💰 Parking rates by zone: ' + rates + '. For metered booking, you only pay for the time used.';
+        return Object.keys(zonesData).length === 0 ? 'No parking zones available yet.' : '💰 Parking rates by zone: ' + rates + '. For metered booking, you only pay for the time used.';
     }
     if (lower.includes('tip') || lower.includes('advice') || lower.includes('help')) {
         return '📋 Pro tips: 1) Book in advance during peak hours (9AM-6PM). 2) Use metered booking for short stays. 3) Zone D is cheapest for open-air parking. 4) Always check occupancy before booking!';
@@ -408,6 +437,26 @@ function getAIResponse(msg) {
     }
     if (lower.includes('payment') || lower.includes('pay') || lower.includes('bKash') || lower.includes('nagad')) {
         return '💳 We accept bKash, Nagad, Rocket, Visa Card, and Cash. Admin receives payment at 01841156753. Always keep your TrxID safe for verification.';
+    }
+    if (lower.includes('revenue') || lower.includes('earning') || lower.includes('income') || lower.includes('today revenue') || lower.includes('revenue insights')) {
+        const allPayments = JSON.parse(localStorage.getItem('smartParkPayments_by_user')) || {};
+        let total = 0;
+        let count = 0;
+        const today = new Date().toISOString().split('T')[0];
+        Object.values(allPayments).forEach(function(userPayments) {
+            if (Array.isArray(userPayments)) {
+                userPayments.forEach(function(p) {
+                    const paymentDate = (p.createdAt || '').split('T')[0];
+                    if (paymentDate === today && (p.status === 'Pending' || p.status === 'Paid' || p.status === 'Verified')) {
+                        total += parseFloat(p.amount || 0);
+                        count++;
+                    }
+                });
+            }
+        });
+        var revenueEl = document.getElementById('stat-revenue');
+        if (revenueEl) { revenueEl.textContent = 'BDT ' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+        return '📊 Today\'s revenue: BDT ' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' (' + count + ' payment' + (count !== 1 ? 's' : '') + '). Revenue updates automatically as customers pay.';
     }
     if (lower.includes('hello') || lower.includes('hi') || lower.includes('hey')) return 'Hello! 👋 I\'m your SmartPark AI assistant. I can help you find parking, estimate costs, or answer questions. What would you like to know?';
     if (lower.includes('thank')) return 'You\'re welcome! 😊 Feel free to ask if you need anything else. Happy parking! 🚗';

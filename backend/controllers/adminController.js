@@ -1,20 +1,27 @@
 const User = require('../models/User');
 const ParkingSession = require('../models/ParkingSession');
+const fs = require('fs');
+const path = require('path');
 
 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const ZONES_FILE = path.join(__dirname, '..', 'data', 'zones.json');
+
+function loadZones() {
+  try {
+    if (!fs.existsSync(ZONES_FILE)) return [];
+    return JSON.parse(fs.readFileSync(ZONES_FILE, 'utf8'));
+  } catch (e) {
+    console.error('Error loading zones:', e);
+    return [];
+  }
+}
 
 // @desc    Get all zones with live spot-level occupancy
 // @route   GET /api/admin/zones
 exports.getZones = async (req, res) => {
   try {
     const sessions = await ParkingSession.find();
-    const zones = [
-      { id: 'Zone-A', name: 'Zone A', location: 'Ground Floor, Main Building', spots: 50, rate: 3.50, type: 'Covered', status: 'Active', lat: 23.79400, lng: 90.40400 },
-      { id: 'Zone-B', name: 'Zone B', location: 'Rooftop Level 5', spots: 80, rate: 2.00, type: 'Rooftop', status: 'Active', lat: 23.81500, lng: 90.40100 },
-      { id: 'Zone-C', name: 'Zone C', location: 'Underground Parking, B1', spots: 120, rate: 5.00, type: 'Underground', status: 'Active', lat: 23.80700, lng: 90.40600 },
-      { id: 'Zone-D', name: 'Zone D', location: 'Open Lot, East Wing', spots: 30, rate: 1.50, type: 'Open Air', status: 'Active', lat: 23.81200, lng: 90.41500 },
-      { id: 'Zone-E', name: 'Zone E', location: 'West Annex', spots: 40, rate: 2.50, type: 'Covered', status: 'Maintenance', lat: 23.80100, lng: 90.39500 }
-    ];
+    const zones = loadZones();
 
     const zoneSessionsMap = {};
     sessions.forEach(s => {
@@ -30,7 +37,6 @@ exports.getZones = async (req, res) => {
       const zoneSessions = zoneSessionsMap[zoneKey] || [];
       const occupied = zoneSessions.length;
       
-      // Build per-spot status
       const spotStatus = [];
       const prefix = zone.id.replace('Zone-', '');
       for (let i = 0; i < zone.spots; i++) {
@@ -126,13 +132,7 @@ exports.updateUserRole = async (req, res) => {
 exports.getAnomalies = async (req, res) => {
   try {
     const sessions = await ParkingSession.find();
-    const zones = [
-      { id: 'Zone-A', name: 'Zone A', location: 'Ground Floor, Main Building', spots: 50 },
-      { id: 'Zone-B', name: 'Zone B', location: 'Rooftop Level 5', spots: 80 },
-      { id: 'Zone-C', name: 'Zone C', location: 'Underground Parking, B1', spots: 120 },
-      { id: 'Zone-D', name: 'Zone D', location: 'Open Lot, East Wing', spots: 30 },
-      { id: 'Zone-E', name: 'Zone E', location: 'West Annex', spots: 40 }
-    ];
+    const zones = loadZones();
 
     const anomalies = [];
     const activeSessions = sessions.filter(s => s.status === 'Active' || s.status === 'Parked');
@@ -201,10 +201,11 @@ exports.dismissAnomaly = async (req, res) => {
 exports.getDashboardStats = async (req, res) => {
   try {
     const sessions = await ParkingSession.find();
-    const totalZones = 5;
-    const totalSpots = 320;
+    const zones = loadZones();
+    const totalZones = zones.length;
+    const totalSpots = zones.reduce((sum, z) => sum + (parseInt(z.spots, 10) || 0), 0);
     const activeSessions = sessions.filter(s => s.status === 'Active' || s.status === 'Parked').length;
-    const revenue = sessions.reduce((sum, s) => sum + (s.cost || 0), 0);
+    const revenue = sessions.reduce((sum, s) => sum + (parseFloat(s.cost || 0)), 0);
 
     const activeZoneSessions = sessions.filter(s => s.status === 'Active' || s.status === 'Parked');
     const occupied = activeZoneSessions.length;

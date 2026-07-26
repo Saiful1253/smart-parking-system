@@ -1,0 +1,24 @@
+[
+  {
+    "id": "Zone-01",
+    "name": "Test",
+    "location": "Test",
+    "spots": 10,
+    "rate": 50,
+    "type": "Open Air",
+    "status": "Active",
+    "lat": 23.81,
+    "lng": 90.4
+  },
+  {
+    "id": "Zone-02",
+    "name": "Test2",
+    "location": "Test2",
+    "spots": 5,
+    "rate": 30,
+    "type": "Covered",
+    "status": "Active",
+    "lat": 23.81,
+    "lng": 90.4
+  }
+]

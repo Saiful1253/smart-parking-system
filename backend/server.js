@@ -168,10 +168,11 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api', require('./routes/protected'));
 app.use('/api/parking', require('./routes/parking'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/zones', require('./routes/zones'));
 
 // Error handler
 app.use((err, req, res, next) => {
-    console.error('Unhandled error:', err);
+    console.error('Unhandled error:', err && err.stack ? err.stack : err);
     res.status(500).json({ msg: 'Server error' });
 });
 

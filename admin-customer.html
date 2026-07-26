@@ -151,7 +151,7 @@
                 <div id="customer-map"></div>
             </div>
             <div class="space-y-4">
-                <div class="flex items-center justify-between"><h3 class="text-base font-bold text-slate-900">Available Parking Zones</h3><span class="text-xs text-slate-400" id="zone-count-label">5 zones</span></div>
+                <div class="flex items-center justify-between"><h3 class="text-base font-bold text-slate-900">Available Parking Zones</h3><span class="text-xs text-slate-400" id="zone-count-label">0 zones</span></div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4" id="customer-zones-grid"></div>
             </div>
         </div>
@@ -329,13 +329,7 @@
         // ============================================================
         // DATA
         // ============================================================
-        const customerZonesData = {
-            'Zone-C': { id: 'Zone-C', name: 'Zone C', location: 'Underground Parking, B1', spots: 120, occupied: 98, free: 22, rate: 5.00, type: 'Underground', status: 'Active', lat: 23.80700, lng: 90.40600 },
-            'Zone-A': { id: 'Zone-A', name: 'Zone A', location: 'Ground Floor, Main Building', spots: 50, occupied: 27, free: 23, rate: 3.50, type: 'Covered', status: 'Active', lat: 23.79400, lng: 90.40400 },
-            'Zone-D': { id: 'Zone-D', name: 'Zone D', location: 'Open Lot, East Wing', spots: 30, occupied: 12, free: 18, rate: 1.50, type: 'Open Air', status: 'Active', lat: 23.81200, lng: 90.41500 },
-            'Zone-E': { id: 'Zone-E', name: 'Zone E', location: 'West Annex', spots: 40, occupied: 0, free: 40, rate: 2.50, type: 'Covered', status: 'Maintenance', lat: 23.80100, lng: 90.39500 },
-            'Zone-B': { id: 'Zone-B', name: 'Zone B', location: 'Rooftop Level 5', spots: 80, occupied: 45, free: 35, rate: 2.00, type: 'Rooftop', status: 'Active', lat: 23.81500, lng: 90.40100 }
-        };
+        const customerZonesData = {};
         let customerSessions = [];
         let customerHistory = [];
         let nextBookingId = 1000;
@@ -486,8 +480,8 @@
             var el = document.getElementById('customer-map');
             if (!el) return;
             var zones = Object.values(customerZonesData);
-            var clat = zones.reduce(function(s,z) { return s+z.lat; }, 0) / zones.length;
-            var clng = zones.reduce(function(s,z) { return s+z.lng; }, 0) / zones.length;
+            var clat = zones.length > 0 ? zones.reduce(function(s,z) { return s+z.lat; }, 0) / zones.length : 23.81000;
+            var clng = zones.length > 0 ? zones.reduce(function(s,z) { return s+z.lng; }, 0) / zones.length : 90.40000;
             customerMap = L.map('customer-map', { zoomControl: true, scrollWheelZoom: true }).setView([clat, clng], 13);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(customerMap);
             addCustomerMapMarkers();
