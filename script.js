@@ -699,7 +699,7 @@ async function handleLogin(event) {
         
         if (!user) {
             if (roleToSend === 'admin') {
-                users.push({ email: email, password: password, role: 'admin', name: 'Admin User' });
+                users.push({ email: emailLower, password: passwordTrim, role: 'admin', name: 'Admin User' });
                 localStorage.setItem('smartParkUsers', JSON.stringify(users));
                 user = users[users.length - 1];
             } else {
@@ -710,7 +710,7 @@ async function handleLogin(event) {
             }
         }
         
-        setStoredAuth(roleToSend, 'static-token', { email: email, role: roleToSend });
+        setStoredAuth(roleToSend, 'static-token', { email: emailLower, role: roleToSend });
         showToast('success', 'Login successful! Redirecting to dashboard...');
         setTimeout(() => {
             submitBtn.disabled = false;
@@ -726,9 +726,11 @@ async function handleLogin(event) {
 
 async function handleRegister(event) {
     event.preventDefault();
-    const name = document.getElementById('reg-name').value; // Name is not used in backend, but kept for consistency
+    const name = document.getElementById('reg-name').value;
     const email = document.getElementById('reg-email').value;
     const password = document.getElementById('reg-password').value;
+    const emailLower = (email || '').toString().trim().toLowerCase();
+    const passwordTrim = (password || '').toString().trim();
     const submitBtn = event.target.querySelector('button[type="submit"]');
     const originalContent = submitBtn.innerHTML;
 
@@ -761,19 +763,33 @@ async function handleRegister(event) {
                 event.target.reset();
             }, 1500);
         } else {
-            showToast('error', data.msg || 'Registration failed.');
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalContent;
+            var users = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
+            if (users.some(function(u) { return (u.email || '').toString().trim().toLowerCase() === emailLower; })) {
+                showToast('error', 'Email already registered.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalContent;
+                return;
+            }
+            users.push({ email: emailLower, password: passwordTrim, role: currentRole, name: document.getElementById('reg-name').value.trim() });
+            localStorage.setItem('smartParkUsers', JSON.stringify(users));
+            showToast('success', `Account created for ${email}. You can now log in.`);
+            setTimeout(() => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalContent;
+                switchTab('login');
+                document.getElementById('login-email').value = email;
+                event.target.reset();
+            }, 1500);
         }
     } catch (err) {
         var users = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
-        if (users.some(function(u) { return u.email === email; })) {
+        if (users.some(function(u) { return (u.email || '').toString().trim().toLowerCase() === emailLower; })) {
             showToast('error', 'Email already registered.');
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalContent;
             return;
         }
-        users.push({ email: email, password: password, role: currentRole, name: document.getElementById('reg-name').value.trim() });
+        users.push({ email: emailLower, password: passwordTrim, role: currentRole, name: document.getElementById('reg-name').value.trim() });
         localStorage.setItem('smartParkUsers', JSON.stringify(users));
         showToast('success', `Account created for ${email}. You can now log in.`);
         setTimeout(() => {
