@@ -52,8 +52,7 @@
                 const decoded = JSON.parse(window.atob(base64));
                 role = decoded && decoded.user ? decoded.user.role : null;
             }
-            if (role === 'admin') { window.location.href = 'admin.html'; return; }
-            if (role === 'user' || role === 'customer') { window.location.href = 'book-parking.html'; return; }
+            // Users always start from the login page; post-login redirect is handled by handleLogin().
         } catch (e) {
             localStorage.removeItem('token_admin'); localStorage.removeItem('loggedInUser_admin');
             localStorage.removeItem('token_customer'); localStorage.removeItem('loggedInUser_customer');
