@@ -3,845 +3,483 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartPark - My History</title>
+    <title>SmartPark — My History</title>
+    <meta name="smartpark-api-url" content="">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter','Poppins','sans-serif'] }, colors: { sp: { primary:'#0B1426', secondary:'#111B33', card:'#152238', accent:'#3B82F6', emerald:'#10B981', purple:'#8B5CF6', cyan:'#06B6D4' } } } } }
+    </script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Inter', 'Poppins', sans-serif;
-            background: #F5F7FB;
-            color: #1e293b;
-            min-height: 100vh;
-        }
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-        .filter-chip {
-            padding: 6px 16px;
-            border-radius: 9999px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            border: 1.5px solid transparent;
-            user-select: none;
-        }
-        .filter-chip.active {
-            background: #3B82F6;
-            color: white;
-            border-color: #3B82F6;
-            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
-        }
-        .filter-chip.inactive {
-            background: #ffffff;
-            color: #64748b;
-            border-color: #E5E7EB;
-        }
-        .filter-chip.inactive:hover {
-            background: #f1f5f9;
-            color: #334155;
-            border-color: #cbd5e1;
-        }
-
-        .summary-card {
-            background: white;
-            border: 1px solid #E5E7EB;
-            border-radius: 16px;
-            padding: 20px 24px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-            transition: all 0.2s ease;
-        }
-        .summary-card:hover {
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-            transform: translateY(-1px);
-        }
-
-        .history-card {
-            background: white;
-            border: 1px solid #E5E7EB;
-            border-radius: 16px;
-            padding: 20px 24px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-            transition: all 0.2s ease;
-        }
-        .history-card:hover {
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-            transform: translateY(-1px);
-        }
-
-        .booking-card {
-            background: white;
-            border: 1px solid #E5E7EB;
-            border-radius: 16px;
-            padding: 20px 24px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-            transition: all 0.2s ease;
-        }
-        .booking-card:hover {
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-            border-color: #d1d5db;
-        }
-
-        .btn-outline-blue {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 16px;
-            font-size: 12px;
-            font-weight: 600;
-            border-radius: 10px;
-            border: 1.5px solid #bfdbfe;
-            background: #eff6ff;
-            color: #3B82F6;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .btn-outline-blue:hover {
-            background: #dbeafe;
-            border-color: #93c5fd;
-            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
-        }
-
-        .btn-outline-green {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 16px;
-            font-size: 12px;
-            font-weight: 600;
-            border-radius: 10px;
-            border: 1.5px solid #a7f3d0;
-            background: #ecfdf5;
-            color: #059669;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .btn-outline-green:hover {
-            background: #d1fae5;
-            border-color: #6ee7b7;
-            box-shadow: 0 2px 8px rgba(5, 150, 105, 0.15);
-        }
-
-        .btn-view {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 16px;
-            font-size: 12px;
-            font-weight: 600;
-            border-radius: 10px;
-            border: 1.5px solid #bfdbfe;
-            background: #eff6ff;
-            color: #3B82F6;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .btn-view:hover {
-            background: #dbeafe;
-            border-color: #93c5fd;
-            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
-        }
-
-        .btn-receipt {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 16px;
-            font-size: 12px;
-            font-weight: 600;
-            border-radius: 10px;
-            border: 1.5px solid #E5E7EB;
-            background: #f9fafb;
-            color: #6b7280;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .btn-receipt:hover {
-            background: #f3f4f6;
-            border-color: #d1d5db;
-            color: #4b5563;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-        }
-
-        .badge-paid {
-            display: inline-flex;
-            align-items: center;
-            padding: 3px 10px;
-            border-radius: 9999px;
-            font-size: 11px;
-            font-weight: 700;
-            background: #ecfdf5;
-            color: #059669;
-            border: 1px solid #a7f3d0;
-        }
-
-        .badge-cancelled {
-            display: inline-flex;
-            align-items: center;
-            padding: 3px 10px;
-            border-radius: 9999px;
-            font-size: 11px;
-            font-weight: 700;
-            background: #fef2f2;
-            color: #dc2626;
-            border: 1px solid #fecaca;
-        }
-
-        .badge-pending {
-            display: inline-flex;
-            align-items: center;
-            padding: 3px 10px;
-            border-radius: 9999px;
-            font-size: 11px;
-            font-weight: 700;
-            background: #fffbeb;
-            color: #d97706;
-            border: 1px solid #fde68a;
-        }
-
-        input[type="text"]:focus,
-        input[type="date"]:focus {
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-        }
-
-        @media (max-width: 640px) {
-            .summary-card { padding: 16px; }
-            .booking-card { padding: 16px; }
-            .history-card { padding: 16px; }
-        }
+        body { font-family: 'Inter', 'Poppins', sans-serif; background: #0B1426; }
+        .filter-chip { padding: 6px 16px; border-radius: 9999px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; border: 1.5px solid transparent; user-select: none; }
+        .filter-chip.active { background: var(--sp-accent-blue); color: white; border-color: var(--sp-accent-blue); box-shadow: 0 2px 8px rgba(59,130,246,0.25); }
+        .filter-chip.inactive { background: var(--sp-bg-card); color: var(--sp-text-muted); border-color: var(--sp-border); }
+        .filter-chip.inactive:hover { background: var(--sp-bg-card-hover); color: var(--sp-text-primary); border-color: var(--sp-border-strong); }
+        .summary-card { background: var(--sp-bg-card); border: 1px solid var(--sp-border); border-radius: 16px; padding: 20px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: all 0.2s ease; }
+        .summary-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.3); transform: translateY(-2px); border-color: var(--sp-border-strong); }
+        .history-card { background: var(--sp-bg-card); border: 1px solid var(--sp-border); border-radius: 16px; padding: 20px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: all 0.2s ease; }
+        .history-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.3); border-color: var(--sp-border-strong); }
+        .booking-row { background: var(--sp-bg-card); border: 1px solid var(--sp-border); border-radius: 14px; padding: 16px 20px; transition: all 0.2s ease; }
+        .booking-row:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.2); border-color: var(--sp-border-strong); transform: translateY(-1px); }
+        .btn-outline-blue { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 12px; font-weight: 600; border-radius: 10px; border: 1.5px solid rgba(59,130,246,0.3); background: rgba(59,130,246,0.08); color: var(--sp-accent-blue); cursor: pointer; transition: all 0.2s ease; }
+        .btn-outline-blue:hover { background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.5); box-shadow: 0 2px 8px rgba(59,130,246,0.2); }
+        .btn-outline-green { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 12px; font-weight: 600; border-radius: 10px; border: 1.5px solid rgba(16,185,129,0.3); background: rgba(16,185,129,0.08); color: var(--sp-accent-emerald); cursor: pointer; transition: all 0.2s ease; }
+        .btn-outline-green:hover { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.5); box-shadow: 0 2px 8px rgba(16,185,129,0.2); }
+        .btn-view { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 12px; font-weight: 600; border-radius: 10px; border: 1.5px solid rgba(59,130,246,0.3); background: rgba(59,130,246,0.08); color: var(--sp-accent-blue); cursor: pointer; transition: all 0.2s ease; }
+        .btn-view:hover { background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.5); box-shadow: 0 2px 8px rgba(59,130,246,0.2); }
+        .btn-receipt { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 12px; font-weight: 600; border-radius: 10px; border: 1.5px solid rgba(100,116,139,0.3); background: rgba(100,116,139,0.08); color: var(--sp-text-muted); cursor: pointer; transition: all 0.2s ease; }
+        .btn-receipt:hover { background: rgba(100,116,139,0.15); border-color: rgba(100,116,139,0.5); color: var(--sp-text-primary); }
+        .badge-paid { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; background: rgba(16,185,129,0.1); color: var(--sp-accent-emerald); border: 1px solid rgba(16,185,129,0.25); }
+        .badge-cancelled { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; background: rgba(239,68,68,0.1); color: var(--sp-accent-red); border: 1px solid rgba(239,68,68,0.25); }
+        .badge-pending { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; background: rgba(245,158,11,0.1); color: var(--sp-accent-amber); border: 1px solid rgba(245,158,11,0.25); }
+        input[type="text"]:focus, input[type="date"]:focus { box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+        @media (max-width: 640px) { .summary-card, .history-card, .booking-row { padding: 14px; } }
     </style>
 </head>
-<body>
+<body class="font-sans bg-sp-primary text-slate-100">
 
-    <!-- ===================== TOP NAVBAR ===================== -->
-    <header class="bg-slate-950 border-b border-slate-800 sticky top-0 z-30">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6">
-            <div class="flex items-center justify-between h-16">
-                <div class="flex items-center gap-3">
-                    <a href="customer.html" class="flex items-center gap-2.5 no-underline">
-                        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-emerald-500 flex items-center justify-center shadow-lg">
-                            <i class="fa-solid fa-square-p text-white text-lg"></i>
-                        </div>
-                        <div>
-                            <span class="text-lg font-extrabold tracking-wider bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">SmartPark</span>
-                            <span class="block text-[9px] text-slate-500 font-semibold tracking-widest uppercase leading-none">Parking System</span>
-                        </div>
-                    </a>
-                </div>
-                <nav class="hidden lg:flex items-center gap-1">
-                    <a href="book-parking.html" class="px-4 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all">
-                        <i class="fa-solid fa-calendar-check mr-1.5"></i>Book Parking
-                    </a>
-                    <a href="my-sessions.html" class="px-4 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all">
-                        <i class="fa-solid fa-car-side mr-1.5"></i>My Sessions
-                    </a>
-                    <a href="my-history.html" class="px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white shadow-lg transition-all">
-                        <i class="fa-solid fa-clock-rotate-left mr-1.5"></i>My History
-                    </a>
-                </nav>
-                <div class="flex items-center gap-3">
-                    <button onclick="refreshData()" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors" title="Refresh">
-                        <i class="fa-solid fa-rotate"></i>
-                    </button>
-                    <a href="#" onclick="logout(); return false;" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg border border-red-500/20 no-underline">
-                        <i class="fa-solid fa-right-from-bracket"></i> Sign Out
-                    </a>
-                    <button onclick="toggleMobileMenu()" class="lg:hidden w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors">
-                        <i class="fa-solid fa-bars text-base" id="menu-icon"></i>
-                    </button>
-                </div>
-            </div>
-            <div id="mobile-menu" class="lg:hidden hidden border-t border-slate-800 py-3 px-2 space-y-1">
-                <a href="book-parking.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800">
-                    <i class="fa-solid fa-calendar-check w-5 text-center"></i> Book Parking
-                </a>
-                <a href="my-sessions.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800">
-                    <i class="fa-solid fa-car-side w-5 text-center"></i> My Sessions
-                </a>
-                <a href="my-history.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-semibold rounded-lg bg-blue-600 text-white">
-                    <i class="fa-solid fa-clock-rotate-left w-5 text-center"></i> My History
-                </a>
-                <a href="#" onclick="logout(); return false;" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-red-400 hover:bg-slate-800 sm:hidden">
-                    <i class="fa-solid fa-right-from-bracket w-5 text-center"></i> Sign Out
-                </a>
-            </div>
-        </div>
-    </header>
+<!-- Auth Guard -->
+<script>
+(function() {
+    const token = localStorage.getItem('token_customer');
+    if (!token) { window.location.href = 'index.html'; return; }
+    try { if (token.startsWith('static-')) { const u = JSON.parse(localStorage.getItem('loggedInUser_customer')||'{}'); if(u.role!=='customer'&&u.role!=='user'){window.location.href='index.html';} } } catch(e){window.location.href='index.html';}
+})();
+</script>
 
-    <!-- ===================== MAIN CONTENT ===================== -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-
-        <!-- Page Header -->
-        <div class="mb-8">
-            <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">My History</h1>
-            <p class="text-sm text-slate-500 mt-1.5" id="page-subtitle">View all your completed parking sessions.</p>
-        </div>
-
-        <!-- Summary Cards (4 in a row) -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5 mb-8">
-            <div class="summary-card">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Bookings</p>
-                <p class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1.5" id="stat-total">0</p>
-            </div>
-            <div class="summary-card">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Completed</p>
-                <p class="text-2xl sm:text-3xl font-extrabold text-emerald-600 mt-1.5" id="stat-completed">0</p>
-            </div>
-            <div class="summary-card">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cancelled</p>
-                <p class="text-2xl sm:text-3xl font-extrabold text-red-500 mt-1.5" id="stat-cancelled">0</p>
-            </div>
-            <div class="summary-card">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Spent</p>
-                <p class="text-2xl sm:text-3xl font-extrabold text-blue-600 mt-1.5" id="stat-spent">BDT 0</p>
-            </div>
-        </div>
-
-        <!-- Parking History Card (Main Container) -->
-        <div class="history-card mb-8">
-            <!-- Card Header -->
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                <div>
-                    <h2 class="text-xl font-extrabold text-slate-900">My Parking History</h2>
-                    <p class="text-xs text-slate-500 mt-0.5" id="history-subtitle">0 total bookings</p>
-                </div>
-                <div class="flex items-center gap-2.5">
-                    <button onclick="exportPDF()" class="btn-outline-blue">
-                        <i class="fa-solid fa-file-pdf"></i> PDF
-                    </button>
-                    <button onclick="exportCSV()" class="btn-outline-green">
-                        <i class="fa-solid fa-file-csv"></i> CSV
-                    </button>
-                </div>
-            </div>
-
-            <!-- Filters Section -->
-            <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-5">
-                <div class="flex-1 relative">
-                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                    <input type="text" id="search-input" placeholder="Search by Booking ID, Zone, Slot, or Vehicle..." oninput="applyFilters()"
-                        class="w-full bg-[#F5F7FB] border border-[#E5E7EB] focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20 rounded-xl py-2.5 pl-10 pr-4 text-sm outline-none transition-all placeholder:text-slate-400">
-                    <button onclick="clearSearch()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm transition-colors">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-                <div class="flex items-center gap-2">
-                    <input type="date" id="date-from" onchange="applyFilters()"
-                        class="text-xs bg-[#F5F7FB] border border-[#E5E7EB] rounded-lg px-3 py-2.5 text-slate-700 outline-none focus:border-[#3B82F6] transition-all">
-                    <span class="text-xs text-slate-400 font-medium">—</span>
-                    <input type="date" id="date-to" onchange="applyFilters()"
-                        class="text-xs bg-[#F5F7FB] border border-[#E5E7EB] rounded-lg px-3 py-2.5 text-slate-700 outline-none focus:border-[#3B82F6] transition-all">
-                </div>
-            </div>
-
-            <!-- Status Filter Chips -->
-            <div class="flex flex-wrap items-center gap-2 mb-5">
-                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Status:</span>
-                <span class="filter-chip active" onclick="setFilter('all', this)">All</span>
-                <span class="filter-chip inactive" onclick="setFilter('Paid', this)">Paid</span>
-                <span class="filter-chip inactive" onclick="setFilter('Pending', this)">Pending</span>
-            </div>
-
-            <!-- Records Count -->
-            <p class="text-xs text-slate-500 mb-4" id="records-count">Showing 0 of 0 records</p>
-
-            <!-- Booking Cards Container -->
-            <div id="booking-cards-container" class="space-y-4"></div>
-
-            <!-- Empty State -->
-            <div id="empty-state" class="hidden text-center py-16">
-                <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                    <i class="fa-solid fa-clock-rotate-left text-slate-300 text-2xl"></i>
-                </div>
-                <p class="text-sm font-semibold text-slate-500">No history records found</p>
-                <p class="text-xs text-slate-400 mt-1">Try adjusting your search or filter criteria.</p>
-            </div>
-        </div>
-
-    </main>
-
-    <!-- ===================== DETAILS MODAL ===================== -->
-    <div id="details-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
-        <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl transform scale-95 transition-all duration-300 overflow-y-auto max-h-[90vh]" id="modal-card">
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-4">
-                    <div>
-                        <h3 class="text-lg font-extrabold text-slate-900" id="modal-title">Booking Details</h3>
-                        <p class="text-xs text-slate-500" id="modal-id">#0000</p>
+<!-- ===================== TOP NAVBAR ===================== -->
+<header class="bg-sp-secondary/90 backdrop-blur-xl border-b border-sp-accent/10 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+        <div class="flex items-center justify-between h-16">
+            <div class="flex items-center gap-3">
+                <a href="customer.html" class="flex items-center gap-2.5 no-underline">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-sp-accent to-sp-emerald flex items-center justify-center shadow-lg shadow-sp-accent/25">
+                        <i class="fa-solid fa-square-p text-white text-lg"></i>
                     </div>
-                    <button onclick="closeDetails()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-                <div id="modal-content" class="space-y-4"></div>
-                <div class="flex justify-end gap-3 border-t border-slate-100 pt-4 mt-4">
-                    <button onclick="closeDetails()" class="px-5 py-2.5 text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors">Close</button>
-                    <button onclick="printReceipt()" class="px-5 py-2.5 text-sm font-semibold bg-[#3B82F6] hover:bg-blue-500 text-white rounded-xl shadow-lg flex items-center gap-2 transition-all">
-                        <i class="fa-solid fa-print"></i> Print Receipt
-                    </button>
-                </div>
+                    <div>
+                        <span class="text-lg font-extrabold tracking-wider text-gradient">SmartPark</span>
+                        <span class="block text-[9px] text-slate-500 font-semibold tracking-widest uppercase leading-none">AI Parking</span>
+                    </div>
+                </a>
             </div>
+            <nav class="hidden lg:flex items-center gap-1">
+                <a href="book-parking.html" class="nav-link px-4 py-2 text-sm font-medium rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-all"><i class="fa-solid fa-calendar-check mr-1.5"></i>Book Parking</a>
+                <a href="my-sessions.html" class="nav-link px-4 py-2 text-sm font-medium rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-all"><i class="fa-solid fa-car-side mr-1.5"></i>My Sessions</a>
+                <a href="my-history.html" class="nav-link active px-4 py-2 text-sm font-semibold rounded-lg text-sp-accent bg-sp-accent/10 transition-all"><i class="fa-solid fa-clock-rotate-left mr-1.5"></i>My History</a>
+            </nav>
+            <div class="flex items-center gap-3">
+                <button onclick="refreshData()" class="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors" title="Refresh"><i class="fa-solid fa-rotate"></i></button>
+                <a href="#" onclick="logout(); return false;" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-xl transition-all border border-red-500/20 no-underline"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</a>
+                <button onclick="toggleMobileMenu()" class="lg:hidden w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors"><i class="fa-solid fa-bars text-base" id="menu-icon"></i></button>
+            </div>
+        </div>
+        <div id="mobile-menu" class="lg:hidden hidden border-t border-sp-accent/10 py-3 px-2 space-y-1">
+            <a href="book-parking.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-slate-400 hover:text-white hover:bg-white/5"><i class="fa-solid fa-calendar-check w-5 text-center"></i> Book Parking</a>
+            <a href="my-sessions.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-slate-400 hover:text-white hover:bg-white/5"><i class="fa-solid fa-car-side w-5 text-center"></i> My Sessions</a>
+            <a href="my-history.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-semibold rounded-lg bg-sp-accent/10 text-sp-accent"><i class="fa-solid fa-clock-rotate-left w-5 text-center"></i> My History</a>
+        </div>
+    </div>
+</header>
+
+<!-- ===================== MAIN CONTENT ===================== -->
+<main class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <div class="mb-8">
+        <div class="flex items-center gap-2 mb-1">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">My History</h1>
+            <span class="ai-badge text-[9px]">Analytics</span>
+        </div>
+        <p class="text-sm text-slate-500 mt-1.5" id="page-subtitle">View all your completed parking sessions.</p>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5 mb-8">
+        <div class="summary-card">
+            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Bookings</p>
+            <p class="text-2xl sm:text-3xl font-extrabold text-white mt-1.5" id="stat-total">0</p>
+        </div>
+        <div class="summary-card">
+            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Completed</p>
+            <p class="text-2xl sm:text-3xl font-extrabold text-sp-emerald mt-1.5" id="stat-completed">0</p>
+        </div>
+        <div class="summary-card">
+            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Cancelled</p>
+            <p class="text-2xl sm:text-3xl font-extrabold text-sp-accent-red mt-1.5" id="stat-cancelled">0</p>
+        </div>
+        <div class="summary-card">
+            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Spent</p>
+            <p class="text-2xl sm:text-3xl font-extrabold text-sp-accent mt-1.5" id="stat-spent">BDT 0</p>
         </div>
     </div>
 
-    <!-- ===================== TOAST CONTAINER ===================== -->
-    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
+    <div class="history-card mb-8">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div>
+                <h2 class="text-xl font-extrabold text-white">My Parking History</h2>
+                <p class="text-xs text-slate-500 mt-0.5" id="history-subtitle">0 total bookings</p>
+            </div>
+            <div class="flex items-center gap-2.5">
+                <button onclick="exportPDF()" class="btn-outline-blue"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                <button onclick="exportCSV()" class="btn-outline-green"><i class="fa-solid fa-file-csv"></i> CSV</button>
+            </div>
+        </div>
 
-    <!-- ===================== JAVASCRIPT ===================== -->
-    <script src="script.js"></script>
-    <script>
-        /* ============================================================
-           SMARTPARK - My History (v2.1)
-           ============================================================ */
-        var historyData = [];
-        var currentFilter = 'all';
-        var currentDetail = null;
+        <!-- Filters -->
+        <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-5">
+            <div class="flex-1 relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
+                <input type="text" id="search-input" placeholder="Search by Booking ID, Zone, Slot, or Vehicle..." oninput="applyFilters()"
+                    class="w-full bg-sp-secondary/50 border border-sp-accent/10 focus:border-sp-accent focus:ring-2 focus:ring-sp-accent/20 rounded-xl py-2.5 pl-10 pr-4 text-sm outline-none transition-all placeholder:text-slate-500 text-slate-200">
+                <button onclick="clearSearch()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-sm transition-colors"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex items-center gap-2">
+                <input type="date" id="date-from" onchange="applyFilters()"
+                    class="text-xs bg-sp-secondary/50 border border-sp-accent/10 rounded-lg px-3 py-2.5 text-slate-200 outline-none focus:border-sp-accent transition-all">
+                <span class="text-xs text-slate-500 font-medium">—</span>
+                <input type="date" id="date-to" onchange="applyFilters()"
+                    class="text-xs bg-sp-secondary/50 border border-sp-accent/10 rounded-lg px-3 py-2.5 text-slate-200 outline-none focus:border-sp-accent transition-all">
+            </div>
+        </div>
 
-        // ============================================================
-        // INIT
-        // ============================================================
-        document.addEventListener('DOMContentLoaded', async function() {
-            const loggedInUser = getLoggedInUser();
-            if (!loggedInUser || loggedInUser.role !== 'customer') {
-                window.location.href = 'index.html';
-                return;
-            }
-            await loadData();
-            applyFilters();
-        });
+        <!-- Status Filter -->
+        <div class="flex flex-wrap items-center gap-2 mb-5">
+            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mr-1">Status:</span>
+            <span class="filter-chip active" onclick="setFilter('all', this)">All</span>
+            <span class="filter-chip inactive" onclick="setFilter('Paid', this)">Paid</span>
+            <span class="filter-chip inactive" onclick="setFilter('Pending', this)">Pending</span>
+        </div>
 
-        // ============================================================
-        // REFRESH
-        // ============================================================
-        async function refreshData() {
-            await loadData();
-            applyFilters();
-            showToast('info', 'Data refreshed!');
+        <p class="text-xs text-slate-500 mb-4" id="records-count">Showing 0 of 0 records</p>
+        <div id="booking-cards-container" class="space-y-3"></div>
+
+        <div id="empty-state" class="hidden text-center py-16">
+            <div class="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4"><i class="fa-solid fa-clock-rotate-left text-slate-600 text-2xl"></i></div>
+            <p class="text-sm font-semibold text-slate-400">No history records found</p>
+            <p class="text-xs text-slate-500 mt-1">Try adjusting your search or filter criteria.</p>
+        </div>
+    </div>
+</main>
+
+<!-- ===================== DETAILS MODAL ===================== -->
+<div id="details-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-sp-primary/85 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
+    <div class="bg-sp-card rounded-3xl max-w-lg w-full shadow-2xl transform scale-95 transition-all duration-300 overflow-y-auto max-h-[90vh] border border-sp-accent/15" id="modal-card">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-5 border-b border-sp-accent/10 pb-4">
+                <div>
+                    <h3 class="text-lg font-extrabold text-white" id="modal-title">Booking Details</h3>
+                    <p class="text-xs text-slate-500" id="modal-id">#0000</p>
+                </div>
+                <button onclick="closeDetails()" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="modal-content" class="space-y-4"></div>
+            <div class="flex justify-end gap-3 border-t border-sp-accent/10 pt-4 mt-4">
+                <button onclick="closeDetails()" class="btn-secondary py-2.5 px-5">Close</button>
+                <button onclick="printReceipt()" class="btn-primary py-2.5 px-5"><i class="fa-solid fa-print mr-1.5"></i> Print Receipt</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
+
+<script src="script.js"></script>
+<script>
+var historyData = [];
+var currentFilter = 'all';
+var currentDetail = null;
+
+document.addEventListener('DOMContentLoaded', async function() {
+    const loggedInUser = getLoggedInUser();
+    if (!loggedInUser || loggedInUser.role !== 'customer') { window.location.href = 'index.html'; return; }
+    await loadData();
+    applyFilters();
+});
+
+async function refreshData() { await loadData(); applyFilters(); showToast('info', 'Data refreshed!'); }
+
+async function loadData() {
+    try {
+        const token = localStorage.getItem('token_customer');
+        const response = await fetch(API_BASE + '/api/parking/my-history', { method: 'GET', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
+        const data = await response.json();
+        if (response.ok) { historyData = data; }
+        else { historyData = []; }
+    } catch (error) {
+        var saved = getUserData('customerParkingData');
+        if (saved && saved.history) { historyData = saved.history.filter(function(h) { return h.status === 'Completed' || h.paymentStatus === 'Paid'; }); }
+        else { historyData = []; }
+    }
+}
+
+function getFiltered() {
+    var searchVal = (document.getElementById('search-input').value || '').toLowerCase().trim();
+    var fromDate = document.getElementById('date-from').value;
+    var toDate = document.getElementById('date-to').value;
+    return historyData.filter(function(h) {
+        if (searchVal) {
+            var fields = [String(h.bookingId || ''), h.zone || '', h.slot || '', h.vehicle || '', h.name || '', h.date || ''];
+            var found = false;
+            for (var f = 0; f < fields.length; f++) { if (fields[f].toLowerCase().indexOf(searchVal) !== -1) { found = true; break; } }
+            if (!found) return false;
         }
+        if (fromDate && h.date && h.date < fromDate) return false;
+        if (toDate && h.date && h.date > toDate) return false;
+        if (currentFilter !== 'all' && (h.paymentStatus || 'Paid') !== currentFilter) return false;
+        return true;
+    });
+}
 
-        // ============================================================
-        // LOCAL STORAGE & SEED DATA
-        // ============================================================
-        async function loadData() {
-            const token = localStorage.getItem('token_customer');
-            if (!token) {
-                historyData = [];
-                return;
-            }
+function applyFilters() { renderCards(); }
+function clearSearch() { document.getElementById('search-input').value = ''; renderCards(); }
+function setFilter(status, el) {
+    currentFilter = status;
+    var chips = document.querySelectorAll('.filter-chip');
+    for (var i = 0; i < chips.length; i++) { chips[i].className = 'filter-chip inactive'; }
+    el.className = 'filter-chip active';
+    renderCards();
+}
 
-            try {
-                const response = await fetch(API_BASE + '/api/parking/my-history', {
-                    method: 'GET',
-                    headers: {
-                        'x-auth-token': token,
-                        'Content-Type': 'application/json'
-                    }
-                });
+function renderCards() {
+    var filtered = getFiltered();
+    var total = historyData.length;
+    document.getElementById('page-subtitle').textContent = 'View all your completed parking sessions.';
+    document.getElementById('history-subtitle').textContent = total + ' total booking' + (total !== 1 ? 's' : '');
+    document.getElementById('records-count').textContent = 'Showing ' + filtered.length + ' of ' + total + ' records';
+    document.getElementById('stat-total').textContent = total;
+    var completedCount = historyData.filter(function(h) { var ps = h.paymentStatus || 'Paid'; return ps === 'Paid' || ps === 'Completed'; }).length;
+    document.getElementById('stat-completed').textContent = completedCount;
+    var cancelledCount = historyData.filter(function(h) { return (h.paymentStatus || '') === 'Cancelled'; }).length;
+    document.getElementById('stat-cancelled').textContent = cancelledCount;
+    var spent = historyData.reduce(function(s, h) { return s + (h.cost || 0); }, 0);
+    document.getElementById('stat-spent').textContent = 'BDT ' + spent.toFixed(2);
 
-                const data = await response.json();
+    var container = document.getElementById('booking-cards-container');
+    var emptyEl = document.getElementById('empty-state');
+    if (filtered.length === 0) {
+        container.innerHTML = '';
+        emptyEl.classList.remove('hidden');
+        if (total > 0) { emptyEl.querySelector('p').textContent = 'No records match your filter'; emptyEl.querySelector('.text-xs').textContent = 'Try adjusting your search or filter criteria.'; }
+        else { emptyEl.querySelector('p').textContent = 'No history records found'; emptyEl.querySelector('.text-xs').textContent = 'Your completed parking sessions will appear here.'; }
+        return;
+    }
+    emptyEl.classList.add('hidden');
 
-                if (response.ok) {
-                    historyData = data;
-                } else {
-                    console.error('Error fetching user history:', data.msg);
-                    historyData = [];
-                }
-            } catch (error) {
-                console.error('Network error fetching user history:', error);
-                var saved = getUserData('customerParkingData');
-                if (saved && saved.history) {
-                    historyData = saved.history.filter(function(h) { return h.status === 'Completed' || h.paymentStatus === 'Paid'; });
-                } else {
-                    historyData = [];
-                }
-            }
-        }
+    var html = '';
+    for (var i = 0; i < filtered.length; i++) {
+        var h = filtered[i];
+        var ps = h.paymentStatus || 'Paid';
+        var bid = Number(h.bookingId) || 0;
+        var entryFormatted = formatTimeAMPM(h.entryTime);
+        var exitFormatted = formatTimeAMPM(h.exitTime);
+        var badgeClass = 'badge-paid';
+        if (ps === 'Cancelled') badgeClass = 'badge-cancelled';
+        else if (ps === 'Pending') badgeClass = 'badge-pending';
 
-
-
-        // ============================================================
-        // HELPERS
-        // ============================================================
-        // formatTimeAMPM, escHtml, formatTime are defined in script.js (shared)
-
-        // ============================================================
-        // FILTERING
-        // ============================================================
-        function getFiltered() {
-            var searchVal = (document.getElementById('search-input').value || '').toLowerCase().trim();
-            var fromDate = document.getElementById('date-from').value;
-            var toDate = document.getElementById('date-to').value;
-
-            return historyData.filter(function(h) {
-                if (searchVal) {
-                    var found = false;
-                    var fields = [
-                        String(h.bookingId || ''),
-                        h.zone || '',
-                        h.slot || '',
-                        h.vehicle || '',
-                        h.name || '',
-                        h.date || ''
-                    ];
-                    for (var f = 0; f < fields.length; f++) {
-                        if (fields[f].toLowerCase().indexOf(searchVal) !== -1) { found = true; break; }
-                    }
-                    if (!found) return false;
-                }
-                if (fromDate && h.date && h.date < fromDate) return false;
-                if (toDate && h.date && h.date > toDate) return false;
-                if (currentFilter !== 'all' && (h.paymentStatus || 'Paid') !== currentFilter) return false;
-                return true;
-            });
-        }
-
-        function applyFilters() { renderCards(); }
-
-        function clearSearch() {
-            document.getElementById('search-input').value = '';
-            renderCards();
-        }
-
-        function setFilter(status, el) {
-            currentFilter = status;
-            var chips = document.querySelectorAll('.filter-chip');
-            for (var i = 0; i < chips.length; i++) {
-                chips[i].className = 'filter-chip inactive';
-            }
-            el.className = 'filter-chip active';
-            renderCards();
-        }
-
-        // ============================================================
-        // RENDER CARDS
-        // ============================================================
-        function renderCards() {
-            var filtered = getFiltered();
-            var total = historyData.length;
-
-            // Update subtitle
-            document.getElementById('page-subtitle').textContent = 'View all your completed parking sessions.';
-            document.getElementById('history-subtitle').textContent = total + ' total booking' + (total !== 1 ? 's' : '');
-
-            // Update records count
-            document.getElementById('records-count').textContent = 'Showing ' + filtered.length + ' of ' + total + ' records';
-
-            // Update summary stats
-            document.getElementById('stat-total').textContent = total;
-            var completedCount = historyData.filter(function(h) {
-                var ps = h.paymentStatus || 'Paid';
-                return ps === 'Paid' || ps === 'Completed';
-            }).length;
-            document.getElementById('stat-completed').textContent = completedCount;
-            var cancelledCount = historyData.filter(function(h) {
-                return (h.paymentStatus || '') === 'Cancelled';
-            }).length;
-            document.getElementById('stat-cancelled').textContent = cancelledCount;
-            var spent = historyData.reduce(function(s, h) { return s + (h.cost || 0); }, 0);
-            document.getElementById('stat-spent').textContent = 'BDT ' + spent.toFixed(2);
-
-            var container = document.getElementById('booking-cards-container');
-            var emptyEl = document.getElementById('empty-state');
-
-            if (filtered.length === 0) {
-                container.innerHTML = '';
-                emptyEl.classList.remove('hidden');
-                if (total > 0) {
-                    emptyEl.querySelector('p').textContent = 'No records match your filter';
-                    emptyEl.querySelector('.text-xs').textContent = 'Try adjusting your search or filter criteria.';
-                } else {
-                    emptyEl.querySelector('p').textContent = 'No history records found';
-                    emptyEl.querySelector('.text-xs').textContent = 'Your completed parking sessions will appear here.';
-                }
-                return;
-            }
-            emptyEl.classList.add('hidden');
-
-            var html = '';
-            for (var i = 0; i < filtered.length; i++) {
-                var h = filtered[i];
-                var ps = h.paymentStatus || 'Paid';
-                var bid = Number(h.bookingId) || 0;
-                var entryFormatted = formatTimeAMPM(h.entryTime);
-                var exitFormatted = formatTimeAMPM(h.exitTime);
-
-                // Status badge
-                var badgeClass = 'badge-paid';
-                if (ps === 'Cancelled') badgeClass = 'badge-cancelled';
-                else if (ps === 'Pending') badgeClass = 'badge-pending';
-
-                html += '<div class="booking-card">' +
-                    '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">' +
-                        // Left Side - Booking Info
-                        '<div class="flex-1 min-w-0">' +
-                            '<div class="flex items-center gap-2.5 mb-2">' +
-                                '<span class="text-sm font-extrabold text-slate-900">#' + safe(h.bookingId) + '</span>' +
-                                '<span class="text-[10px] text-slate-300">|</span>' +
-                                '<span class="text-xs font-semibold text-slate-600">' + safe(h.zone) + '</span>' +
-                                '<span class="text-[10px] text-slate-300">|</span>' +
-                                '<span class="text-xs font-medium text-[#3B82F6] bg-blue-50 px-2 py-0.5 rounded-md cursor-pointer hover:bg-blue-100 transition-colors">' + safe(h.slot) + '</span>' +
-                            '</div>' +
-                            '<div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500">' +
-                                '<span><i class="fa-regular fa-calendar mr-1.5 text-slate-400"></i>' + safe(h.date) + '</span>' +
-                                '<span><i class="fa-regular fa-clock mr-1.5 text-emerald-500"></i>In: ' + entryFormatted + '</span>' +
-                                '<span><i class="fa-regular fa-clock mr-1.5 text-red-400"></i>Out: ' + exitFormatted + '</span>' +
-                                '<span><i class="fa-solid fa-car mr-1.5 text-slate-400"></i>' + safe(h.vehicle) + '</span>' +
-                            '</div>' +
-                            '<div class="flex items-center gap-3 mt-3">' +
-                                '<span class="text-base font-extrabold text-slate-900">BDT ' + (h.cost || 0).toFixed(2) + '</span>' +
-                                (h.payment ? '<span class="text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100">' + escHtml(h.payment) + '</span>' : '') +
-                                '<span class="' + badgeClass + '">' + ps + '</span>' +
-                            '</div>' +
-                        '</div>' +
-                        // Right Side - Action Buttons
-                        '<div class="flex items-center gap-2.5 flex-shrink-0">' +
-                            '<button onclick="viewDetails(' + bid + ')" class="btn-view">' +
-                                '<i class="fa-solid fa-eye"></i> View' +
-                            '</button>' +
-                            '<button onclick="printOne(' + bid + ')" class="btn-receipt">' +
-                                '<i class="fa-solid fa-receipt"></i> Receipt' +
-                            '</button>' +
-                        '</div>' +
+        html += '<div class="booking-row">' +
+            '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">' +
+                '<div class="flex-1 min-w-0">' +
+                    '<div class="flex items-center gap-2.5 mb-2">' +
+                        '<span class="text-sm font-extrabold text-white">#' + safe(h.bookingId) + '</span>' +
+                        '<span class="text-[10px] text-slate-600">|</span>' +
+                        '<span class="text-xs font-semibold text-slate-400">' + safe(h.zone) + '</span>' +
+                        '<span class="text-[10px] text-slate-600">|</span>' +
+                        '<span class="text-xs font-medium text-sp-accent bg-sp-accent/10 px-2 py-0.5 rounded-md">' + safe(h.slot) + '</span>' +
                     '</div>' +
-                '</div>';
-            }
-            container.innerHTML = html;
-        }
-
-        // ============================================================
-        // VIEW DETAILS MODAL
-        // ============================================================
-        function viewDetails(id) {
-            var record = null;
-            for (var i = 0; i < historyData.length; i++) {
-                if (Number(historyData[i].bookingId) === id) { record = historyData[i]; break; }
-            }
-            if (!record) { showToast('error', 'Record not found.'); return; }
-            currentDetail = record;
-
-            document.getElementById('modal-title').textContent = 'Booking Details';
-            document.getElementById('modal-id').textContent = '#' + record.bookingId;
-
-            var ps = record.paymentStatus || 'Paid';
-            var badgeClass = 'badge-paid';
-            if (ps === 'Cancelled') badgeClass = 'badge-cancelled';
-            else if (ps === 'Pending') badgeClass = 'badge-pending';
-
-            document.getElementById('modal-content').innerHTML =
-                '<div class="grid grid-cols-2 gap-3">' +
-                    '<div class="bg-[#F5F7FB] rounded-xl p-3.5">' +
-                        '<p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Booking ID</p>' +
-                        '<p class="text-sm font-extrabold text-slate-900 mt-0.5">#' + escHtml(record.bookingId) + '</p>' +
+                    '<div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500">' +
+                        '<span><i class="fa-regular fa-calendar mr-1.5 text-slate-600"></i>' + safe(h.date) + '</span>' +
+                        '<span><i class="fa-regular fa-clock mr-1.5 text-sp-emerald"></i>In: ' + entryFormatted + '</span>' +
+                        '<span><i class="fa-regular fa-clock mr-1.5 text-sp-accent-red"></i>Out: ' + exitFormatted + '</span>' +
+                        '<span><i class="fa-solid fa-car mr-1.5 text-slate-600"></i>' + safe(h.vehicle) + '</span>' +
                     '</div>' +
-                    '<div class="bg-[#F5F7FB] rounded-xl p-3.5">' +
-                        '<p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Customer</p>' +
-                        '<p class="text-sm font-semibold text-slate-900 mt-0.5">' + escHtml(record.name) + '</p>' +
-                    '</div>' +
-                    '<div class="bg-[#F5F7FB] rounded-xl p-3.5">' +
-                        '<p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Zone</p>' +
-                        '<p class="text-sm font-semibold text-slate-900 mt-0.5">' + escHtml(record.zone) + '</p>' +
-                    '</div>' +
-                    '<div class="bg-[#F5F7FB] rounded-xl p-3.5">' +
-                        '<p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Slot</p>' +
-                        '<p class="text-sm font-semibold text-[#3B82F6] mt-0.5">' + escHtml(record.slot) + '</p>' +
-                    '</div>' +
-                    '<div class="bg-[#F5F7FB] rounded-xl p-3.5">' +
-                        '<p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Vehicle</p>' +
-                        '<p class="text-sm font-semibold text-slate-900 mt-0.5">' + escHtml(record.vehicle) + '</p>' +
-                    '</div>' +
-                    '<div class="bg-[#F5F7FB] rounded-xl p-3.5">' +
-                        '<p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Duration</p>' +
-                        '<p class="text-sm font-semibold text-slate-900 mt-0.5">' + escHtml(record.duration) + '</p>' +
-                    '</div>' +
-                    '<div class="bg-[#F5F7FB] rounded-xl p-3.5">' +
-                        '<p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date</p>' +
-                        '<p class="text-sm font-semibold text-slate-900 mt-0.5">' + (record.date || '') + '</p>' +
-                    '</div>' +
-                    '<div class="bg-[#F5F7FB] rounded-xl p-3.5">' +
-                        '<p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Entry</p>' +
-                        '<p class="text-sm font-semibold text-slate-900 mt-0.5">' + escHtml(record.entryTime) + '</p>' +
-                    '</div>' +
-                    '<div class="bg-[#F5F7FB] rounded-xl p-3.5">' +
-                        '<p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Exit</p>' +
-                        '<p class="text-sm font-semibold text-slate-900 mt-0.5">' + escHtml(record.exitTime) + '</p>' +
-                    '</div>' +
-                    '<div class="bg-[#F5F7FB] rounded-xl p-3.5">' +
-                        '<p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment</p>' +
-                        '<p class="text-sm font-semibold text-slate-900 mt-0.5">' + escHtml(record.payment) + '</p>' +
+                    '<div class="flex items-center gap-3 mt-3">' +
+                        '<span class="text-base font-extrabold text-white">BDT ' + (h.cost || 0).toFixed(2) + '</span>' +
+                        (h.payment ? '<span class="text-xs font-semibold text-sp-accent bg-sp-accent/10 px-2.5 py-1 rounded-lg border border-sp-accent/20">' + escHtml(h.payment) + '</span>' : '') +
+                        '<span class="' + badgeClass + '">' + ps + '</span>' +
                     '</div>' +
                 '</div>' +
-                '<div class="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-xl p-4 mt-2">' +
-                    '<div>' +
-                        '<p class="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Total</p>' +
-                        '<p class="text-xl font-extrabold text-blue-700">BDT ' + (record.cost || 0).toFixed(2) + '</p>' +
-                    '</div>' +
-                    '<span class="' + badgeClass + '">' + ps + '</span>' +
-                '</div>';
+                '<div class="flex items-center gap-2.5 flex-shrink-0">' +
+                    '<button onclick="viewDetails(' + bid + ')" class="btn-view"><i class="fa-solid fa-eye"></i> View</button>' +
+                    '<button onclick="printOne(' + bid + ')" class="btn-receipt"><i class="fa-solid fa-receipt"></i> Receipt</button>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    }
+    container.innerHTML = html;
+}
 
-            var modal = document.getElementById('details-modal');
-            var card = document.getElementById('modal-card');
-            modal.classList.remove('opacity-0', 'pointer-events-none');
-            card.classList.remove('scale-95');
-            card.classList.add('scale-100');
-        }
+function viewDetails(id) {
+    var record = null;
+    for (var i = 0; i < historyData.length; i++) { if (Number(historyData[i].bookingId) === id) { record = historyData[i]; break; } }
+    if (!record) { showToast('error', 'Record not found.'); return; }
+    currentDetail = record;
+    document.getElementById('modal-title').textContent = 'Booking Details';
+    document.getElementById('modal-id').textContent = '#' + record.bookingId;
+    var ps = record.paymentStatus || 'Paid';
+    var badgeClass = 'badge-paid';
+    if (ps === 'Cancelled') badgeClass = 'badge-cancelled';
+    else if (ps === 'Pending') badgeClass = 'badge-pending';
 
-        function closeDetails() {
-            var modal = document.getElementById('details-modal');
-            var card = document.getElementById('modal-card');
-            card.classList.remove('scale-100');
-            card.classList.add('scale-95');
-            setTimeout(function() { modal.classList.add('opacity-0', 'pointer-events-none'); }, 150);
-            currentDetail = null;
-        }
+    document.getElementById('modal-content').innerHTML =
+        '<div class="grid grid-cols-2 gap-3">' +
+            '<div class="bg-sp-secondary/50 rounded-xl p-3.5"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Booking ID</p><p class="text-sm font-extrabold text-white mt-0.5">#' + escHtml(record.bookingId) + '</p></div>' +
+            '<div class="bg-sp-secondary/50 rounded-xl p-3.5"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Customer</p><p class="text-sm font-semibold text-slate-300 mt-0.5">' + escHtml(record.name) + '</p></div>' +
+            '<div class="bg-sp-secondary/50 rounded-xl p-3.5"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Zone</p><p class="text-sm font-semibold text-slate-300 mt-0.5">' + escHtml(record.zone) + '</p></div>' +
+            '<div class="bg-sp-secondary/50 rounded-xl p-3.5"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Slot</p><p class="text-sm font-semibold text-sp-accent mt-0.5">' + escHtml(record.slot) + '</p></div>' +
+            '<div class="bg-sp-secondary/50 rounded-xl p-3.5"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Vehicle</p><p class="text-sm font-semibold text-slate-300 mt-0.5">' + escHtml(record.vehicle) + '</p></div>' +
+            '<div class="bg-sp-secondary/50 rounded-xl p-3.5"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Duration</p><p class="text-sm font-semibold text-slate-300 mt-0.5">' + escHtml(record.duration) + '</p></div>' +
+            '<div class="bg-sp-secondary/50 rounded-xl p-3.5"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Date</p><p class="text-sm font-semibold text-slate-300 mt-0.5">' + (record.date || '') + '</p></div>' +
+            '<div class="bg-sp-secondary/50 rounded-xl p-3.5"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Entry</p><p class="text-sm font-semibold text-slate-300 mt-0.5">' + escHtml(record.entryTime) + '</p></div>' +
+            '<div class="bg-sp-secondary/50 rounded-xl p-3.5"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Exit</p><p class="text-sm font-semibold text-slate-300 mt-0.5">' + escHtml(record.exitTime) + '</p></div>' +
+            '<div class="bg-sp-secondary/50 rounded-xl p-3.5"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Payment</p><p class="text-sm font-semibold text-slate-300 mt-0.5">' + escHtml(record.payment) + '</p></div>' +
+        '</div>' +
+        '<div class="flex items-center justify-between bg-sp-accent/10 border border-sp-accent/20 rounded-xl p-4 mt-2">' +
+            '<div><p class="text-[10px] font-bold text-sp-accent uppercase tracking-wider">Total</p><p class="text-xl font-extrabold text-sp-accent">BDT ' + (record.cost || 0).toFixed(2) + '</p></div>' +
+            '<span class="' + badgeClass + '">' + ps + '</span>' +
+        '</div>';
 
-        // ============================================================
-        // PRINT RECEIPT
-        // ============================================================
-        function printOne(id) {
-            for (var i = 0; i < historyData.length; i++) {
-                if (Number(historyData[i].bookingId) === id) { printReceiptFor(historyData[i]); return; }
-            }
-            showToast('error', 'Record not found.');
-        }
+    var modal = document.getElementById('details-modal');
+    var card = document.getElementById('modal-card');
+    modal.classList.remove('opacity-0', 'pointer-events-none');
+    card.classList.remove('scale-95');
+    card.classList.add('scale-100');
+}
+function closeDetails() {
+    var modal = document.getElementById('details-modal');
+    var card = document.getElementById('modal-card');
+    card.classList.remove('scale-100');
+    card.classList.add('scale-95');
+    setTimeout(function() { modal.classList.add('opacity-0', 'pointer-events-none'); }, 150);
+    currentDetail = null;
+}
 
-        function printReceipt() {
-            if (currentDetail) printReceiptFor(currentDetail);
-            else showToast('error', 'No record selected.');
-        }
+function printOne(id) {
+    for (var i = 0; i < historyData.length; i++) { if (Number(historyData[i].bookingId) === id) { printReceiptFor(historyData[i]); return; } }
+    showToast('error', 'Record not found.');
+}
+function printReceipt() { if (currentDetail) printReceiptFor(currentDetail); else showToast('error', 'No record selected.'); }
+function printReceiptFor(r) {
+    var w = window.open('', '_blank');
+    if (!w) { showToast('error', 'Please allow popups to print.'); return; }
+    var ps = r.paymentStatus || 'Paid';
+    var docText = '<!DOCTYPE html><html><head><title>SmartPark - Receipt #' + escHtml(r.bookingId) + '</title>';
+    docText += '<style>body{font-family:Inter,Poppins,sans-serif;padding:40px;background:#0B1426;color:#f8fafc;}.r{max-width:500px;margin:0 auto;background:#152238;border-radius:16px;padding:30px;box-shadow:0 4px 20px rgba(0,0,0,0.3);border:1px solid rgba(59,130,246,0.15);}';
+    docText += '.h{text-align:center;border-bottom:2px dashed rgba(59,130,246,0.2);padding-bottom:16px;margin-bottom:20px;}.h h1{font-size:20px;font-weight:800;margin:0;}.h p{font-size:11px;color:#94a3b8;margin:2px 0 0;}';
+    docText += '.rw{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid rgba(59,130,246,0.05);}.l{color:#94a3b8;font-weight:500;}.v{font-weight:600;text-align:right;}';
+    docText += '.t{display:flex;justify-content:space-between;padding:12px 0 0;margin-top:8px;border-top:2px solid rgba(59,130,246,0.3);}.t .l{font-size:15px;font-weight:700;}.t .v{font-size:20px;font-weight:800;color:#3B82F6;}';
+    docText += '.f{text-align:center;margin-top:24px;font-size:10px;color:#64748b;border-top:1px solid rgba(59,130,246,0.1);padding-top:16px;}';
+    docText += '@media print{.np{display:none}}<' + '/style><' + '/head><body>';
+    docText += '<div class="r"><div class="h"><h1>SmartPark Parking Receipt</h1><p>#' + escHtml(r.bookingId) + ' | ' + (r.date || '') + '</p></div>';
+    docText += '<div class="rw"><span class="l">Customer</span><span class="v">' + escHtml(r.name) + '</span></div>';
+    docText += '<div class="rw"><span class="l">Vehicle</span><span class="v">' + escHtml(r.vehicle) + '</span></div>';
+    docText += '<div class="rw"><span class="l">Zone</span><span class="v">' + escHtml(r.zone) + '</span></div>';
+    docText += '<div class="rw"><span class="l">Slot</span><span class="v">' + escHtml(r.slot) + '</span></div>';
+    docText += '<div class="rw"><span class="l">Duration</span><span class="v">' + escHtml(r.duration) + '</span></div>';
+    docText += '<div class="rw"><span class="l">Entry</span><span class="v">' + escHtml(r.entryTime) + '</span></div>';
+    docText += '<div class="rw"><span class="l">Exit</span><span class="v">' + escHtml(r.exitTime) + '</span></div>';
+    docText += '<div class="rw"><span class="l">Payment</span><span class="v">' + escHtml(r.payment) + '</span></div>';
+    docText += '<div class="rw"><span class="l">Status</span><span class="v">' + ps + '</span></div>';
+    docText += '<div class="t"><span class="l">Total Paid</span><span class="v">BDT ' + (r.cost || 0).toFixed(2) + '</span></div>';
+    docText += '<div class="f">Thank you for choosing SmartPark!<br>This is a computer-generated receipt.</div>';
+    docText += '<div class="np" style="text-align:center;margin-top:20px;"><button onclick="window.print()" style="padding:10px 28px;background:#3B82F6;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;">Print Receipt</button></div></div><' + '/body><' + '/html>';
+    w.document.write(docText);
+    w.document.close();
+}
 
-        function printReceiptFor(r) {
-            var w = window.open('', '_blank');
-            if (!w) { showToast('error', 'Please allow popups to print.'); return; }
-            var ps = r.paymentStatus || 'Paid';
-            var docText = '<!DOCTYPE html><html><head><title>SmartPark - Receipt #' + escHtml(r.bookingId) + '</title>';
-            docText += '<style>body{font-family:Inter,Poppins,sans-serif;padding:40px;background:#F5F7FB;color:#1e293b;}';
-            docText += '.r{max-width:500px;margin:0 auto;background:white;border-radius:16px;padding:30px;box-shadow:0 4px 20px rgba(0,0,0,0.06);}';
-            docText += '.h{text-align:center;border-bottom:2px dashed #E5E7EB;padding-bottom:16px;margin-bottom:20px;}';
-            docText += '.h h1{font-size:20px;font-weight:800;margin:0;}';
-            docText += '.h p{font-size:11px;color:#64748b;margin:2px 0 0;}';
-            docText += '.rw{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid #f1f5f9;}';
-            docText += '.l{color:#64748b;font-weight:500;}';
-            docText += '.v{font-weight:600;text-align:right;}';
-            docText += '.t{display:flex;justify-content:space-between;padding:12px 0 0;margin-top:8px;border-top:2px solid #1e293b;}';
-            docText += '.t .l{font-size:15px;font-weight:700;}';
-            docText += '.t .v{font-size:20px;font-weight:800;color:#3B82F6;}';
-            docText += '.f{text-align:center;margin-top:24px;font-size:10px;color:#94a3b8;border-top:1px solid #E5E7EB;padding-top:16px;}';
-            docText += '@media print{.np{display:none}}<' + '/style><' + '/head><body>';
-            docText += '<div class="r"><div class="h"><h1>SmartPark Parking Receipt</h1>';
-            docText += '<p>#' + escHtml(r.bookingId) + ' | ' + (r.date || '') + '</p></div>';
-            docText += '<div class="rw"><span class="l">Customer</span><span class="v">' + escHtml(r.name) + '</span></div>';
-            docText += '<div class="rw"><span class="l">Vehicle</span><span class="v">' + escHtml(r.vehicle) + '</span></div>';
-            docText += '<div class="rw"><span class="l">Zone</span><span class="v">' + escHtml(r.zone) + '</span></div>';
-            docText += '<div class="rw"><span class="l">Slot</span><span class="v">' + escHtml(r.slot) + '</span></div>';
-            docText += '<div class="rw"><span class="l">Duration</span><span class="v">' + escHtml(r.duration) + '</span></div>';
-            docText += '<div class="rw"><span class="l">Entry</span><span class="v">' + escHtml(r.entryTime) + '</span></div>';
-            docText += '<div class="rw"><span class="l">Exit</span><span class="v">' + escHtml(r.exitTime) + '</span></div>';
-            docText += '<div class="rw"><span class="l">Payment</span><span class="v">' + escHtml(r.payment) + '</span></div>';
-            docText += '<div class="rw"><span class="l">Status</span><span class="v">' + ps + '</span></div>';
-            docText += '<div class="t"><span class="l">Total Paid</span><span class="v">BDT ' + (r.cost || 0).toFixed(2) + '</span></div>';
-            docText += '<div class="f">Thank you for choosing SmartPark!<br>This is a computer-generated receipt.</div>';
-            docText += '<div class="np" style="text-align:center;margin-top:20px;">';
-            docText += '<button onclick="window.print()" style="padding:10px 28px;background:#3B82F6;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;">Print Receipt</button>';
-            docText += '</div></div><' + '/body><' + '/html>';
-            w.document.write(docText);
-            w.document.close();
-        }
+function exportPDF() {
+    if (historyData.length === 0) { showToast('info', 'No records to export.'); return; }
+    var w = window.open('', '_blank');
+    if (!w) { showToast('error', 'Please allow popups.'); return; }
+    var rows = '';
+    for (var i = 0; i < historyData.length; i++) {
+        var h = historyData[i];
+        rows += '<tr><td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);font-weight:600;color:#f8fafc;">#' + escHtml(h.bookingId) + '</td>';
+        rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">' + escHtml(h.zone) + '</td>';
+        rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">' + (h.slot || '') + '</td>';
+        rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">' + (h.date || '') + '</td>';
+        rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">' + escHtml(h.entryTime) + '</td>';
+        rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">' + escHtml(h.exitTime) + '</td>';
+        rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">' + escHtml(h.duration) + '</td>';
+        rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);text-align:right;color:#f8fafc;">BDT ' + (h.cost || 0).toFixed(2) + '</td>';
+        rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);"><span class="badge-' + (h.paymentStatus === 'Cancelled' ? 'cancelled' : (h.paymentStatus === 'Pending' ? 'pending' : 'paid')) + '">' + (h.paymentStatus || 'Paid') + '</span></td></tr>';
+    }
+    var totalRev = historyData.reduce(function(s, h) { return s + (h.cost || 0); }, 0);
+    var pdfDoc = '<!DOCTYPE html><html><head><title>SmartPark - Parking History Report</title>';
+    pdfDoc += '<style>body{font-family:Inter,Poppins,sans-serif;padding:30px;background:#0B1426;color:#f8fafc;}';
+    pdfDoc += 'table{width:100%;border-collapse:collapse;background:#152238;border-radius:12px;overflow:hidden;border:1px solid rgba(59,130,246,0.15);}';
+    pdfDoc += 'th{background:#111B33;padding:10px 8px;font-size:11px;text-align:left;color:#94a3b8;}';
+    pdfDoc += 'td{font-size:12px;color:#cbd5e1;}<' + '/style><' + '/head><body>';
+    pdfDoc += '<h2 style="color:#f8fafc;">SmartPark - Parking History Report</h2>';
+    pdfDoc += '<p style="color:#94a3b8;">Generated: ' + new Date().toLocaleString() + ' | Records: ' + historyData.length + '</p>';
+    pdfDoc += '<table><thead><tr><th>Booking ID</th><th>Zone</th><th>Slot</th><th>Date</th><th>Entry</th><th>Exit</th><th>Duration</th><th style="text-align:right;">Cost</th><th>Status</th></tr></thead><tbody>';
+    pdfDoc += rows;
+    pdfDoc += '</tbody></table>';
+    pdfDoc += '<p style="margin-top:16px;font-size:14px;font-weight:700;color:#3B82F6;">Total Revenue: BDT ' + totalRev.toFixed(2) + '</p>';
+    pdfDoc += '<button onclick="window.print()" style="margin-top:20px;padding:10px 24px;background:#3B82F6;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Print / Save PDF</button>';
+    pdfDoc += '<' + '/body><' + '/html>';
+    w.document.write(pdfDoc);
+    w.document.close();
+    showToast('success', 'Report opened with ' + historyData.length + ' records.');
+}
 
-        // ============================================================
-        // EXPORT PDF
-        // ============================================================
-        function exportPDF() {
-            if (historyData.length === 0) { showToast('info', 'No records to export.'); return; }
-            var w = window.open('', '_blank');
-            if (!w) { showToast('error', 'Please allow popups.'); return; }
-            var rows = '';
-            for (var i = 0; i < historyData.length; i++) {
-                var h = historyData[i];
-                rows += '<tr>';
-                rows += '<td style="padding:8px;border-bottom:1px solid #E5E7EB;font-weight:600;">#' + escHtml(h.bookingId) + '</td>';
-                rows += '<td style="padding:8px;border-bottom:1px solid #E5E7EB;">' + escHtml(h.zone) + '</td>';
-                rows += '<td style="padding:8px;border-bottom:1px solid #E5E7EB;">' + (h.slot || '') + '</td>';
-                rows += '<td style="padding:8px;border-bottom:1px solid #E5E7EB;">' + (h.date || '') + '</td>';
-                rows += '<td style="padding:8px;border-bottom:1px solid #E5E7EB;">' + escHtml(h.entryTime) + '</td>';
-                rows += '<td style="padding:8px;border-bottom:1px solid #E5E7EB;">' + escHtml(h.exitTime) + '</td>';
-                rows += '<td style="padding:8px;border-bottom:1px solid #E5E7EB;">' + escHtml(h.duration) + '</td>';
-                rows += '<td style="padding:8px;border-bottom:1px solid #E5E7EB;text-align:right;">BDT ' + (h.cost || 0).toFixed(2) + '</td>';
-                rows += '<td style="padding:8px;border-bottom:1px solid #E5E7EB;">' + (h.paymentStatus || 'Paid') + '</td>';
-                rows += '</tr>';
-            }
-            var totalRev = historyData.reduce(function(s, h) { return s + (h.cost || 0); }, 0);
-            var pdfDoc = '<!DOCTYPE html><html><head><title>SmartPark - Parking History Report</title>';
-            pdfDoc += '<style>body{font-family:Inter,Poppins,sans-serif;padding:30px;background:#F5F7FB;}';
-            pdfDoc += 'table{width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden;}';
-            pdfDoc += 'th{background:#1e293b;color:white;padding:10px 8px;font-size:11px;text-align:left;}';
-            pdfDoc += 'td{font-size:12px;color:#1e293b;}<' + '/style><' + '/head><body>';
-            pdfDoc += '<h2>SmartPark - Parking History Report</h2>';
-            pdfDoc += '<p>Generated: ' + new Date().toLocaleString() + ' | Records: ' + historyData.length + '</p>';
-            pdfDoc += '<table><thead><tr><th>Booking ID</th><th>Zone</th><th>Slot</th><th>Date</th><th>Entry</th><th>Exit</th><th>Duration</th><th style="text-align:right;">Cost</th><th>Payment</th></tr></thead><tbody>';
-            pdfDoc += rows;
-                        pdfDoc += '</tbody>' + '</table>';
-                        pdfDoc += '<p style="margin-top:16px;font-size:14px;font-weight:700;">Total Revenue: BDT ' + totalRev.toFixed(2) + '</p>';
-                        pdfDoc += '<button onclick="window.print()" style="margin-top:20px;padding:10px 24px;background:#3B82F6;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Print / Save PDF</button>';
-                        pdfDoc += '<' + '/body><' + '/html>';
-            w.document.write(pdfDoc);
-            w.document.close();
-            showToast('success', 'Report opened with ' + historyData.length + ' records.');
-        }
+function exportCSV() {
+    if (historyData.length === 0) { showToast('info', 'No records to export.'); return; }
+    var csv = 'Booking ID,Zone,Slot,Date,Entry Time,Exit Time,Duration,Cost,Payment Status\n';
+    for (var i = 0; i < historyData.length; i++) {
+        var h = historyData[i];
+        csv += '"#' + (h.bookingId || '') + '",';
+        csv += '"' + (h.zone || '') + '",';
+        csv += '"' + (h.slot || '') + '",';
+        csv += '"' + (h.date || '') + '",';
+        csv += '"' + (h.entryTime || '') + '",';
+        csv += '"' + (h.exitTime || '') + '",';
+        csv += '"' + (h.duration || '') + '",';
+        csv += '"BDT ' + (h.cost || 0).toFixed(2) + '",';
+        csv += '"' + (h.paymentStatus || 'Paid') + '"\n';
+    }
+    var blob = new Blob([csv], { type: 'text/csv' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'SmartPark_History.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('success', 'CSV file downloaded with ' + historyData.length + ' records.');
+}
 
-        // ============================================================
-        // EXPORT CSV
-        // ============================================================
-        function exportCSV() {
-            if (historyData.length === 0) { showToast('info', 'No records to export.'); return; }
-            var csv = 'Booking ID,Zone,Slot,Date,Entry Time,Exit Time,Duration,Cost,Payment Status\n';
-            for (var i = 0; i < historyData.length; i++) {
-                var h = historyData[i];
-                csv += '"#' + (h.bookingId || '') + '",';
-                csv += '"' + (h.zone || '') + '",';
-                csv += '"' + (h.slot || '') + '",';
-                csv += '"' + (h.date || '') + '",';
-                csv += '"' + (h.entryTime || '') + '",';
-                csv += '"' + (h.exitTime || '') + '",';
-                csv += '"' + (h.duration || '') + '",';
-                csv += '"BDT ' + (h.cost || 0).toFixed(2) + '",';
-                csv += '"' + (h.paymentStatus || 'Paid') + '"\n';
-            }
-            var blob = new Blob([csv], { type: 'text/csv' });
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = 'SmartPark_History.csv';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            showToast('success', 'CSV file downloaded with ' + historyData.length + ' records.');
-        }
+function toggleMobileMenu() {
+    var menu = document.getElementById('mobile-menu'); var icon = document.getElementById('menu-icon');
+    if (menu.classList.contains('hidden')) { menu.classList.remove('hidden'); icon.classList.remove('fa-bars'); icon.classList.add('fa-xmark'); }
+    else { menu.classList.add('hidden'); icon.classList.remove('fa-xmark'); icon.classList.add('fa-bars'); }
+}
+</script>
 
-        // ============================================================
-        // MOBILE MENU TOGGLE
-        // ============================================================
-        function toggleMobileMenu() {
-            var menu = document.getElementById('mobile-menu');
-            var icon = document.getElementById('menu-icon');
-            if (menu.classList.contains('hidden')) {
-                menu.classList.remove('hidden');
-                icon.classList.remove('fa-bars');
-                icon.classList.add('fa-xmark');
-            } else {
-                menu.classList.add('hidden');
-                icon.classList.remove('fa-xmark');
-                icon.classList.add('fa-bars');
-            }
-        }
-
-
-    </script>
+<!-- AI Chat Widget -->
+<div class="ai-chat-widget no-print">
+    <div id="ai-chat-panel" class="ai-chat-panel">
+        <div class="ai-chat-header">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-sp-purple to-sp-accent flex items-center justify-center"><i class="fa-solid fa-sparkles text-white text-sm"></i></div>
+            <div><p class="text-sm font-bold text-white">SmartPark AI</p><p class="text-[10px] text-slate-400">Your parking assistant</p></div>
+            <button onclick="toggleAIChat()" class="ml-auto text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="ai-chat-body" id="ai-chat-messages">
+            <div class="ai-chat-msg ai">Hi! I can help you analyze your parking history, find patterns, and suggest smarter booking habits. What would you like to know? 📊</div>
+        </div>
+        <div class="ai-quick-actions">
+            <button class="ai-quick-btn" onclick="sendAIQuick('Analyze my parking patterns')">Analyze patterns</button>
+            <button class="ai-quick-btn" onclick="sendAIQuick('Suggest saving tips')">Saving tips</button>
+            <button class="ai-quick-btn" onclick="sendAIQuick('Compare spending')">Compare spending</button>
+        </div>
+        <div class="ai-chat-input-row">
+            <input type="text" id="ai-chat-input" class="ai-chat-input" placeholder="Ask about your parking history..." onkeypress="if(event.key==='Enter')sendAIMessage()">
+            <button class="ai-chat-send" onclick="sendAIMessage()"><i class="fa-solid fa-paper-plane text-xs"></i></button>
+        </div>
+    </div>
+    <button class="ai-chat-bubble" onclick="toggleAIChat()" title="Ask AI Assistant"><i class="fa-solid fa-sparkles"></i></button>
+</div>
 </body>
 </html>
-

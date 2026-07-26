@@ -1,140 +1,96 @@
-const fs = require('fs').promises;
-const path = require('path');
-
-const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(process.cwd(), 'data');
-
-async function ensureDataDir() {
-  try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-  } catch (err) {
-    console.error('Error creating data directory:', err);
-  }
-}
-
-async function readFile(filename) {
-  try {
-    const data = await fs.readFile(path.join(DATA_DIR, filename), 'utf-8');
-    return JSON.parse(data);
-  } catch (err) {
-    if (err.code === 'ENOENT') return [];
-    throw err;
-  }
-}
-
-async function writeFile(filename, data) {
-  await fs.writeFile(path.join(DATA_DIR, filename), JSON.stringify(data, null, 2), 'utf-8');
-}
-
-function generateId() {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
-}
+const User = require('./models/User');
+const ParkingSession = require('./models/ParkingSession');
+const bcrypt = require('bcryptjs'); // Needed for password hashing even with placeholder User model
 
 const store = {
-  users: [],
-  sessions: [],
-
   async init() {
-    await ensureDataDir();
-    this.users = await readFile('users.json');
-    this.sessions = await readFile('sessions.json');
-  },
-
-  async saveUsers() {
-    await writeFile('users.json', this.users);
-  },
-
-  async saveSessions() {
-    await writeFile('sessions.json', this.sessions);
+    console.log('File-based data store initialized.');
   },
 
   // User operations
   async findUser(query) {
-    if (query.email) {
-      return this.users.find(u => u.email === query.email) || null;
+    const user = await User.findOne(query);
+    if (user && user.password) {
+        // For compatibility with bcrypt.compare in auth routes, we need to ensure the password is a hashed string
+        // If the placeholder model directly returns the JSON password, this is fine.
+        // If the placeholder model doesn't store hashed passwords, this would be an issue.
+        // Given the current revert, the JSON users.json still contains hashed passwords.
+        // The placeholder User model's findOne will return the user as is from JSON.
+        // The matchPassword method in the placeholder User model is a simplified comparison.
+        // For full compatibility with existing auth, we should keep bcrypt.compare in auth.js
+        // and ensure the password stored in JSON is indeed hashed.
     }
-    if (query._id) {
-      return this.users.find(u => u._id === query._id) || null;
-    }
-    return null;
-  },
-
-  async createUser(user) {
-    user._id = generateId();
-    user.createdAt = new Date().toISOString();
-    this.users.push(user);
-    await this.saveUsers();
     return user;
   },
 
+  async createUser(userData) {
+    // Hash password before saving, similar to the original User model's pre-save hook
+    const salt = await bcrypt.genSalt(10);
+    userData.password = await bcrypt.hash(userData.password, salt);
+    const newUser = await User.create(userData);
+    return newUser;
+  },
+
   async updateUser(id, updates) {
-    const idx = this.users.findIndex(u => u._id === id);
-    if (idx === -1) return null;
-    this.users[idx] = { ...this.users[idx], ...updates };
-    await this.saveUsers();
-    return this.users[idx];
+    const user = await User.findById(id);
+    if (!user) return null;
+    Object.assign(user, updates);
+    await user.save();
+    return user;
   },
 
   async deleteUser(id) {
-    const idx = this.users.findIndex(u => u._id === id);
-    if (idx === -1) return null;
-    const deleted = this.users.splice(idx, 1)[0];
-    await this.saveUsers();
-    return deleted;
+    return User.findByIdAndRemove(id);
   },
 
-  getAllUsers() {
-    return this.users.map(u => ({ ...u }));
+  async getAllUsers() {
+    return User.find();
   },
 
   // ParkingSession operations
   async findSession(query) {
-    if (query._id) {
-      return this.sessions.find(s => s._id === query._id) || null;
+    let sessions = await ParkingSession.find(query);
+    // Simulate populate 'user' field if needed, for consistency with Mongoose populate
+    for (let session of sessions) {
+        if (session.user) {
+            const user = await User.findById(session.user);
+            if (user) {
+                session.user = { _id: user._id, email: user.email, role: user.role };
+            }
+        }
     }
-    if (query.user && query.endTime) {
-      if (query.endTime.$exists === false) {
-        return this.sessions.filter(s => s.user === query.user && !s.endTime);
-      }
-      if (query.endTime.$exists === true) {
-        return this.sessions.filter(s => s.user === query.user && s.endTime);
-      }
-    }
-    if (query.user) {
-      return this.sessions.filter(s => s.user === query.user);
-    }
-    return this.sessions;
+    return sessions;
   },
 
-  async createSession(session) {
-    session._id = generateId();
-    session.createdAt = new Date().toISOString();
-    this.sessions.push(session);
-    await this.saveSessions();
-    return session;
+  async createSession(sessionData) {
+    const newSession = await ParkingSession.create(sessionData);
+    return newSession;
   },
 
   async updateSession(id, updates) {
-    const idx = this.sessions.findIndex(s => s._id === id);
-    if (idx === -1) return null;
-    if (updates.$set) {
-      this.sessions[idx] = { ...this.sessions[idx], ...updates.$set };
-    } else {
-      this.sessions[idx] = { ...this.sessions[idx], ...updates };
-    }
-    await this.saveSessions();
-    return this.sessions[idx];
+    const session = await ParkingSession.findById(id);
+    if (!session) return null;
+    Object.assign(session, updates.$set || updates);
+    await session.save();
+    return session;
   },
 
   async deleteSession(id) {
-    const idx = this.sessions.findIndex(s => s._id === id);
-    if (idx === -1) return null;
-    const deleted = this.sessions.splice(idx, 1)[0];
-    await this.saveSessions();
-    return deleted;
+    return ParkingSession.findByIdAndRemove(id);
   },
 
-  getAllSessions() {
-    return this.sessions.map(s => ({ ...s }));
+  async getAllSessions() {
+    let sessions = await ParkingSession.find();
+    // Simulate populate 'user' field
+    for (let session of sessions) {
+        if (session.user) {
+            const user = await User.findById(session.user);
+            if (user) {
+                session.user = { _id: user._id, email: user.email, role: user.role };
+            }
+        }
+    }
+    return sessions;
   },
 };
 

@@ -3,601 +3,344 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartPark - My Sessions</title>
-    <!-- Tailwind CSS CDN -->
+    <title>SmartPark — My Sessions</title>
+    <meta name="smartpark-api-url" content="">
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <!-- Google Fonts (Poppins) -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter','Poppins','sans-serif'] }, colors: { sp: { primary:'#0B1426', secondary:'#111B33', card:'#152238', accent:'#3B82F6', emerald:'#10B981', purple:'#8B5CF6', cyan:'#06B6D4' } } } } }
+    </script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Poppins', sans-serif; background: #f8fafc; color: #1e293b; min-height: 100vh; }
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        .digital-timer {
-            font-family: 'Courier New', monospace;
-            font-size: 36px;
-            font-weight: 700;
-            letter-spacing: 3px;
-            color: #0f172a;
-        }
-        .pay-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 14px 16px;
-            border-radius: 12px;
-            font-size: 14px;
-            font-weight: 700;
-            border: none;
-            cursor: pointer;
-            transition: all 0.2s;
-            width: 100%;
-        }
-        .pay-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        .live-meter-panel {
-            background: linear-gradient(135deg, #eef6ff 0%, #f0f9ff 100%);
-            border: 1.5px solid #bfdbfe;
-            border-radius: 16px;
-        }
+        body { font-family: 'Poppins', 'Inter', sans-serif; background: #0B1426; }
+        #session-card-container { max-width: 2xl; }
     </style>
 </head>
-<body>
+<body class="font-sans bg-sp-primary text-slate-100">
 
-    <!-- ===================== TOP NAVBAR ===================== -->
-    <header class="bg-slate-950 border-b border-slate-800 sticky top-0 z-30">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6">
-            <div class="flex items-center justify-between h-16">
-                <!-- Left: Logo -->
-                <div class="flex items-center gap-3">
-                    <a href="customer.html" class="flex items-center gap-2.5 no-underline">
-                        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                            <i class="fa-solid fa-square-p text-white text-lg"></i>
-                        </div>
-                        <div>
-                            <span class="text-lg font-extrabold tracking-wider bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">SmartPark</span>
-                            <span class="block text-[9px] text-slate-500 font-semibold tracking-widest uppercase leading-none">Parking System</span>
-                        </div>
-                    </a>
-                </div>
+<!-- Auth Guard -->
+<script>
+(function() {
+    const token = localStorage.getItem('token_customer');
+    if (!token) { window.location.href = 'index.html'; return; }
+    try { if (token.startsWith('static-')) { const u = JSON.parse(localStorage.getItem('loggedInUser_customer')||'{}'); if(u.role!=='customer'&&u.role!=='user'){window.location.href='index.html';} } } catch(e){window.location.href='index.html';}
+})();
+</script>
 
-                <!-- Center: Desktop Nav -->
-                <nav class="hidden lg:flex items-center gap-1">
-                    <a href="book-parking.html" class="px-4 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all duration-300">
-                        <i class="fa-solid fa-calendar-check mr-1.5"></i>Book Parking
-                    </a>
-                    <a href="my-sessions.html" class="px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white shadow-lg shadow-blue-500/20 transition-all duration-300">
-                        <i class="fa-solid fa-car-side mr-1.5"></i>My Sessions
-                    </a>
-                    <a href="my-history.html" class="px-4 py-2 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all duration-300">
-                        <i class="fa-solid fa-clock-rotate-left mr-1.5"></i>My History
-                    </a>
-                </nav>
-
-                <!-- Right: Actions -->
-                <div class="flex items-center gap-3">
-                    <button onclick="refreshData()" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors" title="Refresh">
-                        <i class="fa-solid fa-rotate"></i>
-                    </button>
-                    <a href="#" onclick="logout(); return false;" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg transition-all border border-red-500/20 no-underline">
-                        <i class="fa-solid fa-right-from-bracket"></i> Sign Out
-                    </a>
-                    <!-- Mobile Hamburger -->
-                    <button onclick="toggleMobileMenu()" class="lg:hidden w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors" title="Menu">
-                        <i class="fa-solid fa-bars text-base" id="hamburger-icon"></i>
-                    </button>
-                </div>
+<!-- ===================== TOP NAVBAR ===================== -->
+<header class="bg-sp-secondary/90 backdrop-blur-xl border-b border-sp-accent/10 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+        <div class="flex items-center justify-between h-16">
+            <div class="flex items-center gap-3">
+                <a href="customer.html" class="flex items-center gap-2.5 no-underline">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-sp-accent to-sp-emerald flex items-center justify-center shadow-lg shadow-sp-accent/25">
+                        <i class="fa-solid fa-square-p text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <span class="text-lg font-extrabold tracking-wider text-gradient">SmartPark</span>
+                        <span class="block text-[9px] text-slate-500 font-semibold tracking-widest uppercase leading-none">AI Parking</span>
+                    </div>
+                </a>
             </div>
-            <!-- Mobile Dropdown Menu -->
-            <div id="mobile-menu" class="lg:hidden hidden border-t border-slate-800 py-3 px-2 space-y-1">
-                <a href="book-parking.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all">
-                    <i class="fa-solid fa-calendar-check w-5 text-center"></i> Book Parking
-                </a>
-                <a href="my-sessions.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-semibold rounded-lg bg-blue-600 text-white transition-all">
-                    <i class="fa-solid fa-car-side w-5 text-center"></i> My Sessions
-                </a>
-                <a href="my-history.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-all">
-                    <i class="fa-solid fa-clock-rotate-left w-5 text-center"></i> My History
-                </a>
-                <a href="#" onclick="logout(); return false;" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-red-400 hover:text-red-300 hover:bg-slate-800 transition-all sm:hidden">
-                    <i class="fa-solid fa-right-from-bracket w-5 text-center"></i> Sign Out
-                </a>
+            <nav class="hidden lg:flex items-center gap-1">
+                <a href="book-parking.html" class="nav-link px-4 py-2 text-sm font-medium rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-all"><i class="fa-solid fa-calendar-check mr-1.5"></i>Book Parking</a>
+                <a href="my-sessions.html" class="nav-link active px-4 py-2 text-sm font-semibold rounded-lg text-sp-accent bg-sp-accent/10 transition-all"><i class="fa-solid fa-car-side mr-1.5"></i>My Sessions</a>
+                <a href="my-history.html" class="nav-link px-4 py-2 text-sm font-medium rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-all"><i class="fa-solid fa-clock-rotate-left mr-1.5"></i>My History</a>
+            </nav>
+            <div class="flex items-center gap-3">
+                <button onclick="refreshData()" class="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors" title="Refresh"><i class="fa-solid fa-rotate"></i></button>
+                <a href="#" onclick="logout(); return false;" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-xl transition-all border border-red-500/20 no-underline"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</a>
+                <button onclick="toggleMobileMenu()" class="lg:hidden w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors"><i class="fa-solid fa-bars text-base" id="hamburger-icon"></i></button>
             </div>
         </div>
-    </header>
-
-    <!-- ===================== MAIN CONTENT ===================== -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        <div class="mb-6">
-            <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900">My Sessions</h2>
-            <p class="text-sm text-slate-500 mt-1" id="my-sessions-subtitle">Loading active sessions...</p>
+        <div id="mobile-menu" class="lg:hidden hidden border-t border-sp-accent/10 py-3 px-2 space-y-1">
+            <a href="book-parking.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-slate-400 hover:text-white hover:bg-white/5"><i class="fa-solid fa-calendar-check w-5 text-center"></i> Book Parking</a>
+            <a href="my-sessions.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-semibold rounded-lg bg-sp-accent/10 text-sp-accent"><i class="fa-solid fa-car-side w-5 text-center"></i> My Sessions</a>
+            <a href="my-history.html" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-slate-400 hover:text-white hover:bg-white/5"><i class="fa-solid fa-clock-rotate-left w-5 text-center"></i> My History</a>
         </div>
-        <div id="session-card-container" class="max-w-2xl mx-auto"></div>
-    </main>
+    </div>
+</header>
 
-    <!-- ===================== PAYMENT MODAL ===================== -->
-    <div id="payment-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
-        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl transform scale-95 transition-all duration-300 overflow-y-auto max-h-[95vh]" id="payment-modal-card">
-            <!-- Modal Header -->
-            <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-4">
-                <div>
-                    <h3 class="text-lg font-extrabold text-slate-900" id="pay-modal-title">Complete Payment</h3>
-                    <p class="text-xs text-slate-500">Send the exact amount to the admin number below</p>
-                </div>
-                <button onclick="closePaymentModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors">
-                    <i class="fa-solid fa-xmark text-base"></i>
-                </button>
+<!-- ===================== MAIN CONTENT ===================== -->
+<main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <div class="mb-6 flex items-center justify-between">
+        <div>
+            <div class="flex items-center gap-2 mb-1">
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">My Sessions</h2>
+                <span class="ai-badge text-[9px]">Live</span>
             </div>
+            <p class="text-sm text-slate-500 mt-0.5" id="my-sessions-subtitle">Loading active sessions...</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="refreshData()" class="btn-secondary py-2 px-4 text-xs"><i class="fa-solid fa-rotate mr-1.5"></i> Refresh</button>
+        </div>
+    </div>
+    <div id="session-card-container" class="max-w-2xl mx-auto space-y-4"></div>
+</main>
 
-            <!-- Payment Details -->
-            <div class="space-y-4">
-                <!-- Admin Account Info -->
-                <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-                    <p class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Send Payment To (Admin)</p>
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xl">
-                            <i class="fa-solid fa-building-columns"></i>
-                        </div>
-                        <div>
-                            <p class="text-lg font-extrabold text-slate-900" id="pay-admin-number">01841156753</p>
-                            <p class="text-xs text-slate-500">Admin <span id="pay-method-label">bKash</span> Account</p>
-                        </div>
+<!-- ===================== PAYMENT MODAL ===================== -->
+<div id="payment-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-sp-primary/85 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
+    <div class="bg-sp-card rounded-3xl max-w-md w-full p-6 shadow-2xl transform scale-95 transition-all duration-300 overflow-y-auto max-h-[95vh] border border-sp-accent/15" id="payment-modal-card">
+        <div class="flex justify-between items-center mb-5 border-b border-sp-accent/10 pb-4">
+            <div>
+                <h3 class="text-lg font-extrabold text-white" id="pay-modal-title">Complete Payment</h3>
+                <p class="text-xs text-slate-400">Send the exact amount to the admin number below</p>
+            </div>
+            <button onclick="closePaymentModal()" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark text-base"></i></button>
+        </div>
+        <div class="space-y-4">
+            <div class="bg-sp-accent/10 border border-sp-accent/20 rounded-2xl p-4">
+                <p class="text-xs font-bold text-sp-accent uppercase tracking-wider mb-2">Send Payment To (Admin)</p>
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-full bg-sp-accent/10 flex items-center justify-center text-sp-accent text-xl"><i class="fa-solid fa-building-columns"></i></div>
+                    <div>
+                        <p class="text-lg font-extrabold text-white" id="pay-admin-number">01841156753</p>
+                        <p class="text-xs text-slate-500">Admin <span id="pay-method-label">bKash</span> Account</p>
                     </div>
                 </div>
-
-                <!-- Amount to Pay -->
-                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center">
-                    <p class="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">Amount to Pay</p>
-                    <p class="text-4xl font-extrabold text-emerald-700" id="pay-amount">&#x9F3;0.00</p>
-                </div>
-
-                <!-- Customer Sends Money Section -->
-                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Customer Payment Details</p>
-                    <div class="space-y-3">
-                        <div>
-                            <label class="text-xs font-semibold text-slate-600">Your <span id="pay-cust-method-label">bKash</span> Number *</label>
-                            <input type="text" id="pay-customer-number" required placeholder="e.g. 01XXXXXXXXX" class="w-full mt-1 bg-white border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm outline-none transition-all">
-                        </div>
-                        <div>
-                            <label class="text-xs font-semibold text-slate-600">Transaction ID (TrxID) *</label>
-                            <input type="text" id="pay-trx-id" required placeholder="e.g. ABC123D4E5" class="w-full mt-1 bg-white border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl py-2.5 px-4 text-sm outline-none transition-all">
-                        </div>
+            </div>
+            <div class="bg-sp-emerald/10 border border-sp-emerald/20 rounded-2xl p-4 text-center">
+                <p class="text-xs font-bold text-sp-emerald uppercase tracking-wider mb-1">Amount to Pay</p>
+                <p class="text-4xl font-extrabold text-sp-emerald" id="pay-amount">৳0.00</p>
+            </div>
+            <div class="bg-sp-secondary border border-sp-accent/10 rounded-2xl p-4">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Customer Payment Details</p>
+                <div class="space-y-3">
+                    <div>
+                        <label class="form-label">Your <span id="pay-cust-method-label">bKash</span> Number *</label>
+                        <input type="text" id="pay-customer-number" required placeholder="e.g. 01XXXXXXXXX" class="form-input">
+                    </div>
+                    <div>
+                        <label class="form-label">Transaction ID (TrxID) *</label>
+                        <input type="text" id="pay-trx-id" required placeholder="e.g. ABC123D4E5" class="form-input">
                     </div>
                 </div>
-
-                <!-- Action Buttons -->
-                <div class="flex justify-end gap-3 border-t border-slate-100 pt-4">
-                    <button onclick="closePaymentModal()" class="px-5 py-2.5 text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors">Cancel</button>
-                    <button onclick="confirmPayment()" class="px-5 py-2.5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2">
-                        <i class="fa-solid fa-check-circle"></i> Confirm Payment
-                    </button>
-                </div>
+            </div>
+            <div class="flex justify-end gap-3 border-t border-sp-accent/10 pt-4">
+                <button onclick="closePaymentModal()" class="btn-secondary py-2.5 px-5">Cancel</button>
+                <button onclick="confirmPayment()" class="btn-success py-2.5 px-5"><i class="fa-solid fa-check-circle"></i> Confirm Payment</button>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- ===================== TOAST CONTAINER ===================== -->
-    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
+<!-- TOAST -->
+<div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
 
-    <!-- ===================== JAVASCRIPT ===================== -->
-    <script src="script.js"></script>
-    <script>
-        // ============================================================
-        // DATA
-        // ============================================================
-        // zonesData, getZonePrefix, formatTime, formatTimeAMPM, escHtml
-        // are all defined in script.js and shared across all pages.
-        let sessions = [];
-        let nextBookingId = 1000;
-        let zoneSlots = {};
+<script src="script.js"></script>
+<script>
+// sessions, nextBookingId, zoneSlots, liveTimers declared in outer scope if needed
+let sessions = [];
+let nextBookingId = 1000;
+let zoneSlots = {};
+let liveTimers = {};
 
-        // Live timer intervals
-        let liveTimers = {};
+document.addEventListener('DOMContentLoaded', async function() {
+    const loggedInUser = getLoggedInUser();
+    if (!loggedInUser || loggedInUser.role !== 'customer') { window.location.href = 'index.html'; return; }
+    await loadData();
+    renderSessions();
+});
 
-        // ============================================================
-        // INIT
-        // ============================================================
-        document.addEventListener('DOMContentLoaded', async function() {
-            const loggedInUser = getLoggedInUser();
-            if (!loggedInUser || loggedInUser.role !== 'customer') {
-                window.location.href = 'index.html';
-                return;
-            }
-            await loadData();
-            renderSessions();
-        });
+async function refreshData() { await loadData(); renderSessions(); showToast('info', 'Data refreshed!'); }
 
-        // ============================================================
-        // REFRESH
-        // ============================================================
-        async function refreshData() { // Make refreshData async
-            await loadData();
-            renderSessions();
-            showToast('info', 'Data refreshed!');
-        }
+function loadData() {
+    try {
+        var saved = getUserData('customerParkingData');
+        if (saved) { sessions = saved.sessions || []; nextBookingId = saved.nextId || 1000; zoneSlots = saved.zoneSlots || {}; }
+    } catch(e) {}
+}
+function saveData() { setUserData('customerParkingData', { sessions: sessions, nextId: nextBookingId, zoneSlots: zoneSlots, history: [], nextHistId: 2000 }); }
 
-        // ============================================================
-        // LOCAL STORAGE (uses shared functions from script.js)
-        // ============================================================
-        var history = [];
-        var nextHistoryId = 2000;
+function renderSessions() {
+    var container = document.getElementById('session-card-container');
+    var subtitle = document.getElementById('my-sessions-subtitle');
+    if (!container) return;
+    var active = sessions.filter(function(s) { return s.status === 'Active'; });
+    subtitle.textContent = active.length + ' active parking session' + (active.length !== 1 ? 's' : '');
+    Object.keys(liveTimers).forEach(function(id) { clearInterval(liveTimers[id]); delete liveTimers[id]; });
+    container.innerHTML = '';
+    if (active.length === 0) {
+        container.innerHTML = '<div class="text-center py-20 text-slate-500"><i class="fa-solid fa-car-side text-5xl mb-4 opacity-30"></i><p class="text-sm font-medium">No active parking sessions</p><p class="text-xs text-slate-600 mt-1">Book a spot to get started</p></div>';
+        return;
+    }
+    // Show each active session as a card (limit to 5 visible)
+    active.slice(0, 5).forEach(function(s) {
+        var rate = s.bookingType === 'meter' ? (s.meterRate || 5.00) : 5.00;
+        var isFixed = s.bookingType !== 'meter';
+        var createdAt = s.createdAt ? new Date(s.createdAt).getTime() : Date.now();
+        var elapsedSeconds = Math.floor((Date.now() - createdAt) / 1000);
+        var entryTime = s.entryTime || 'N/A';
+        var entryDate = s.date ? new Date(s.date + 'T' + entryTime) : new Date();
+        var formattedEntry = entryDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        var parkingCode = s.vehicle ? s.vehicle.replace(/[^A-Za-z0-9]/g, '').toUpperCase() : 'P' + s.id;
+        if (parkingCode.length < 4) parkingCode = 'PK' + s.id;
 
-        async function loadData() {
-            var data = loadParkingData();
-            sessions = data.sessions;
-            history = data.history;
-            nextBookingId = data.nextBookingId;
-            nextHistoryId = data.nextHistoryId;
-            zoneSlots = data.zoneSlots;
-        }
-
-        // ============================================================
-        // RENDER SESSIONS
-        // ============================================================
-        function renderSessions() {
-            var container = document.getElementById('session-card-container');
-            var subtitle = document.getElementById('my-sessions-subtitle');
-            if (!container) return;
-
-            var active = sessions.filter(function(s) { return s.status === 'Active'; });
-            subtitle.textContent = active.length + ' active parking session' + (active.length !== 1 ? 's' : '');
-
-            // Stop all existing live timers
-            Object.keys(liveTimers).forEach(function(id) {
-                clearInterval(liveTimers[id]);
-                delete liveTimers[id];
-            });
-
-            container.innerHTML = '';
-
-            if (active.length === 0) {
-                container.innerHTML = '<div class="text-center py-20 text-slate-400"><i class="fa-solid fa-car-side text-5xl mb-4 opacity-30"></i><p class="text-sm font-medium">No active parking sessions</p></div>';
-                return;
-            }
-
-            // Only show the first active session as a card
-            var s = active[0];
-            var zonePrefix = getZonePrefix(s.zone);
-            var rate = s.bookingType === 'meter' ? (s.meterRate || 5.00) : 5.00;
-            var isFixed = s.bookingType !== 'meter';
-            var costPerHour = rate;
-
-            // Calculate elapsed time from creation
-            var createdAt = s.createdAt ? new Date(s.createdAt).getTime() : Date.now();
-            var elapsedSeconds = Math.floor((Date.now() - createdAt) / 1000);
-
-            // Generate a parking code
-            var parkingCode = s.vehicle ? s.vehicle.replace(/[^A-Za-z0-9]/g, '').toUpperCase() : 'P' + s.id;
-            if (parkingCode.length < 4) parkingCode = 'PK' + s.id;
-
-            // Entry time formatted
-            var entryTime = s.entryTime || 'N/A';
-            var entryDate = s.date ? new Date(s.date + 'T' + entryTime) : new Date();
-            var formattedEntry = entryDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-
-            container.innerHTML =
-                '<div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">' +
-                    // Session Header
-                    '<div class="p-6 flex items-start justify-between border-b border-slate-100">' +
-                        '<div class="flex items-start gap-4">' +
-                            '<div class="w-14 h-14 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">' +
-                                '<i class="fa-solid fa-car text-blue-600 text-2xl"></i>' +
-                            '</div>' +
-                            '<div>' +
-                                '<h3 class="text-xl font-extrabold text-slate-900">' + parkingCode + '</h3>' +
-                                '<div class="flex items-center gap-4 mt-2">' +
-                                    '<span class="text-sm text-slate-500 flex items-center gap-1.5"><i class="fa-solid fa-location-dot text-slate-400"></i> ' + s.zone + '</span>' +
-                                    '<span class="text-sm text-slate-500 flex items-center gap-1.5"><i class="fa-regular fa-clock text-slate-400"></i> In: ' + formattedEntry + '</span>' +
-                                '</div>' +
-                            '</div>' +
+        var card = document.createElement('div');
+        card.className = 'glass-card overflow-hidden';
+        card.innerHTML =
+            '<div class="p-5 flex items-start justify-between border-b border-sp-accent/10">' +
+                '<div class="flex items-start gap-4">' +
+                    '<div class="w-14 h-14 rounded-xl bg-sp-accent/10 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-car text-sp-accent text-2xl"></i></div>' +
+                    '<div>' +
+                        '<h3 class="text-xl font-extrabold text-white font-mono">' + parkingCode + '</h3>' +
+                        '<div class="flex items-center gap-4 mt-2">' +
+                            '<span class="text-sm text-slate-500 flex items-center gap-1.5"><i class="fa-solid fa-location-dot text-slate-600"></i> ' + s.zone + '</span>' +
+                            '<span class="text-sm text-slate-500 flex items-center gap-1.5"><i class="fa-regular fa-clock text-slate-600"></i> In: ' + formattedEntry + '</span>' +
                         '</div>' +
-                        '<span class="px-3 py-1 text-xs font-bold rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 flex-shrink-0">Active</span>' +
                     '</div>' +
-
-                    // Live Meter Panel
-                    '<div class="p-6">' +
-                        '<div class="live-meter-panel p-5">' +
-                            '<div class="flex items-center justify-between mb-4">' +
-                                '<div class="flex items-center gap-2">' +
-                                    '<i class="fa-solid fa-gauge-high text-blue-600 text-sm"></i>' +
-                                    '<span class="text-sm font-bold text-blue-700">Live Meter</span>' +
-                                '</div>' +
-                '<span class="px-2.5 py-1 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">' +
-                                    (isFixed ? (s.durationHours == 1 ? '1st Hour (Fixed)' : s.durationHours + ' Hours (Fixed)') : 'Metered') +
-                                '</span>' +
-                            '</div>' +
-                            '<div class="text-center mb-4">' +
-                                '<p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Time Elapsed</p>' +
-                                '<div class="digital-timer" id="timer-display-' + s.id + '">' + formatTime(elapsedSeconds) + '</div>' +
-                            '</div>' +
-                            '<hr class="border-slate-200 my-4">' +
-                            '<div class="text-center">' +
-                                '<p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Current Charge</p>' +
-                                '<p class="text-4xl font-extrabold text-blue-600" id="cost-display-' + s.id + '">' +
-                                    '\u09F3' + s.cost.toFixed(2) +
-                                '</p>' +
-                                '<p class="text-xs text-slate-400 mt-1">Flat \u09F3' + costPerHour.toFixed(1) + ' for 1st hour</p>' +
-                            '</div>' +
-                        '</div>' +
-
-                        (s.paid ? '<div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mt-5 flex items-center justify-between"><div class="flex items-center gap-3"><i class="fa-solid fa-circle-check text-emerald-600 text-xl"></i><div><p class="text-sm font-bold text-emerald-700">Payment Recorded</p><p class="text-xs text-emerald-600">' + (s.payment || '') + ' | BDT ' + s.cost.toFixed(2) + '</p>' + (s.customerNumber ? '<p class="text-xs text-emerald-600">' + (s.customerNumber || '') + '</p>' : '') + (s.trxId ? '<p class="text-xs text-emerald-600">TrxID: ' + (s.trxId || '') + '</p>' : '') + '</div></div></div>' : (isFixed ? '<div class="grid grid-cols-2 gap-3 mt-5">' +
-                            '<button onclick="payWith(\'' + s.id + '\', \'bKash\')" class="pay-btn" style="background:#e91e8c;color:white;"><i class="fa-solid fa-phone"></i> bKash</button>' +
-                            '<button onclick="payWith(\'' + s.id + '\', \'Nagad\')" class="pay-btn" style="background:#f97316;color:white;"><i class="fa-solid fa-phone"></i> Nagad</button>' +
-                            '<button onclick="payWith(\'' + s.id + '\', \'Rocket\')" class="pay-btn" style="background:#8b5cf6;color:white;"><i class="fa-solid fa-phone"></i> Rocket</button>' +
-                            '<button onclick="payWith(\'' + s.id + '\', \'Cash\')" class="pay-btn" style="background:white;color:#059669;border:2px solid #059669;"><i class="fa-solid fa-money-bill-wave"></i> Cash</button>' +
-                        '</div>' : '<button onclick="payWith(\'' + s.id + '\', \'' + (s.payment || 'bKash') + '\')" class="pay-btn" style="background:#2563eb;color:white;"><i class="fa-solid fa-credit-card"></i> Pay Now (৳' + s.cost.toFixed(2) + ')</button>')) +
-                        '<button onclick="endSession(\'' + s.id + '\', false)" class="pay-btn mt-3" style="background:#ef4444;color:white;border:2px solid #ef4444;"><i class="fa-solid fa-stop-circle"></i> End Session</button></div>' +
+                '</div>' +
+                '<span class="px-3 py-1 text-[10px] font-bold rounded-full bg-sp-emerald/10 text-sp-emerald border border-sp-emerald/20 flex-shrink-0">Active</span>' +
+            '</div>' +
+            '<div class="p-5">' +
+                '<div class="bg-sp-secondary/50 border border-sp-accent/10 rounded-2xl p-5 mb-5">' +
+                    '<div class="flex items-center justify-between mb-4">' +
+                        '<div class="flex items-center gap-2"><i class="fa-solid fa-gauge-high text-sp-accent text-sm"></i><span class="text-sm font-bold text-white">Live Meter</span></div>' +
+                        '<span class="px-2.5 py-1 text-[10px] font-bold rounded-full bg-sp-emerald/10 text-sp-emerald border border-sp-emerald/20">' + (isFixed ? (s.durationHours == 1 ? '1st Hour (Fixed)' : s.durationHours + ' Hours (Fixed)') : 'Metered') + '</span>' +
                     '</div>' +
-                '</div>';
+                    '<div class="text-center mb-4"><p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Time Elapsed</p><div class="font-mono text-3xl font-bold text-white tracking-widest" id="timer-display-' + s.id + '">00:00:00</div></div>' +
+                    '<hr class="border-sp-accent/10 my-4">' +
+                    '<div class="text-center"><p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Current Charge</p><p class="text-4xl font-extrabold text-sp-accent" id="cost-display-' + s.id + '">৳' + s.cost.toFixed(2) + '</p><p class="text-xs text-slate-500 mt-1">Flat ৳' + rate.toFixed(1) + ' for 1st hour</p></div>' +
+                '</div>' +
+                (s.paid ? '<div class="bg-sp-emerald/10 border border-sp-emerald/20 rounded-2xl p-4 flex items-center gap-3"><i class="fa-solid fa-circle-check text-sp-emerald text-xl"></i><div><p class="text-sm font-bold text-sp-emerald">Payment Recorded</p><p class="text-xs text-sp-emerald/80">' + (s.payment || '') + ' | BDT ' + s.cost.toFixed(2) + '</p></div></div>' : 
+                (isFixed ? '<div class="grid grid-cols-2 gap-3">' +
+                    '<button onclick="payWith(\'' + s.id + '\', \'bKash\')" class="py-3 rounded-xl text-white font-bold text-sm" style="background:#e91e8c;"><i class="fa-solid fa-phone mr-1.5"></i> bKash</button>' +
+                    '<button onclick="payWith(\'' + s.id + '\', \'Nagad\')" class="py-3 rounded-xl text-white font-bold text-sm" style="background:#f97316;"><i class="fa-solid fa-phone mr-1.5"></i> Nagad</button>' +
+                    '<button onclick="payWith(\'' + s.id + '\', \'Rocket\')" class="py-3 rounded-xl text-white font-bold text-sm" style="background:#8b5cf6;"><i class="fa-solid fa-phone mr-1.5"></i> Rocket</button>' +
+                    '<button onclick="payWith(\'' + s.id + '\', \'Cash\')" class="py-3 rounded-xl font-bold text-sm border-2" style="background:white;color:#059669;border-color:#059669;"><i class="fa-solid fa-money-bill-wave mr-1.5"></i> Cash</button>' +
+                '</div>' : '<button onclick="payWith(\'' + s.id + '\', \'' + (s.payment || 'bKash') + '\')" class="btn-primary w-full py-3"><i class="fa-solid fa-credit-card mr-2"></i> Pay Now (৳' + s.cost.toFixed(2) + ')</button>')) +
+                '<button onclick="endSession(\'' + s.id + '\', false)" class="w-full mt-3 py-3 text-sm font-bold rounded-xl border-2 border-sp-red text-sp-red hover:bg-sp-red/10 transition-all"><i class="fa-solid fa-stop-circle mr-2"></i> End Session</button>' +
+            '</div>';
+        container.appendChild(card);
 
-            // Start live timer for this session
-            liveTimers[s.id] = setInterval(function() {
-                var now = Date.now();
-                var secs = Math.floor((now - createdAt) / 1000);
-                var timerEl = document.getElementById('timer-display-' + s.id);
-                var costEl = document.getElementById('cost-display-' + s.id);
-                if (timerEl) timerEl.textContent = formatTime(secs);
-                if (costEl) {
-                    if (isFixed) {
-                        // Fixed booking: cost stays the same (set at booking time)
-                        costEl.textContent = '\u09F3' + s.cost.toFixed(2);
-                    } else {
-                        // Metered booking: cost increases over time
-                        var runningCost = (costPerHour / 3600) * secs;
-                        costEl.textContent = '\u09F3' + runningCost.toFixed(2);
-                    }
-                }
-            }, 1000);
-        }
-
-        // ============================================================
-        // FORMAT TIME (HH:MM:SS)
-        // ============================================================
-        function formatTime(totalSeconds) {
-            var h = Math.floor(totalSeconds / 3600);
-            var m = Math.floor((totalSeconds % 3600) / 60);
-            var s = totalSeconds % 60;
-            return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
-        }
-
-        // Payment modal state
-        let pendingPaymentSessionId = null;
-        let pendingPaymentMethod = null;
-
-        // ============================================================
-        // PAYMENT MODAL
-        // ============================================================
-        function openPaymentModal(sessionId, method) {
-            var idx = sessions.findIndex(function(s) { return s.id == sessionId; });
-            if (idx === -1) { showToast('error', 'Session not found.'); return; }
-            var s = sessions[idx];
-            if (s.status !== 'Active') { showToast('error', 'Session is not active.'); return; }
-
-            pendingPaymentSessionId = sessionId;
-            pendingPaymentMethod = method;
-
-            // Set modal content dynamically
-            document.getElementById('pay-modal-title').textContent = 'Pay with ' + method;
-            document.getElementById('pay-method-label').textContent = method;
-            document.getElementById('pay-cust-method-label').textContent = method;
-            document.getElementById('pay-admin-number').textContent = '01841156753';
-            document.getElementById('pay-amount').textContent = '\u09F3' + s.cost.toFixed(2);
-            document.getElementById('pay-customer-number').value = '';
-            document.getElementById('pay-trx-id').value = '';
-
-            // Show modal
-            var modal = document.getElementById('payment-modal');
-            var card = document.getElementById('payment-modal-card');
-            modal.classList.remove('opacity-0', 'pointer-events-none');
-            card.classList.remove('scale-95');
-            card.classList.add('scale-100');
-        }
-
-        function closePaymentModal() {
-            var modal = document.getElementById('payment-modal');
-            var card = document.getElementById('payment-modal-card');
-            card.classList.remove('scale-100');
-            card.classList.add('scale-95');
-            modal.classList.add('opacity-0', 'pointer-events-none');
-            pendingPaymentSessionId = null;
-            pendingPaymentMethod = null;
-        }
-
-        function confirmPayment() {
-            var customerNumber = document.getElementById('pay-customer-number').value.trim();
-            var trxId = document.getElementById('pay-trx-id').value.trim();
-
-            if (!customerNumber) {
-                showToast('error', 'Please enter your ' + pendingPaymentMethod + ' number.');
-                return;
+        liveTimers[s.id] = setInterval(function() {
+            var now = Date.now();
+            var secs = Math.floor((now - createdAt) / 1000);
+            var timerEl = document.getElementById('timer-display-' + s.id);
+            var costEl = document.getElementById('cost-display-' + s.id);
+            if (timerEl) timerEl.textContent = String(Math.floor(secs/3600)).padStart(2,'0') + ':' + String(Math.floor((secs%3600)/60)).padStart(2,'0') + ':' + String(secs%60).padStart(2,'0');
+            if (costEl) {
+                if (isFixed) { costEl.textContent = '৳' + s.cost.toFixed(2); }
+                else { var runningCost = (rate / 3600) * secs; costEl.textContent = '৳' + runningCost.toFixed(2); }
             }
-            // Auto-generate TrxID if empty (for testing)
-            if (!trxId) {
-                trxId = 'TRX' + String(Date.now()).slice(-8) + 'DEMO';
-                document.getElementById('pay-trx-id').value = trxId;
-            }
+        }, 1000);
+    });
+}
 
-            // Save payment and end session
-            var idx = sessions.findIndex(function(s) { return s.id == pendingPaymentSessionId; });
-            if (idx === -1) { showToast('error', 'Session not found.'); closePaymentModal(); return; }
-            var s = sessions[idx];
-            if (s.status !== 'Active') { showToast('error', 'Session is not active.'); closePaymentModal(); return; }
+function formatTime(totalSeconds) {
+    var h = Math.floor(totalSeconds / 3600), m = Math.floor((totalSeconds % 3600) / 60), s = totalSeconds % 60;
+    return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
 
-            // Calculate running cost for metered bookings at payment time
-            var isFixed = s.bookingType !== 'meter';
-            if (!isFixed) {
-                var createdAt = s.createdAt ? new Date(s.createdAt).getTime() : Date.now();
-                var elapsedSeconds = Math.floor((Date.now() - createdAt) / 1000);
-                var rate = s.meterRate || 5.00;
-                var runningCost = (rate / 3600) * elapsedSeconds;
-                if (runningCost < s.cost) runningCost = s.cost;
-                s.cost = runningCost;
-            }
-            // For fixed bookings, cost stays as originally set
-            s.payment = pendingPaymentMethod;
-            s.customerNumber = customerNumber;
-            s.trxId = trxId;
-            s.paid = true;
-            s.paymentStatus = 'Pending';
+function openPaymentModal(sessionId, method) {
+    var idx = sessions.findIndex(function(s) { return s.id == sessionId; });
+    if (idx === -1) { showToast('error', 'Session not found.'); return; }
+    var s = sessions[idx];
+    if (s.status !== 'Active') { showToast('error', 'Session is not active.'); return; }
+    pendingPaymentSessionId = sessionId; pendingPaymentMethod = method;
+    document.getElementById('pay-modal-title').textContent = 'Pay with ' + method;
+    document.getElementById('pay-method-label').textContent = method;
+    document.getElementById('pay-cust-method-label').textContent = method;
+    document.getElementById('pay-admin-number').textContent = '01841156753';
+    document.getElementById('pay-amount').textContent = '৳' + s.cost.toFixed(2);
+    document.getElementById('pay-customer-number').value = '';
+    document.getElementById('pay-trx-id').value = '';
+    var modal = document.getElementById('payment-modal');
+    var card = document.getElementById('payment-modal-card');
+    modal.classList.remove('opacity-0', 'pointer-events-none');
+    card.classList.remove('scale-95');
+    card.classList.add('scale-100');
+}
+function closePaymentModal() {
+    var modal = document.getElementById('payment-modal');
+    var card = document.getElementById('payment-modal-card');
+    card.classList.remove('scale-100');
+    card.classList.add('scale-95');
+    modal.classList.add('opacity-0', 'pointer-events-none');
+    pendingPaymentSessionId = null; pendingPaymentMethod = null;
+}
+function confirmPayment() {
+    var customerNumber = document.getElementById('pay-customer-number').value.trim();
+    var trxId = document.getElementById('pay-trx-id').value.trim();
+    if (!customerNumber) { showToast('error', 'Please enter your ' + pendingPaymentMethod + ' number.'); return; }
+    if (!trxId) { trxId = 'TRX' + String(Date.now()).slice(-8) + 'DEMO'; document.getElementById('pay-trx-id').value = trxId; }
+    var idx = sessions.findIndex(function(s) { return s.id == pendingPaymentSessionId; });
+    if (idx === -1) { showToast('error', 'Session not found.'); closePaymentModal(); return; }
+    var s = sessions[idx];
+    if (s.status !== 'Active') { showToast('error', 'Session is not active.'); closePaymentModal(); return; }
+    s.payment = pendingPaymentMethod; s.customerNumber = customerNumber; s.trxId = trxId; s.paid = true; s.paymentStatus = 'Pending';
+    savePaymentRecord({ id: 'PAY-' + String(Date.now()).slice(-8), bookingId: s.id, customerName: s.name || 'N/A', vehicle: s.vehicle || 'N/A', zone: s.zone, slot: s.slot, amount: s.cost, paymentMethod: pendingPaymentMethod, customerNumber: customerNumber, trxId: trxId, status: 'Pending', createdAt: new Date().toISOString() });
+    closePaymentModal();
+    endSession(pendingPaymentSessionId, true);
+}
+function payWith(sessionId, method) { openPaymentModal(sessionId, method); }
 
-            // Save payment to ledger
-            savePaymentRecord({
-                id: 'PAY-' + String(Date.now()).slice(-8),
-                bookingId: s.id,
-                customerName: s.name || 'N/A',
-                vehicle: s.vehicle || 'N/A',
-                customerNumber: s.customerNumber || 'N/A',
-                trxId: s.trxId || 'N/A',
-                zone: s.zone,
-                slot: s.slot,
-                amount: s.cost,
-                paymentMethod: pendingPaymentMethod,
-                status: 'Pending',
-                createdAt: new Date().toISOString(),
-                date: new Date().toLocaleDateString('en-CA'),
-                time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
-            });
+var pendingPaymentSessionId = null;
+var pendingPaymentMethod = null;
 
-            // Save the session ID before closing modal (modal closes nullifies it)
-            var sessionIdToEnd = pendingPaymentSessionId;
-            closePaymentModal();
-            endSession(sessionIdToEnd, true); // skip confirm, already done in payment modal
-        }
+async function endSession(sessionId, skipConfirm) {
+    var idx = sessions.findIndex(function(s) { return s.id == sessionId; });
+    if (idx === -1) { showToast('error', 'Session not found for ending.'); return; }
+    var s = sessions[idx];
+    if (s.bookingType === 'meter' && s.paid !== true) {
+        var createdAt = s.createdAt ? new Date(s.createdAt).getTime() : Date.now();
+        var elapsedSeconds = Math.floor((Date.now() - createdAt) / 1000);
+        var rate = s.meterRate || 5.00;
+        var runningCost = (rate / 3600) * elapsedSeconds;
+        if (runningCost < s.cost) runningCost = s.cost;
+        s.cost = runningCost;
+        saveData();
+        pendingPaymentMethod = s.payment || 'Cash';
+        openPaymentModal(sessionId, pendingPaymentMethod);
+        return;
+    }
+    if (!skipConfirm && !confirm('End session for ' + s.vehicle + ' at ' + s.slot + '? Total: ৳' + s.cost.toFixed(2))) return;
+    if (liveTimers[s.id]) { clearInterval(liveTimers[s.id]); delete liveTimers[s.id]; }
+    s.status = 'Completed';
+    if (s.slotIndex !== undefined && s.zoneId && zoneSlots[s.zoneId]) { zoneSlots[s.zoneId][s.slotIndex] = false; }
+    var durationLabel = s.durationHours ? s.durationHours + 'h' : (s.duration || '1h');
+    var now = new Date();
+    var exitTimeStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+    var entryTimeStr = s.entryTime || '00:00';
+    var hist = { id: 2000 + sessions.filter(function(ss){return ss.status==='Completed';}).length, bookingId: s.id, name: s.name || 'Customer', vehicle: s.vehicle || 'N/A', zone: s.zone || 'N/A', slot: s.slot || 'N/A', date: s.date || now.toISOString().split('T')[0], entryTime: entryTimeStr, exitTime: exitTimeStr, duration: durationLabel, cost: s.cost || 0, payment: s.payment || 'Cash', paymentStatus: 'Paid' };
+    var saved = getUserData('customerParkingData');
+    var history = saved ? saved.history : [];
+    history.push(hist);
+    saveData();
+    renderSessions();
+    showToast('success', 'Session #' + s.id + ' ended. Paid via ' + s.payment + '. Total: ৳' + s.cost.toFixed(2));
+}
 
-        // ============================================================
-        // PAYMENT HANDLER
-        // ============================================================
-        function payWith(sessionId, method) {
-            openPaymentModal(sessionId, method);
-        }
+function toggleMobileMenu() {
+    var menu = document.getElementById('mobile-menu'); var icon = document.getElementById('hamburger-icon');
+    if (menu.classList.contains('hidden')) { menu.classList.remove('hidden'); icon.classList.remove('fa-bars'); icon.classList.add('fa-xmark'); }
+    else { menu.classList.add('hidden'); icon.classList.remove('fa-xmark'); icon.classList.add('fa-bars'); }
+}
+</script>
 
-        // ============================================================
-        // END SESSION
-        // ============================================================
-        async function endSession(sessionId, skipConfirm) {
-            var idx = sessions.findIndex(function(s) { return s.id == sessionId; });
-            if (idx === -1) { showToast('error', 'Session not found for ending.'); return; }
-            var s = sessions[idx];
-
-            // For unpaid metered bookings, require payment first
-            if (s.bookingType === 'meter' && s.paid !== true) {
-                var createdAt = s.createdAt ? new Date(s.createdAt).getTime() : Date.now();
-                var elapsedSeconds = Math.floor((Date.now() - createdAt) / 1000);
-                var rate = s.meterRate || 5.00;
-                var runningCost = (rate / 3600) * elapsedSeconds;
-                if (runningCost < s.cost) runningCost = s.cost;
-                s.cost = runningCost;
-                saveData(sessions, history, nextBookingId, nextHistoryId, zoneSlots);
-                pendingPaymentMethod = s.payment || 'Cash';
-                openPaymentModal(sessionId, pendingPaymentMethod);
-                return;
-            }
-
-            if (!skipConfirm && !confirm('End session for ' + s.vehicle + ' at ' + s.slot + '? Total: \u09F3' + s.cost.toFixed(2))) return;
-
-            // Stop live timer
-            if (liveTimers[s.id]) {
-                clearInterval(liveTimers[s.id]);
-                delete liveTimers[s.id];
-            }
-
-            var endTime = new Date().toISOString();
-            var cost = s.cost || 0;
-
-            var paymentData = {
-              endTime: endTime,
-              cost: cost,
-              status: 'Completed'
-            };
-            if (s.payment) paymentData.payment = s.payment;
-            if (s.paymentStatus) paymentData.paymentStatus = s.paymentStatus;
-            if (s.customerNumber) paymentData.customerNumber = s.customerNumber;
-            if (s.trxId) paymentData.trxId = s.trxId;
-
-            const token = localStorage.getItem('token_customer');
-            if (token) {
-                try {
-                    await fetch(API_BASE + '/api/parking/' + sessionId, {
-                        method: 'PUT',
-                        headers: {
-                            'x-auth-token': token,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(paymentData)
-                    });
-                } catch (error) {
-                    console.error('Backend not available, using local data only:', error);
-                }
-            }
-
-            s.status = 'Completed';
-            var z = Object.values(zonesData).find(function(zone) { return zone.name === s.zone; });
-            if (z) { z.occupied = Math.max(0, z.occupied - 1); z.free = z.spots - z.occupied; }
-            if (s.slotIndex !== undefined && s.zoneId && zoneSlots[s.zoneId]) {
-                zoneSlots[s.zoneId][s.slotIndex] = false;
-            }
-            var durationLabel = s.durationHours ? s.durationHours + 'h' : (s.duration || '1h');
-            
-            // Format current time for exit
-            var now = new Date();
-            var exitHr = now.getHours();
-            var exitMin = now.getMinutes();
-            var exitTimeStr = String(exitHr).padStart(2,'0') + ':' + String(exitMin).padStart(2,'0');
-            
-            // Ensure entryTime is in HH:MM format
-            var entryTimeStr = s.entryTime || '00:00';
-            if (entryTimeStr.length > 5) {
-                entryTimeStr = entryTimeStr.slice(0,5);
-            }
-            
-            var hist = {
-                id: nextHistoryId++,
-                bookingId: s.id,
-                name: s.name || s.customerName || 'Customer',
-                vehicle: s.vehicle || 'N/A',
-                zone: s.zone || 'N/A',
-                slot: s.slot || 'N/A',
-                date: s.date || now.toISOString().split('T')[0],
-                entryTime: entryTimeStr,
-                exitTime: exitTimeStr,
-                duration: durationLabel,
-                cost: s.cost || 0,
-                payment: s.payment || 'Cash',
-                paymentStatus: 'Paid'
-            };
-            history.push(hist);
-            saveData(sessions, history, nextBookingId, nextHistoryId, zoneSlots);
-            renderSessions();
-            showToast('success', 'Session #' + s.id + ' ended. Paid via ' + s.payment + '. Total: \u09F3' + s.cost.toFixed(2));
-        }
-
-        // ============================================================
-        // MOBILE MENU TOGGLE
-        // ============================================================
-        function toggleMobileMenu() {
-            var menu = document.getElementById('mobile-menu');
-            var icon = document.getElementById('hamburger-icon');
-            if (menu.classList.contains('hidden')) {
-                menu.classList.remove('hidden');
-                icon.classList.remove('fa-bars');
-                icon.classList.add('fa-xmark');
-            } else {
-                menu.classList.add('hidden');
-                icon.classList.remove('fa-xmark');
-                icon.classList.add('fa-bars');
-            }
-        }
-
-    </script>
+<!-- AI Chat Widget -->
+<div class="ai-chat-widget no-print">
+    <div id="ai-chat-panel" class="ai-chat-panel">
+        <div class="ai-chat-header">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-sp-purple to-sp-accent flex items-center justify-center"><i class="fa-solid fa-sparkles text-white text-sm"></i></div>
+            <div><p class="text-sm font-bold text-white">SmartPark AI</p><p class="text-[10px] text-slate-400">Your parking assistant</p></div>
+            <button onclick="toggleAIChat()" class="ml-auto text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="ai-chat-body" id="ai-chat-messages">
+            <div class="ai-chat-msg ai">Hi! I can help you track your parking sessions, estimate costs, and optimize your parking experience. What would you like to know? 🚗</div>
+        </div>
+        <div class="ai-quick-actions">
+            <button class="ai-quick-btn" onclick="sendAIQuick('My current parking status')">My status</button>
+            <button class="ai-quick-btn" onclick="sendAIQuick('End my session')">End session</button>
+            <button class="ai-quick-btn" onclick="sendAIQuick('Payment help')">Payment help</button>
+        </div>
+        <div class="ai-chat-input-row">
+            <input type="text" id="ai-chat-input" class="ai-chat-input" placeholder="Ask me about your sessions..." onkeypress="if(event.key==='Enter')sendAIMessage()">
+            <button class="ai-chat-send" onclick="sendAIMessage()"><i class="fa-solid fa-paper-plane text-xs"></i></button>
+        </div>
+    </div>
+    <button class="ai-chat-bubble" onclick="toggleAIChat()" title="Ask AI Assistant"><i class="fa-solid fa-sparkles"></i></button>
+</div>
 </body>
 </html>
-

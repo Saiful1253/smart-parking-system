@@ -3,13 +3,38 @@ const path = require('path');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const fs = require('fs');
+const crypto = require('crypto');
 
 // Load environment variables - try multiple paths
 dotenv.config({ path: path.join(__dirname, '.env') });
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
-if (!process.env.JWT_SECRET) process.env.JWT_SECRET = 'SmartParkJWTSecret' + Date.now();
-if (!process.env.ADMIN_KEY) process.env.ADMIN_KEY = 'SmartParkAdmin' + Date.now();
+if (!process.env.JWT_SECRET) {
+    const jwtSecretFile = path.join(__dirname, '.secret');
+    try {
+        if (fs.existsSync(jwtSecretFile)) {
+            process.env.JWT_SECRET = fs.readFileSync(jwtSecretFile, 'utf8').trim();
+        } else {
+            process.env.JWT_SECRET = crypto.randomBytes(64).toString('hex');
+            fs.writeFileSync(jwtSecretFile, process.env.JWT_SECRET);
+        }
+    } catch(e) {
+        process.env.JWT_SECRET = 'SmartParkJWTSecret' + Date.now();
+    }
+}
+if (!process.env.ADMIN_KEY) {
+    const adminKeyFile = path.join(__dirname, '.adminkey');
+    try {
+        if (fs.existsSync(adminKeyFile)) {
+            process.env.ADMIN_KEY = fs.readFileSync(adminKeyFile, 'utf8').trim();
+        } else {
+            process.env.ADMIN_KEY = 'SmartParkAdmin2024';
+            fs.writeFileSync(adminKeyFile, process.env.ADMIN_KEY);
+        }
+    } catch(e) {
+        process.env.ADMIN_KEY = 'SmartParkAdmin2024';
+    }
+}
 if (!process.env.PORT) process.env.PORT = '3000';
 
 // CORS: allow frontend origin + API param override
@@ -50,7 +75,7 @@ app.use(cors({
         if (origin.endsWith('.github.io') || origin.includes('.github.io')) {
             return callback(null, true);
         }
-        callback(null, true);
+        callback(new Error('Not allowed by CORS'));
     },
     credentials: true
 }));
@@ -72,8 +97,43 @@ app.use((req, res, next) => {
     }
 });
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+// Simple in-memory rate limiter
+const rateLimitStore = new Map();
+function rateLimit(maxRequests, windowMs) {
+    return (req, res, next) => {
+        const key = req.ip || req.connection.remoteAddress;
+        const now = Date.now();
+        const record = rateLimitStore.get(key) || { count: 0, resetAt: now + windowMs };
+        if (now > record.resetAt) {
+            record.count = 0;
+            record.resetAt = now + windowMs;
+        }
+        record.count++;
+        rateLimitStore.set(key, record);
+        if (record.count > maxRequests) {
+            return res.status(429).json({ msg: 'Too many requests, please try again later' });
+        }
+        next();
+    };
+}
+
+// Security headers middleware
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    next();
+});
+
+// Rate limiting for API routes
+app.use('/api/', rateLimit(100, 60000));
+
+// Request body size limit
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // Ensure data directory exists
 const dataDir = path.join(process.cwd(), 'data');

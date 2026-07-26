@@ -2,8 +2,11 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const authorize = require('../middleware/authorize');
+const { check, validationResult } = require('express-validator');
 const User = require('../models/User');
 const ParkingSession = require('../models/ParkingSession');
+
+const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 // @route   GET /api/admin/zones
 // @desc    Get all zones with live spot-level occupancy
@@ -112,21 +115,30 @@ router.delete('/users/:id', auth, authorize('admin'), async (req, res) => {
 // @route   PUT /api/admin/users/:id/role
 // @desc    Update user role (Admin only)
 // @access  Private (Admin)
-router.put('/users/:id/role', auth, authorize('admin'), async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-    if (!user) {
-      return res.status(404).json({ msg: 'User not found' });
+router.put(
+  '/users/:id/role',
+  [auth, authorize('admin'), check('role', 'Role is required').isIn(['user', 'admin'])],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
     }
 
-    user.role = req.body.role; // Assuming role is sent in the request body
-    await user.save();
-    res.json(user);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+    try {
+      const user = await User.findById(req.params.id);
+      if (!user) {
+        return res.status(404).json({ msg: 'User not found' });
+      }
+
+      user.role = req.body.role; // Assuming role is sent in the request body
+      await user.save();
+      res.json(user);
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).send('Server Error');
+    }
   }
-});
+);
 
 
 // @route   GET /api/admin/anomalies
@@ -217,6 +229,11 @@ router.get('/dashboard-stats', auth, authorize('admin'), async (req, res) => {
     const activeSessions = sessions.filter(s => s.status === 'Active' || s.status === 'Parked').length;
     const revenue = sessions.reduce((sum, s) => sum + (s.cost || 0), 0);
 
+    const activeZoneSessions = sessions.filter(s => s.status === 'Active' || s.status === 'Parked');
+    const occupied = activeZoneSessions.length;
+    const free = Math.max(0, totalSpots - occupied);
+    const occupancyRate = totalSpots > 0 ? Math.round((occupied / totalSpots) * 100) : 0;
+
     // Count spotted vehicles (sensor issues)
     const spottedVehicles = sessions.filter(s => {
       if (s.status !== 'Active' && s.status !== 'Parked') return false;
@@ -240,6 +257,9 @@ router.get('/dashboard-stats', auth, authorize('admin'), async (req, res) => {
       totalZones,
       totalSpots,
       activeSessions,
+      occupied,
+      free,
+      occupancyRate,
       revenue: revenue.toFixed(2),
       spottedVehicles: spottedVehicles.length,
       spottedVehiclesList: spottedVehicles.map(s => ({
@@ -251,6 +271,68 @@ router.get('/dashboard-stats', auth, authorize('admin'), async (req, res) => {
       })),
       recentActivity: recentSessions
     });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   GET /api/admin/booking-trend
+// @desc    Get booking trend data for week/month/year
+// @access  Private (Admin)
+router.get('/booking-trend', auth, authorize('admin'), async (req, res) => {
+  try {
+    const period = req.query.period || 'week';
+    const sessions = await ParkingSession.find();
+    const now = new Date();
+
+    let labels = [];
+    let values = [];
+
+    if (period === 'week') {
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      labels = days;
+      for (let i = 0; i < 7; i++) {
+        const startOfDay = new Date(now);
+        startOfDay.setDate(now.getDate() - (6 - i));
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(startOfDay);
+        endOfDay.setHours(23, 59, 59, 999);
+        const daySessions = sessions.filter(s => {
+          const created = new Date(s.createdAt);
+          return created >= startOfDay && created <= endOfDay;
+        });
+        const dayBookingCount = daySessions.length;
+        values.push(dayBookingCount);
+      }
+    } else if (period === 'month') {
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      labels = [];
+      values = [];
+      for (let i = 0; i < 12; i++) {
+        const monthStart = new Date(currentYear, i, 1);
+        const monthEnd = new Date(currentYear, i + 1, 0, 23, 59, 59, 999);
+        const monthSessions = sessions.filter(s => {
+          const created = new Date(s.createdAt);
+          return created >= monthStart && created <= monthEnd;
+        });
+        const monthBookingCount = monthSessions.length;
+        labels.push(monthNames[i]);
+        values.push(monthBookingCount);
+      }
+    } else if (period === 'year') {
+      const currentYear = now.getFullYear();
+      labels = [currentYear.toString()];
+      const yearSessions = sessions.filter(s => {
+        const created = new Date(s.createdAt);
+        return created.getFullYear() === currentYear;
+      });
+      const yearBookingCount = yearSessions.length;
+      values.push(yearBookingCount);
+    }
+
+    res.json({ period, labels, values });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');

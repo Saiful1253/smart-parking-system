@@ -1,101 +1,111 @@
-const store = require('../dataStore');
+// Placeholder for ParkingSession model (file-based storage is active)
+const fs = require('fs').promises;
+const path = require('path');
 
-class ParkingSessionClass {
-  constructor(doc) {
-    this.user = doc.user;
-    this.plateNumber = doc.plateNumber;
-    this.zone = doc.zone;
-    this.spot = doc.spot || null;
-    this.slotIndex = doc.slotIndex !== undefined ? doc.slotIndex : null;
-    this.startTime = doc.startTime || new Date();
-    this.endTime = doc.endTime;
-    this.cost = doc.cost || 0;
-    this.payment = doc.payment || 'Cash';
-    this.paymentStatus = doc.paymentStatus || 'Paid';
-    this.customerNumber = doc.customerNumber;
-    this.trxId = doc.trxId;
-    this.bookingType = doc.bookingType;
-    this.meterRate = doc.meterRate;
-    this.meterSeconds = doc.meterSeconds;
-    this.createdAt = doc.createdAt;
-    this.status = doc.status || 'Active';
-    this.sensorDetected = doc.sensorDetected !== undefined ? doc.sensorDetected : true;
-    this.sensorVerified = doc.sensorVerified !== undefined ? doc.sensorVerified : true;
-    this.sensorType = doc.sensorType || 'plate-reader,ultrasonic';
-    this._id = doc._id;
-    this.id = doc._id;
+const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(process.cwd(), 'data');
+
+async function readFile(filename) {
+  try {
+    const data = await fs.readFile(path.join(DATA_DIR, filename), 'utf-8');
+    return JSON.parse(data);
+  } catch (err) {
+    if (err.code === 'ENOENT') return [];
+    throw err;
+  }
+}
+
+async function writeFile(filename, data) {
+  await fs.writeFile(path.join(DATA_DIR, filename), JSON.stringify(data, null, 2), 'utf-8');
+}
+
+class ParkingSession {
+  static async find(query = {}) {
+    let sessions = await readFile('sessions.json');
+    
+    if (query.user) {
+      sessions = sessions.filter(s => s.user === query.user);
+    }
+    if (query.endTime && query.endTime.$exists !== undefined) {
+      if (query.endTime.$exists === false) {
+        sessions = sessions.filter(s => !s.endTime);
+      } else if (query.endTime.$exists === true) {
+        sessions = sessions.filter(s => s.endTime);
+      }
+    }
+    // Simulate populate 'user' field for compatibility with routes
+    for (let session of sessions) {
+      // In a real file-based scenario, you'd fetch user details here
+      // For now, we'll just keep the user ID
+    }
+    return sessions;
+  }
+
+  static async findById(id) {
+    const sessions = await readFile('sessions.json');
+    return sessions.find(s => s._id === id) || null;
+  }
+
+  static async create(sessionData) {
+    const sessions = await readFile('sessions.json');
+    const newId = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+    const newSession = { _id: newId, createdAt: new Date().toISOString(), ...sessionData };
+    sessions.push(newSession);
+    await writeFile('sessions.json', sessions);
+    return newSession;
+  }
+
+  static async findByIdAndUpdate(id, updates, options) {
+    let sessions = await readFile('sessions.json');
+    const index = sessions.findIndex(s => s._id === id);
+    if (index === -1) return null;
+
+    let updatedSession = { ...sessions[index], ...(updates.$set || updates) };
+    sessions[index] = updatedSession;
+    await writeFile('sessions.json', sessions);
+    return options && options.new ? updatedSession : sessions[index];
+  }
+
+  static async findByIdAndRemove(id) {
+    let sessions = await readFile('sessions.json');
+    const initialLength = sessions.length;
+    const updatedSessions = sessions.filter(s => s._id !== id);
+    if (updatedSessions.length < initialLength) {
+      await writeFile('sessions.json', updatedSessions);
+      return { _id: id }; // Indicate success
+    }
+    return null;
+  }
+
+  constructor(data) {
+    this._id = data._id || (Date.now().toString(36) + Math.random().toString(36).substr(2, 9));
+    this.user = data.user;
+    this.plateNumber = data.plateNumber;
+    this.zone = data.zone;
+    this.spot = data.spot;
+    this.slotIndex = data.slotIndex;
+    this.startTime = data.startTime || new Date();
+    this.endTime = data.endTime;
+    this.cost = data.cost || 0;
+    this.payment = data.payment || 'Cash';
+    this.paymentStatus = data.paymentStatus || 'Pending';
+    this.status = data.status || 'Active';
+    this.sensorDetected = data.sensorDetected || false;
+    this.sensorVerified = data.sensorVerified || false;
+    this.sensorType = data.sensorType;
+    this.createdAt = data.createdAt || new Date();
   }
 
   async save() {
-    const session = await store.createSession({
-      user: this.user,
-      plateNumber: this.plateNumber,
-      zone: this.zone,
-      spot: this.spot,
-      slotIndex: this.slotIndex,
-      startTime: this.startTime,
-      endTime: this.endTime,
-      cost: this.cost,
-      payment: this.payment,
-      paymentStatus: this.paymentStatus,
-      customerNumber: this.customerNumber,
-      trxId: this.trxId,
-      status: this.status || 'Active',
-      sensorDetected: this.sensorDetected,
-      sensorVerified: this.sensorVerified,
-      sensorType: this.sensorType,
-    });
-    this._id = session._id;
+    const sessions = await readFile('sessions.json');
+    const existingIndex = sessions.findIndex(s => s._id === this._id);
+    if (existingIndex > -1) {
+      sessions[existingIndex] = { ...sessions[existingIndex], ...this };
+    } else {
+      sessions.push(this);
+    }
+    await writeFile('sessions.json', sessions);
     return this;
   }
 }
 
-ParkingSessionClass.find = async function (query) {
-  let sessions = store.getAllSessions();
-
-  query = query || {};
-
-  if (query.user) {
-    sessions = sessions.filter(s => s.user === query.user);
-  }
-
-  if (query.endTime) {
-    if (query.endTime.$exists === false) {
-      sessions = sessions.filter(s => !s.endTime);
-    } else if (query.endTime.$exists === true) {
-      sessions = sessions.filter(s => s.endTime);
-    }
-  }
-
-  return sessions.map(s => new ParkingSessionClass(s));
-};
-
-ParkingSessionClass.findById = async function (id) {
-  const session = await store.findSession({ _id: id });
-  if (!session) return null;
-  return new ParkingSessionClass(session);
-};
-
-ParkingSessionClass.findByIdAndUpdate = async function (id, updates, options) {
-  const session = await store.updateSession(id, updates);
-  if (!session) return null;
-  return new ParkingSessionClass(session);
-};
-
-ParkingSessionClass.findByIdAndRemove = async function (id) {
-  const deleted = await store.deleteSession(id);
-  if (!deleted) return null;
-  return new ParkingSessionClass(deleted);
-};
-
-ParkingSessionClass.prototype.populate = async function (path, select) {
-  if (path === 'user' && this.user) {
-    const user = await store.findUser({ _id: this.user });
-    if (user) {
-      this.user = select ? { _id: user._id, email: user.email } : user;
-    }
-  }
-  return this;
-};
-
-module.exports = ParkingSessionClass;
+module.exports = ParkingSession;

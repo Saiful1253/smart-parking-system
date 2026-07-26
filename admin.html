@@ -3,303 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartPark - Admin Dashboard</title>
-    <!-- Tailwind CSS CDN -->
+    <title>SmartPark — Admin Dashboard</title>
+    <meta name="smartpark-api-url" content="">
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts (Poppins) -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Leaflet Map CDN -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <style>
-        body {
-            font-family: 'Poppins', sans-serif;
-        }
-        /* Custom Leaflet Map Height */
-        #edit-map {
-            height: 200px;
-            border-radius: 1rem;
-            z-index: 10;
-        }
-    </style>
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter','Poppins','sans-serif'] }, colors: { sp: { primary:'#0B1426', secondary:'#111B33', card:'#152238', accent:'#3B82F6', emerald:'#10B981', purple:'#8B5CF6', cyan:'#06B6D4' } } } } }
+    </script>
 </head>
-<body class="bg-slate-50 text-slate-800 h-screen flex overflow-hidden">
+<body class="bg-sp-primary text-slate-100 h-screen flex overflow-hidden">
 
-    <!-- Sidebar (Left) -->
-    <aside class="w-64 bg-slate-950 text-slate-400 flex flex-col justify-between flex-shrink-0 border-r border-slate-800 z-20 transition-all duration-300 md:translate-x-0 -translate-x-full fixed md:relative h-screen" id="sidebar">
-        <div>
-            <!-- Brand Logo -->
-            <div class="p-6 flex items-center gap-3 border-b border-slate-900">
-                <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                    <i class="fa-solid fa-car text-white text-lg"></i>
-                </div>
-                <div>
-                    <h1 class="text-lg font-bold text-white tracking-wider">SmartPark</h1>
-                    <p class="text-[10px] text-slate-500 font-semibold tracking-widest uppercase">Parking System</p>
-                </div>
-            </div>
+<script>(function() { const token = localStorage.getItem('token_admin'); if (!token) { window.location.href = 'index.html'; return; } try { if (token.startsWith('static-')) { const u = JSON.parse(localStorage.getItem('loggedInUser_admin')||'{}'); if(u.role!=='admin'){localStorage.removeItem('token_admin');localStorage.removeItem('loggedInUser_admin');window.location.href='index.html';} } } catch(e){localStorage.removeItem('token_admin');localStorage.removeItem('loggedInUser_admin');window.location.href='index.html';} })();</script>
 
-            <!-- Navigation Menu -->
-            <nav class="p-4 space-y-1.5">
-                <a href="admin.html" class="flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-500/20 transition-all duration-300">
-                    <i class="fa-solid fa-table-columns text-lg"></i>
-                    <span>Dashboard</span>
-                </a>
-                <a href="admin-zones.html" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300">
-                    <i class="fa-solid fa-location-dot text-lg"></i>
-                    <span>Parking Zones</span>
-                </a>
-                <a href="admin-sessions.html" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300">
-                    <i class="fa-solid fa-car-side text-lg"></i>
-                    <span>Active Sessions</span>
-                </a>
-                <a href="admin-history.html" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300">
-                    <i class="fa-solid fa-clock-rotate-left text-lg"></i>
-                    <span>History</span>
-                </a>
-                <a href="admin-map.html" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300">
-                    <i class="fa-solid fa-map-location-dot text-lg"></i>
-                    <span>Live Map</span>
-                </a>
-                <a href="admin-customer.html" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300">
-                    <i class="fa-solid fa-user-gear text-lg"></i>
-                    <span>Customer View</span>
-                </a>
-                <a href="admin-cash.html" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300">
-                    <i class="fa-solid fa-money-bill-transfer text-lg"></i>
-                    <span>Cash Verify</span>
-                </a>
-                <a href="admin-settings.html" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-slate-900 hover:text-slate-200 transition-all duration-300">
-                    <i class="fa-solid fa-sliders text-lg"></i>
-                    <span>Settings</span>
-                </a>
-            </nav>
+<aside class="w-64 bg-sp-secondary border-r border-sp-accent/10 flex flex-col justify-between flex-shrink-0 z-20 transition-all duration-300 md:translate-x-0 -translate-x-full fixed md:relative h-screen" id="sidebar">
+    <div>
+        <div class="p-6 flex items-center gap-3 border-b border-sp-accent/10">
+            <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-sp-accent to-sp-emerald flex items-center justify-center shadow-lg shadow-sp-accent/30"><i class="fa-solid fa-car text-white text-lg"></i></div>
+            <div><h1 class="text-lg font-bold text-white tracking-wide">SmartPark</h1><p class="text-[10px] text-slate-500 font-semibold tracking-widest uppercase">AI Admin</p></div>
         </div>
+        <nav class="p-4 space-y-1.5">
+            <a href="#" onclick="switchAdminTab('dashboard', this); return false;" class="admin-nav-item active flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-300"><i class="fa-solid fa-table-columns text-lg"></i><span>Dashboard</span></a>
+            <a href="#" onclick="switchAdminTab('zones', this); return false;" class="admin-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300"><i class="fa-solid fa-location-dot text-lg"></i><span>Parking Zones</span></a>
+            <a href="#" onclick="switchAdminTab('sessions', this); return false;" class="admin-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300"><i class="fa-solid fa-car-side text-lg"></i><span>Active Sessions</span></a>
+            <a href="#" onclick="switchAdminTab('history', this); return false;" class="admin-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300"><i class="fa-solid fa-clock-rotate-left text-lg"></i><span>History</span></a>
+            <a href="#" onclick="switchAdminTab('map', this); return false;" class="admin-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300"><i class="fa-solid fa-map-location-dot text-lg"></i><span>Live Map</span></a>
+            <a href="#" onclick="switchAdminTab('cash', this); return false;" class="admin-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300"><i class="fa-solid fa-money-bill-transfer text-lg"></i><span>Cash Verify</span></a>
+            <a href="#" onclick="switchAdminTab('settings', this); return false;" class="admin-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300"><i class="fa-solid fa-sliders text-lg"></i><span>Settings</span></a>
+        </nav>
+    </div>
+    <div class="p-4 border-t border-sp-accent/10"><a href="#" onclick="logout();return false;" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all"><i class="fa-solid fa-right-from-bracket text-lg"></i><span>Sign Out</span></a></div>
+</aside>
 
-        <!-- Bottom Sign Out -->
-        <div class="p-4 border-t border-slate-900">
-            <a href="#" onclick="logout(); return false;" class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl hover:bg-red-500/10 hover:text-red-400 transition-all duration-300">
-                <i class="fa-solid fa-right-from-bracket text-lg"></i>
-                <span>Sign Out</span>
-            </a>
+<main class="flex-grow flex flex-col overflow-y-auto h-screen relative">
+    <header class="bg-sp-secondary/90 backdrop-blur-xl border-b border-sp-accent/10 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
+        <div class="flex items-center gap-3">
+            <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-bars"></i></button>
+            <div><h2 class="text-2xl font-bold text-white" id="page-title">Dashboard</h2><p class="text-xs text-slate-500" id="page-subtitle">AI-powered parking management overview</p></div>
         </div>
-    </aside>
-    <!-- Main Content Area -->
-    <main class="flex-grow flex flex-col overflow-y-auto h-screen relative">
-        
-        <!-- Top Header -->
-        <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
-            <div class="flex items-center gap-3">
-                <!-- Mobile Menu Toggle -->
-                <button onclick="toggleSidebar()" class="md:hidden text-slate-600 hover:text-slate-900 text-xl">
-                    <i class="fa-solid fa-bars"></i>
-                </button>
-                <div>
-                    <h2 class="text-2xl font-bold text-slate-900" id="page-title">Dashboard</h2>
-                    <p class="text-xs text-slate-500" id="page-subtitle">Overview of your parking system</p>
-                </div>
-            </div>
-
-            <!-- Admin Profile / Quick Actions -->
-            <div class="flex items-center gap-4">
-                <button onclick="triggerRefresh()" class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors" title="Refresh Data">
-                    <i class="fa-solid fa-rotate animate-spin-hover"></i>
-                </button>
-                <div class="flex items-center gap-3 border-l border-slate-200 pl-4">
-                    <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
-                        AD
-                    </div>
-                    <div class="hidden sm:block">
-                        <p class="text-sm font-semibold text-slate-800">Admin User</p>
-                        <p class="text-[10px] text-slate-500 font-medium">System Administrator</p>
-                    </div>
-                </div>
-            </div>
-        </header>
-
-        <!-- Dashboard Content View -->
-        <div id="dashboard-view" class="p-6 space-y-6">
-            
-            <!-- Slot Anomaly Detected Alert Box -->
-            <div id="anomaly-alert" class="bg-red-50 border border-red-200 rounded-2xl p-5 shadow-sm transition-all duration-500">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
-                            <i class="fa-solid fa-triangle-exclamation text-lg animate-pulse"></i>
-                        </div>
-                        <div>
-                            <h3 class="text-base font-bold text-red-900">Slot Anomaly Detected</h3>
-                            <p class="text-xs text-red-600 font-medium">Unregistered vehicles or sensor mismatches found in active zones.</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button onclick="refreshAnomalies()" class="px-3.5 py-1.5 text-xs font-semibold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg shadow-sm transition-colors flex items-center gap-1.5">
-                            <i class="fa-solid fa-rotate text-[10px]"></i> Refresh
-                        </button>
-                        <button onclick="dismissAnomalies()" class="px-3.5 py-1.5 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-sm transition-colors flex items-center gap-1.5">
-                            <i class="fa-solid fa-check text-[10px]"></i> Dismiss All
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Alert Items -->
-                <div class="space-y-2.5" id="anomaly-list">
-                </div>
-            </div>
-            <!-- Stats Cards Grid -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                <!-- Card 1: Total Zones -->
-                <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow duration-300">
-                    <div class="space-y-1">
-                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Zones</p>
-                        <h4 class="text-3xl font-extrabold text-slate-900">5</h4>
-                        <p class="text-[10px] text-slate-500 font-medium">Active parking sectors</p>
-                    </div>
-                    <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl shadow-inner">
-                        <i class="fa-solid fa-location-dot"></i>
-                    </div>
-                </div>
-
-                <!-- Card 2: Total Spots -->
-                <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow duration-300">
-                    <div class="space-y-1">
-                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Spots</p>
-                        <h4 class="text-3xl font-extrabold text-slate-900">320</h4>
-                        <p class="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
-                            <i class="fa-solid fa-circle text-[6px]"></i> 182 occupied
-                        </p>
-                    </div>
-                    <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shadow-inner">
-                        <i class="fa-solid fa-square-p"></i>
-                    </div>
-                </div>
-
-                <!-- Card 3: Active Sessions -->
-                <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow duration-300">
-                    <div class="space-y-1">
-                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Sessions</p>
-                        <h4 class="text-3xl font-extrabold text-slate-900" id="active-sessions-count">0</h4>
-                        <p class="text-[10px] text-slate-500 font-medium">Live parking sessions</p>
-                    </div>
-                    <div class="w-12 h-12 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center text-xl shadow-inner">
-                        <i class="fa-solid fa-car-side"></i>
-                    </div>
-                </div>
-
-                <!-- Card 4: Spotted Vehicles -->
-                <div class="bg-white border border-red-200 rounded-2xl p-5 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow duration-300">
-                    <div class="space-y-1">
-                        <p class="text-xs font-semibold text-red-400 uppercase tracking-wider">Spotted Vehicles</p>
-                        <h4 class="text-3xl font-extrabold text-red-600" id="spotted-vehicles-count">0</h4>
-                        <p class="text-[10px] text-slate-500 font-medium">Sensor anomalies detected</p>
-                    </div>
-                    <div class="w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center text-xl shadow-inner">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                    </div>
-                </div>
-
-                <!-- Card 5: Revenue -->
-                <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow duration-300">
-                    <div class="space-y-1">
-                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Revenue</p>
-                        <h4 class="text-3xl font-extrabold text-slate-900">৳145.70</h4>
-                        <p class="text-[10px] text-slate-500 font-medium">From completed sessions</p>
-                    </div>
-                    <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl shadow-inner">
-                        <span class="font-bold text-lg">৳</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Bottom Grid: Chart & Recent Activity -->
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <!-- Left: Zone Occupancy Chart (7 cols) -->
-                <div class="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-                    <div class="flex items-center justify-between mb-6">
-                        <div>
-                            <h3 class="text-base font-bold text-slate-900">Zone Occupancy</h3>
-                            <p class="text-xs text-slate-500">Real-time occupancy percentage per zone</p>
-                        </div>
-                        <span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-semibold border border-slate-200">
-                            Live Status
-                        </span>
-                    </div>
-                    <div class="h-72 relative">
-                        <canvas id="occupancyChart"></canvas>
-                    </div>
-                </div>
-
-                <!-- Right: Recent Activity (5 cols) -->
-                <div class="lg:col-span-5 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
-                    <div>
-                        <div class="flex items-center justify-between mb-6">
-                            <div>
-                                <h3 class="text-base font-bold text-slate-900">Recent Sensor Activity</h3>
-                                <p class="text-xs text-slate-500">Live plate readers, ultrasonic, and camera feeds</p>
-                            </div>
-                            <button onclick="clearSensorLog()" class="text-xs font-semibold text-blue-600 hover:text-blue-500 transition-colors">
-                                Clear All
-                            </button>
-                        </div>
-
-                        <!-- Sensor Log -->
-                        <div class="space-y-3" id="sensor-log">
-                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm">
-                                        <i class="fa-solid fa-car"></i>
-                                    </div>
-                                    <div>
-                                        <p class="text-xs font-bold text-slate-800">ABC-1251 → Zone A</p>
-                                        <p class="text-[10px] text-slate-500 font-medium">Plate reader | Ultrasonic | Camera</p>
-                                    </div>
-                                </div>
-                                <span class="text-xs font-semibold text-slate-400">Just now</span>
-                            </div>
-                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-sm">
-                                        <i class="fa-solid fa-car"></i>
-                                    </div>
-                                    <div>
-                                        <p class="text-xs font-bold text-slate-800">SIM-123 → Zone B</p>
-                                        <p class="text-[10px] text-slate-500 font-medium">Plate reader | Ultrasonic | Camera</p>
-                                    </div>
-                                </div>
-                                <span class="text-xs font-semibold text-slate-400">2 min ago</span>
-                            </div>
-                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm">
-                                        <i class="fa-solid fa-car"></i>
-                                    </div>
-                                    <div>
-                                        <p class="text-xs font-bold text-slate-800">DHA-5521 → Zone C</p>
-                                        <p class="text-[10px] text-slate-500 font-medium">Plate reader | Ultrasonic | Camera</p>
-                                    </div>
-                                </div>
-                                <span class="text-xs font-semibold text-slate-400">5 min ago</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <button onclick="viewAllSensorActivity()" class="w-full mt-4 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all duration-300">
-                        View All Sensor Activity
-                    </button>
-                </div>
+        <div class="flex items-center gap-3">
+            <button onclick="triggerRefresh()" class="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors" title="Refresh"><i class="fa-solid fa-rotate text-sm hover:rotate-180 transition-transform duration-500"></i></button>
+            <div class="flex items-center gap-3 pl-3 border-l border-sp-accent/10">
+                <div class="relative"><div class="w-10 h-10 rounded-full bg-gradient-to-br from-sp-accent to-sp-emerald text-white flex items-center justify-center font-bold text-sm shadow-lg">AD</div><div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-sp-emerald border-2 border-sp-secondary rounded-full animate-pulse"></div></div>
+                <div class="hidden sm:block text-right"><p class="text-sm font-semibold text-white">Admin User</p><p class="text-[10px] text-slate-500">Administrator</p></div>
             </div>
         </div>
-    </main>
+    </header>
 
-    <!-- TOAST NOTIFICATION CONTAINER -->
-    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
+    <!-- DASHBOARD VIEW -->
+    <div id="dashboard-view" class="p-6 space-y-6">
+        <div id="anomaly-alert" class="hidden glass-card border border-sp-red/30 p-5"><div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-sp-red/10 text-sp-red flex items-center justify-center"><i class="fa-solid fa-triangle-exclamation text-lg animate-pulse"></i></div><div><h3 class="text-base font-bold text-sp-red">Slot Anomaly Detected <span data-anomaly-count></span></h3><p class="text-xs text-red-400">Unregistered vehicles or sensor mismatches.</p></div></div><div class="flex items-center gap-2"><button onclick="refreshAnomalies()" class="px-3.5 py-1.5 text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-300 border border-sp-accent/10 rounded-lg"><i class="fa-solid fa-rotate text-[10px]"></i> Refresh</button><button onclick="dismissAnomalies()" class="px-3.5 py-1.5 text-xs font-semibold bg-sp-red hover:bg-sp-red/80 text-white rounded-lg"><i class="fa-solid fa-check text-[10px]"></i> Dismiss All</button></div></div><div class="space-y-2.5" id="anomaly-list"></div></div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+            <div class="stat-card p-5 flex items-center justify-between"><div class="space-y-1 relative z-10"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Zones</p><h4 class="text-3xl font-extrabold text-white" id="stat-zones">5</h4></div><div class="w-12 h-12 rounded-full bg-sp-accent/10 text-sp-accent flex items-center justify-center text-xl relative z-10"><i class="fa-solid fa-location-dot"></i></div></div>
+            <div class="stat-card p-5 flex items-center justify-between"><div class="space-y-1 relative z-10"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Spots</p><h4 class="text-3xl font-extrabold text-white" id="stat-spots">320</h4></div><div class="w-12 h-12 rounded-full bg-sp-emerald/10 text-sp-emerald flex items-center justify-center text-xl relative z-10"><i class="fa-solid fa-square-p"></i></div></div>
+            <div class="stat-card p-5 flex items-center justify-between"><div class="space-y-1 relative z-10"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Active Sessions</p><h4 class="text-3xl font-extrabold text-white" id="active-sessions-count">0</h4></div><div class="w-12 h-12 rounded-full bg-sp-cyan/10 text-sp-cyan flex items-center justify-center text-xl relative z-10"><i class="fa-solid fa-car-side"></i></div></div>
+            <div class="stat-card p-5 flex items-center justify-between"><div class="space-y-1 relative z-10"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Today's Revenue</p><h4 class="text-3xl font-extrabold text-white" id="stat-revenue">BDT 4,250</h4><p class="text-[10px] text-sp-emerald font-semibold flex items-center gap-1"><i class="fa-solid fa-arrow-trend-up text-[8px]"></i> +12% vs yesterday</p></div><div class="w-12 h-12 rounded-full bg-sp-emerald/10 text-sp-emerald flex items-center justify-center text-xl relative z-10"><i class="fa-solid fa-taka-sign"></i></div></div>
+            <div class="stat-card p-5 flex items-center justify-between border-sp-red/20"><div class="space-y-1 relative z-10"><p class="text-[10px] font-bold text-sp-red uppercase tracking-widest">Anomalies</p><h4 class="text-3xl font-extrabold text-sp-red" id="spotted-vehicles-count">0</h4></div><div class="w-12 h-12 rounded-full bg-sp-red/10 text-sp-red flex items-center justify-center text-xl relative z-10"><i class="fa-solid fa-triangle-exclamation"></i></div></div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-7 glass-card p-6"><div class="flex items-center justify-between mb-6"><div><h3 class="text-base font-bold text-white">Zone Occupancy</h3><p class="text-xs text-slate-500">Real-time occupancy percentage per zone</p></div><span class="text-xs bg-sp-emerald/10 text-sp-emerald px-3 py-1.5 rounded-full font-semibold border border-sp-emerald/20 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-sp-emerald animate-pulse"></span> Live</span></div><div class="h-72 relative"><canvas id="occupancyChart"></canvas></div></div>
+            <div class="lg:col-span-5 glass-card p-6 flex flex-col"><div class="flex items-center justify-between mb-6"><div><h3 class="text-base font-bold text-white">Recent Sensor Activity</h3><p class="text-xs text-slate-500">Live plate readers, ultrasonic, and camera feeds</p></div><button onclick="clearSensorLog()" class="text-xs font-semibold text-sp-accent hover:text-sp-accent/80 transition-colors">Clear All</button></div><div class="flex-grow space-y-3" id="sensor-log"><div class="flex items-center justify-between border-b border-sp-accent/10 pb-3"><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-xl bg-sp-emerald/10 text-sp-emerald flex items-center justify-center text-sm"><i class="fa-solid fa-car"></i></div><div><p class="text-xs font-bold text-white">ABC-1251 → Zone A</p><p class="text-[10px] text-slate-500">Plate reader | Ultrasonic | Camera</p></div></div><span class="text-xs font-semibold text-slate-500">Just now</span></div><div class="flex items-center justify-between border-b border-sp-accent/10 pb-3"><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-xl bg-sp-accent/10 text-sp-accent flex items-center justify-center text-sm"><i class="fa-solid fa-car"></i></div><div><p class="text-xs font-bold text-white">SIM-123 → Zone B</p><p class="text-[10px] text-slate-500">Plate reader | Ultrasonic | Camera</p></div></div><span class="text-xs font-semibold text-slate-500">2 min ago</span></div><div class="flex items-center justify-between border-b border-sp-accent/10 pb-3"><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-xl bg-sp-emerald/10 text-sp-emerald flex items-center justify-center text-sm"><i class="fa-solid fa-car"></i></div><div><p class="text-xs font-bold text-white">DHA-5521 → Zone C</p><p class="text-[10px] text-slate-500">Plate reader | Ultrasonic | Camera</p></div></div><span class="text-xs font-semibold text-slate-500">5 min ago</span></div></div><button onclick="viewAllSensorActivity()" class="w-full mt-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 border border-sp-accent/10 rounded-xl transition-all">View All Sensor Activity</button></div>
+        </div>
+    </div>
 
-    <!-- JavaScript -->
-    <script src="admin.js"></script>
+    <!-- ZONES VIEW -->
+    <div id="zones-view" class="p-6 hidden"><h2 class="text-xl font-bold text-white mb-4">Parking Zones Management</h2><button onclick="openAddModal()" class="btn-primary mb-4"><i class="fa-solid fa-plus mr-1.5"></i> Add New Zone</button><div id="zones-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"></div></div>
+
+    <!-- SESSIONS VIEW -->
+    <div id="sessions-view" class="p-6 hidden"><h2 class="text-xl font-bold text-white mb-4">Active Parking Sessions</h2><div class="glass-card overflow-hidden"><table class="data-table"><thead><tr><th>Vehicle</th><th>Zone</th><th>Slot</th><th>Type</th><th>Cost</th><th>Status</th></tr></thead><tbody id="sessions-table-body"></tbody></table></div></div>
+
+    <!-- HISTORY VIEW -->
+    <div id="history-view" class="p-6 hidden"><h2 class="text-xl font-bold text-white mb-4">Parking History</h2>
+        <div class="flex flex-col sm:flex-row items-center gap-3 mb-5">
+            <input type="date" id="filter-date-from" onchange="autoFilterByDate()" class="text-xs bg-sp-card border border-sp-accent/10 rounded-lg px-3 py-2.5 text-slate-200 outline-none focus:border-sp-accent transition-all">
+            <input type="date" id="filter-date-to" onchange="autoFilterByDate()" class="text-xs bg-sp-card border border-sp-accent/10 rounded-lg px-3 py-2.5 text-slate-200 outline-none focus:border-sp-accent transition-all">
+            <button onclick="applyDateFilter()" class="btn-primary py-2 px-4 text-xs">Filter</button>
+            <button onclick="clearDateFilter()" class="btn-secondary py-2 px-4 text-xs">Clear</button>
+            <button onclick="downloadHistoryReport()" class="btn-secondary py-2 px-4 text-xs"><i class="fa-solid fa-download mr-1.5"></i> Report</button>
+        </div>
+        <div class="glass-card overflow-hidden"><table class="data-table"><thead><tr><th>Plate</th><th>Zone</th><th>Spot</th><th>Duration</th><th style="text-align:right;">Fee</th><th>Payment</th><th style="text-align:right;">Action</th></tr></thead><tbody id="history-table-body"></tbody></table></div>
+        <div class="flex items-center justify-between mt-4"><div class="flex items-center gap-2"><span class="text-xs text-slate-500">Page</span><span id="page-info" class="text-xs font-bold text-white">Page 1 of 1</span></div><div class="flex items-center gap-2"><button id="btn-first" onclick="goToPage(1)" class="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 text-slate-400 border border-sp-accent/10 rounded-lg transition-all disabled:opacity-40">First</button><button id="btn-prev" onclick="goToPage(currentPage-1)" class="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 text-slate-400 border border-sp-accent/10 rounded-lg transition-all disabled:opacity-40">Prev</button><button id="btn-next" onclick="goToPage(currentPage+1)" class="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 text-slate-400 border border-sp-accent/10 rounded-lg transition-all disabled:opacity-40">Next</button><button id="btn-last" onclick="goToPage(totalPages)" class="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 text-slate-400 border border-sp-accent/10 rounded-lg transition-all disabled:opacity-40">Last</button></div><button onclick="deleteAllHistory()" class="px-3 py-1.5 text-xs font-bold bg-sp-red/10 text-sp-red border border-sp-red/20 rounded-lg hover:bg-sp-red/20 transition-all">Delete All</button></div></div>
+
+    <!-- MAP VIEW -->
+    <div id="map-view" class="p-6 hidden"><h2 class="text-xl font-bold text-white mb-4">Live Parking Map</h2><div id="admin-map" class="h-[500px] rounded-2xl border border-sp-accent/10"></div></div>
+
+    <!-- CASH VIEW -->
+    <div id="cash-view" class="p-6 hidden"><h2 class="text-xl font-bold text-white mb-4">Cash Verification</h2><div class="glass-card p-6"><p class="text-sm text-slate-400 mb-4">Verify manual cash payments collected by parking attendants.</p><div id="cash-pending-list" class="space-y-3"><p class="text-xs text-slate-500">No pending cash verifications.</p></div></div></div>
+
+    <!-- SETTINGS VIEW -->
+    <div id="settings-view" class="p-6 hidden"><h2 class="text-xl font-bold text-white mb-4">System Settings</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="glass-card p-6"><h3 class="text-base font-bold text-white mb-4">General Settings</h3><div class="space-y-4"><div><label class="form-label">Parking Lot Name</label><input type="text" value="SmartPark Main Lot" class="form-input"></div><div><label class="form-label">Currency</label><select class="form-input"><option>BDT (৳)</option><option>USD ($)</option><option>INR (₹)</option></select></div><div><label class="form-label">Time Zone</label><select class="form-input"><option>Asia/Dhaka (UTC+6)</option></select></div><button onclick="showToast('success','Settings saved!')" class="btn-primary mt-4">Save Settings</button></div></div>
+            <div class="glass-card p-6"><h3 class="text-base font-bold text-white mb-4">Admin Account</h3><div class="space-y-4"><div><label class="form-label">Admin Name</label><input type="text" value="Admin User" class="form-input"></div><div><label class="form-label">Email</label><input type="email" value="admin@smartpark.com" class="form-input"></div><div><label class="form-label">New Password</label><input type="password" placeholder="Enter new password" class="form-input"></div><button onclick="showToast('success','Account updated!')" class="btn-primary mt-4">Update Account</button></div></div>
+            <div class="glass-card p-6"><h3 class="text-base font-bold text-white mb-4">Sensor Configuration</h3><div class="space-y-4"><div><label class="form-label">Plate Reader Sensitivity</label><input type="range" min="1" max="100" value="80" class="w-full"><p class="text-[10px] text-slate-500 mt-1">Current: 80%</p></div><div><label class="form-label">Ultrasonic Range (cm)</label><input type="number" value="200" class="form-input"></div><button onclick="showToast('success','Sensor settings saved!')" class="btn-primary mt-4">Save Sensor Config</button></div></div>
+            <div class="glass-card p-6 border-sp-red/20"><h3 class="text-base font-bold text-sp-red mb-4">Danger Zone</h3><p class="text-xs text-slate-500 mb-4">These actions are irreversible. Please proceed with caution.</p><div class="space-y-3"><button onclick="if(confirm('Clear all parking data?')){clearUserData();showToast('success','All data cleared.');}else{showToast('info','Cancelled.');}" class="btn-danger w-full py-2.5"><i class="fa-solid fa-trash-can mr-1.5"></i> Clear All Parking Data</button><button onclick="if(confirm('Reset all zones to defaults?')){zonesData={ZoneA:{id:'Zone-A',name:'Zone A',location:'Ground Floor',spots:50,occupied:0,free:50,rate:3.50,type:'Covered',status:'Active'},ZoneB:{id:'Zone-B',name:'Zone B',location:'Rooftop',spots:80,occupied:0,free:80,rate:2.00,type:'Rooftop',status:'Active'},ZoneC:{id:'Zone-C',name:'Zone C',location:'Underground',spots:120,occupied:0,free:120,rate:5.00,type:'Underground',status:'Active'},ZoneD:{id:'Zone-D',name:'Zone D',location:'Open Lot',spots:30,occupied:0,free:30,rate:1.50,type:'Open Air',status:'Active'},ZoneE:{id:'Zone-E',name:'Zone E',location:'West Annex',spots:40,occupied:0,free:40,rate:2.50,type:'Covered',status:'Maintenance'}};showToast('success','Zones reset.');}else{showToast('info','Cancelled.');}" class="btn-danger w-full py-2.5"><i class="fa-solid fa-rotate-left mr-1.5"></i> Reset All Zones</button></div></div>
+        </div>
+    </div>
+</main>
+
+<div id="edit-zone-modal" class="modal-overlay">
+    <div class="modal-content" id="edit-zone-card">
+        <div class="p-6">
+            <div class="flex justify-between items-start mb-4">
+                <div><h3 class="text-lg font-bold text-white" id="edit-zone-modal-title">Edit Zone</h3><p class="text-xs text-slate-500 mt-0.5">Update zone configuration</p></div>
+                <button onclick="closeEditModal()" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="saveZoneChanges(event)" class="space-y-4">
+                <input type="hidden" id="edit-mode" value="edit"><input type="hidden" id="edit-zone-id">
+                <div><label class="form-label">Zone Name</label><input type="text" id="edit-zone-name" required class="form-input"></div>
+                <div><label class="form-label">Location</label><input type="text" id="edit-zone-location" required class="form-input"><p class="text-[10px] text-slate-500 mt-1 flex items-center gap-1"><i class="fa-solid fa-location-dot text-sp-accent"></i> <span id="edit-address-text">Click map to set location</span></p></div>
+                <div class="grid grid-cols-2 gap-4"><div><label class="form-label">Total Spots</label><input type="number" id="edit-zone-spots" required class="form-input"></div><div><label class="form-label">Rate (/hr)</label><input type="number" id="edit-zone-rate" step="0.5" required class="form-input"></div></div>
+                <div class="grid grid-cols-2 gap-4"><div><label class="form-label">Type</label><select id="edit-zone-type" class="form-input"><option>Covered</option><option>Open Air</option><option>Underground</option><option>Rooftop</option></select></div><div><label class="form-label">Status</label><select id="edit-zone-status" class="form-input"><option>Active</option><option>Maintenance</option><option>Closed</option></select></div></div>
+                <div><label class="form-label">Coordinates</label><div id="edit-map" class="h-[200px] rounded-xl border border-sp-accent/10 overflow-hidden"></div><p class="text-xs text-slate-500 mt-1" id="edit-coords">Click map or drag marker</p></div>
+                <div class="flex justify-end gap-3 border-t border-sp-accent/10 pt-4">
+                    <button type="button" onclick="closeEditModal()" class="btn-secondary py-2.5 px-5">Cancel</button>
+                    <button type="submit" class="btn-primary py-2.5 px-5"><i class="fa-solid fa-save mr-1.5"></i> Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
+<script src="admin.js"></script>
+<script>
+window.addEventListener('DOMContentLoaded', function() {
+    const hash = window.location.hash;
+    if (hash) {
+        const tabId = hash.replace('#tab-', '');
+        if (tabId) { setTimeout(() => switchAdminTab(tabId, null), 100); }
+    }
+});
+</script>
 </body>
 </html>
