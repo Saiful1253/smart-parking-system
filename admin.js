@@ -22,8 +22,10 @@ const API_BASE = (() => {
     } catch (error) { localStorage.removeItem('token_admin'); localStorage.removeItem('loggedInUser_admin'); window.location.href = 'index.html'; }
 })();
 
-let zonesData = {};
-let ZONE_ORDER = [];
+let anomalyDismissed = false;
+let expandedAnomalies = false;
+let fullAnomalyList = [];
+let previousAnomalyCount = 0;
 
 async function loadZonesFromAPI() {
     loadZonesFromLocalStorage();
@@ -105,14 +107,12 @@ async function loadDashboardStats() {
         if (response.ok) { updateSpottedVehiclesUI(data); updateZonesSpotsUI(data); }
         else { updateDashboardStatsFromLocal(); }
     } catch (error) { 
-        const spottedEl = document.getElementById('spotted-vehicles-count'); 
-        if (spottedEl) spottedEl.textContent = '0'; 
         updateDashboardStatsFromLocal(); 
     }
     updateRevenueUI();
 }
 
-function updateSpottedVehiclesUI(stats) { const spottedCountEl = document.getElementById('spotted-vehicles-count'); if (spottedCountEl && stats.spottedVehicles !== undefined) spottedCountEl.textContent = stats.spottedVehicles; }
+function updateSpottedVehiclesUI(stats) { const spottedCountEl = document.getElementById('spotted-vehicles-count'); if (spottedCountEl) { const count = (stats.anomalies && stats.anomalies.length) || getLocalAnomalyCount(); spottedCountEl.textContent = count; } }
 function updateZonesSpotsUI(stats) {
     const zonesEl = document.getElementById('stat-zones');
     const spotsEl = document.getElementById('stat-spots');
@@ -123,40 +123,111 @@ function updateDashboardStatsFromLocal() {
     const zones = Object.values(zonesData);
     const totalZones = zones.length;
     const totalSpots = zones.reduce(function(sum, z) { return sum + (z.spots || 0); }, 0);
+    const totalOccupied = zones.reduce(function(sum, z) { return sum + (z.occupied || 0); }, 0);
+    const freeSpots = Math.max(0, totalSpots - totalOccupied);
     const zonesEl = document.getElementById('stat-zones');
     const spotsEl = document.getElementById('stat-spots');
+    const freeEl = document.getElementById('stat-free');
     if (zonesEl) zonesEl.textContent = totalZones;
     if (spotsEl) spotsEl.textContent = totalSpots;
+    if (freeEl) freeEl.textContent = freeSpots;
 }
 async function updateDashboardStats() { await loadDashboardStats(); }
 
 async function refreshZones() {
     const refreshIcon = document.querySelector('header button i');
     if (refreshIcon) refreshIcon.classList.add('fa-spin');
-    try { await loadZonesFromAPI(); if (document.getElementById('zones-grid')) renderZonesGrid(); updateChartFromZones(); updateDashboardStats(); if (refreshIcon) refreshIcon.classList.remove('fa-spin'); }
-    catch (err) { if (refreshIcon) refreshIcon.classList.remove('fa-spin'); }
+    try {
+        await loadZonesFromAPI();
+        const allData = getAllCustomerParkingData();
+        recalculateZoneOccupancy(allData.sessions);
+        if (document.getElementById('zones-grid')) renderZonesGrid();
+        updateChartFromZones();
+        updateDashboardStats();
+        if (document.getElementById('sessions-table-body')) renderSessionsTable();
+        if (document.getElementById('history-table-body')) { syncHistoryFromAllCustomers(); renderHistoryTable(); }
+        if (document.getElementById('sensor-log')) renderSensorLog();
+        if (document.getElementById('active-sessions-count')) {
+            let count = 0;
+            if (allData.sessions) count = allData.sessions.filter(function(s) { return s.status === 'Active'; }).length;
+            document.getElementById('active-sessions-count').textContent = count;
+        }
+        if (document.getElementById('stat-free')) {
+            const zones = Object.values(zonesData);
+            const totalSpots = zones.reduce(function(sum, z) { return sum + (z.spots || 0); }, 0);
+            const totalOccupied = zones.reduce(function(sum, z) { return sum + (z.occupied || 0); }, 0);
+            document.getElementById('stat-free').textContent = Math.max(0, totalSpots - totalOccupied);
+        }
+        if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+    } catch (err) { if (refreshIcon) refreshIcon.classList.remove('fa-spin'); }
 }
 
 // Auto-refresh
-setInterval(async () => { if (document.getElementById('zones-grid')) { await loadZonesFromAPI(); renderZonesGrid(); updateChartFromZones(); } }, 5000);
-setInterval(async () => { await loadDashboardStats(); await loadAnomalies(); if (document.getElementById('bookingTrendChart')) loadBookingTrend(currentBookingTrendPeriod); }, 10000);
+setInterval(async () => {
+    if (document.getElementById('zones-grid')) {
+        await loadZonesFromAPI();
+        const allData = getAllCustomerParkingData();
+        recalculateZoneOccupancy(allData.sessions);
+        renderZonesGrid();
+        updateChartFromZones();
+        if (document.getElementById('sessions-table-body')) renderSessionsTable();
+        if (document.getElementById('sensor-log')) renderSensorLog();
+        if (document.getElementById('active-sessions-count')) {
+            let count = 0;
+            if (allData.sessions) count = allData.sessions.filter(function(s) { return s.status === 'Active'; }).length;
+            document.getElementById('active-sessions-count').textContent = count;
+        }
+        if (document.getElementById('stat-free')) {
+            const zones = Object.values(zonesData);
+            const totalSpots = zones.reduce(function(sum, z) { return sum + (z.spots || 0); }, 0);
+            const totalOccupied = zones.reduce(function(sum, z) { return sum + (z.occupied || 0); }, 0);
+            document.getElementById('stat-free').textContent = Math.max(0, totalSpots - totalOccupied);
+        }
+    }
+}, 5000);
+setInterval(async () => {
+    await loadDashboardStats();
+    await loadAnomalies();
+    if (document.getElementById('bookingTrendChart')) loadBookingTrend(currentBookingTrendPeriod);
+    if (document.getElementById('sensor-log')) renderSensorLog();
+    if (document.getElementById('history-table-body')) { syncHistoryFromAllCustomers(); renderHistoryTable(); }
+    if (document.getElementById('cash-table-body')) loadCashVerifications();
+}, 10000);
 
 document.addEventListener('DOMContentLoaded', async () => {
+    loadZonesFromLocalStorage();
+    updateDashboardStatsFromLocal();
+    updateRevenueUI();
+    const allData = getAllCustomerParkingData();
+    recalculateZoneOccupancy(allData.sessions);
+    if (document.getElementById('zones-grid')) renderZonesGrid();
+    updateChartFromZones();
     if (document.getElementById('occupancyChart')) initOccupancyChart();
-    if (document.getElementById('zones-grid')) { await loadZonesFromAPI(); renderZonesGrid(); updateChartFromZones(); }
     if (document.getElementById('bookingTrendChart')) { initBookingTrendChart(); loadBookingTrend('week'); }
+    if (document.getElementById('active-sessions-count')) {
+        let count = 0;
+        if (allData.sessions) count = allData.sessions.filter(function(s) { return s.status === 'Active'; }).length;
+        document.getElementById('active-sessions-count').textContent = count;
+    }
+    if (document.getElementById('sessions-table-body')) renderSessionsTable();
+    if (document.getElementById('history-table-body')) { syncHistoryFromAllCustomers(); renderHistoryTable(); }
+    if (document.getElementById('sensor-log')) renderSensorLog();
+    await loadZonesFromAPI();
+    if (document.getElementById('zones-grid')) renderZonesGrid();
+    updateChartFromZones();
     await loadDashboardStats();
     await loadAnomalies();
     if (document.getElementById('anomaly-list')) await loadAnomalies();
     if (document.getElementById('sessions-table-body')) renderSessionsTable();
-    if (document.getElementById('history-table-body')) renderHistoryTable();
-    updateRevenueUI();
+    if (document.getElementById('history-table-body')) { syncHistoryFromAllCustomers(); renderHistoryTable(); }
+    if (document.getElementById('sensor-log')) renderSensorLog();
     if (document.getElementById('active-sessions-count')) {
-        const saved = getUserData('customerParkingData');
         let count = 0;
-        if (saved && saved.sessions) count = saved.sessions.filter(function(s) { return s.status === 'Active'; }).length;
+        if (allData.sessions) count = allData.sessions.filter(function(s) { return s.status === 'Active'; }).length;
         document.getElementById('active-sessions-count').textContent = count;
     }
+    if (document.getElementById('zones-grid')) renderZonesGrid();
+    updateChartFromZones();
 });
 
 function renderZonesGrid() {
@@ -217,9 +288,13 @@ function switchAdminTab(tabId, element) {
     if (activeView) {
         activeView.classList.remove('hidden');
         if (tabId === 'map') setTimeout(() => initAdminMap(), 100);
+        if (tabId === 'customer') loadUnregisteredVehicles();
+        if (tabId === 'cash') loadCashVerifications();
+        if (tabId === 'history') { syncHistoryFromAllCustomers(); renderHistoryTable(); }
+        if (tabId === 'dashboard') {}
     }
     const pageTitle = document.getElementById('page-title'); const pageSubtitle = document.getElementById('page-subtitle');
-    const titles = { dashboard: { title: 'Dashboard', subtitle: 'AI-powered parking management overview' }, zones: { title: 'Parking Zones', subtitle: 'Configure and monitor parking zones and rates' }, sessions: { title: 'Active Sessions', subtitle: 'Real-time list of vehicles currently parked' }, history: { title: 'Parking History', subtitle: 'Historical log of completed sessions and payments' }, map: { title: 'Live Parking Map', subtitle: 'Visual representation of parking lot occupancy' }, cash: { title: 'Cash Verification', subtitle: 'Verify manual cash payments' }, settings: { title: 'System Settings', subtitle: 'Configure system parameters and accounts' } };
+    const titles = { dashboard: { title: 'Dashboard', subtitle: 'AI-powered parking management overview' }, zones: { title: 'Parking Zones', subtitle: 'Configure and monitor parking zones and rates' }, sessions: { title: 'Active Sessions', subtitle: 'Real-time list of vehicles currently parked' }, history: { title: 'Parking History', subtitle: 'Historical log of completed sessions and payments' }, map: { title: 'Live Parking Map', subtitle: 'Visual representation of parking lot occupancy' }, customer: { title: 'Customer Management', subtitle: 'Registered customers and unregistered vehicle registration' }, cash: { title: 'Cash Verification', subtitle: 'Verify manual cash payments' }, settings: { title: 'System Settings', subtitle: 'Configure system parameters and accounts' } };
     if (titles[tabId]) { pageTitle.textContent = titles[tabId].title; pageSubtitle.textContent = titles[tabId].subtitle; }
     if (window.innerWidth < 768) document.getElementById('sidebar').classList.add('-translate-x-full');
 }
@@ -302,15 +377,51 @@ async function loadBookingTrend(period) {
             bookingTrendChart.data.datasets[0].label = currentBookingTrendPeriod === 'week' ? 'Bookings this week' : currentBookingTrendPeriod === 'month' ? 'Bookings this month' : 'Bookings this year';
             bookingTrendChart.update();
         } else {
-            bookingTrendChart.data.labels = [];
-            bookingTrendChart.data.datasets[0].data = [];
-            bookingTrendChart.update();
+            renderLocalBookingTrend(currentBookingTrendPeriod);
         }
     } catch (err) {
-        bookingTrendChart.data.labels = [];
-        bookingTrendChart.data.datasets[0].data = [];
-        bookingTrendChart.update();
+        renderLocalBookingTrend(currentBookingTrendPeriod);
     }
+}
+
+function renderLocalBookingTrend(period) {
+    if (!bookingTrendChart) return;
+    const allData = getAllCustomerParkingData();
+    const sessions = allData.sessions || [];
+    const now = new Date();
+    let labels = [];
+    let values = [];
+    if (period === 'week') {
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(now); d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+            labels.push(dayName);
+            values.push(sessions.filter(function(s) { return s.date === dateStr && s.status === 'Active'; }).length);
+        }
+        bookingTrendChart.data.datasets[0].label = 'Bookings this week';
+    } else if (period === 'month') {
+        for (let i = 29; i >= 0; i -= 7) {
+            const d = new Date(now); d.setDate(d.getDate() - i);
+            const weekStart = new Date(d); weekStart.setDate(d.getDate() - d.getDay());
+            const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+            const label = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            labels.push(label);
+            values.push(sessions.filter(function(s) { return s.date >= weekStart.toISOString().split('T')[0] && s.date <= weekEnd.toISOString().split('T')[0] && s.status === 'Active'; }).length);
+        }
+        bookingTrendChart.data.datasets[0].label = 'Bookings this month';
+    } else {
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date(now); d.setMonth(d.getMonth() - i);
+            const monthName = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            labels.push(monthName);
+            values.push(sessions.filter(function(s) { const sm = s.date ? s.date.substring(0, 7) : ''; return sm === d.toISOString().substring(0, 7) && s.status === 'Active'; }).length);
+        }
+        bookingTrendChart.data.datasets[0].label = 'Bookings this year';
+    }
+    bookingTrendChart.data.labels = labels;
+    bookingTrendChart.data.datasets[0].data = values;
+    bookingTrendChart.update();
 }
 
 function setBookingTrendPeriod(period) {
@@ -323,8 +434,25 @@ async function triggerRefresh() {
     showToast('info', 'Refreshing system data...');
     try {
         await loadZonesFromAPI(); await loadDashboardStats(); await loadAnomalies();
+        const allData = getAllCustomerParkingData();
+        recalculateZoneOccupancy(allData.sessions);
         if (document.getElementById('zones-grid')) { renderZonesGrid(); }
         updateChartFromZones();
+        if (document.getElementById('sessions-table-body')) renderSessionsTable();
+        if (document.getElementById('history-table-body')) { syncHistoryFromAllCustomers(); renderHistoryTable(); }
+        if (document.getElementById('sensor-log')) renderSensorLog();
+        if (document.getElementById('cash-table-body')) loadCashVerifications();
+        if (document.getElementById('active-sessions-count')) {
+            let count = 0;
+            if (allData.sessions) count = allData.sessions.filter(function(s) { return s.status === 'Active'; }).length;
+            document.getElementById('active-sessions-count').textContent = count;
+        }
+        if (document.getElementById('stat-free')) {
+            const zones = Object.values(zonesData);
+            const totalSpots = zones.reduce(function(sum, z) { return sum + (z.spots || 0); }, 0);
+            const totalOccupied = zones.reduce(function(sum, z) { return sum + (z.occupied || 0); }, 0);
+            document.getElementById('stat-free').textContent = Math.max(0, totalSpots - totalOccupied);
+        }
         if (document.getElementById('bookingTrendChart')) loadBookingTrend(currentBookingTrendPeriod);
         if (refreshIcon) refreshIcon.classList.remove('fa-spin');
         showToast('success', 'System data refreshed!');
@@ -336,23 +464,170 @@ async function loadAnomalies() {
         const token = localStorage.getItem('token_admin');
         const response = await fetch(`${API_BASE}/api/admin/dashboard-stats`, { method: 'GET', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
         const contentType = response.headers.get('content-type') || ''; const isJson = contentType.includes('application/json'); const data = isJson ? await response.json() : {};
-        if (response.ok) { const spotted = (data.spottedVehiclesList || []).map(v => ({ zone: v.zone, type: 'spotted', message: `${v.plate} in ${v.zone} (Spot: ${v.spot})`, severity: 'warning', vehicles: [v] })); renderAnomalies(spotted); }
-    } catch (err) { renderAnomalies([]); }
+        if (response.ok && data.spottedVehiclesList && data.spottedVehiclesList.length > 0) {
+            unregisteredVehicles = (data.spottedVehiclesList || []).map(v => ({ ...v, detectedAt: v.detectedAt || new Date().toISOString(), sensor: v.sensor || 'Plate Reader' }));
+        } else {
+            unregisteredVehicles = [];
+        }
+        const actualAnomalies = (data.anomalies && data.anomalies.length > 0) ? data.anomalies : [];
+        if (actualAnomalies.length > 0) {
+            renderAnomalies(actualAnomalies);
+        } else {
+            renderLocalAnomalies();
+        }
+    } catch (err) { 
+        unregisteredVehicles = [];
+        renderLocalAnomalies(); 
+    }
+}
+
+function renderLocalAnomalies() {
+    const allData = getAllCustomerParkingData();
+    const sessions = allData.sessions || [];
+    const anomalies = [];
+    const activeSessions = sessions.filter(function(s) { return s.status === 'Active'; });
+    activeSessions.forEach(function(s) {
+        const zone = zonesData[s.zoneId] || Object.values(zonesData).find(function(z) { return z.name === s.zone; });
+        if (!zone) return;
+        const spotIndex = s.slotIndex;
+        if (spotIndex === undefined || spotIndex < 0 || spotIndex >= zone.spots) {
+            anomalies.push({ zone: s.zone || 'Unknown', type: 'invalid_slot', message: `Invalid slot index ${spotIndex} for ${s.vehicle || 'vehicle'}`, severity: 'warning', vehicles: [{ plate: s.vehicle || 'N/A', spot: '?' }] });
+        }
+        if (s.vehicle && s.vehicle.length < 3) {
+            anomalies.push({ zone: s.zone || 'Unknown', type: 'short_plate', message: `Suspicious plate: ${s.vehicle} in ${s.zone}`, severity: 'warning', vehicles: [{ plate: s.vehicle, spot: s.slot || '?' }] });
+        }
+        if (s.cost > 1000) {
+            anomalies.push({ zone: s.zone || 'Unknown', type: 'high_cost', message: `High cost booking: ৳${s.cost.toFixed(2)} for ${s.vehicle}`, severity: 'warning', vehicles: [{ plate: s.vehicle, spot: s.slot || '?' }] });
+        }
+    });
+    renderAnomalies(anomalies);
 }
 
 function renderAnomalies(anomalies) {
     const alertBox = document.getElementById('anomaly-alert'); const anomalyList = document.getElementById('anomaly-list');
     if (!alertBox || !anomalyList) return;
-    if (!anomalies || anomalies.length === 0) { alertBox.classList.add('hidden'); return; }
+    if (!anomalies || anomalies.length === 0) { alertBox.classList.add('hidden'); previousAnomalyCount = 0; return; }
+    if (anomalyDismissed && anomalies.length === previousAnomalyCount) return;
+    anomalyDismissed = false;
+    previousAnomalyCount = anomalies.length;
+    fullAnomalyList = anomalies;
     alertBox.classList.remove('hidden');
-    const titleEl = alertBox.querySelector('h3'); if (titleEl) titleEl.textContent = `Slot Anomaly Detected (${anomalies.length} alert${anomalies.length !== 1 ? 's' : ''})`;
-    anomalyList.innerHTML = anomalies.map(anomaly => `<div class="bg-white/5 border border-sp-red/20 rounded-xl p-3.5"><div class="flex items-start gap-3"><span class="px-2.5 py-1 text-xs font-bold bg-sp-red/10 text-sp-red rounded-lg">${anomaly.zone}</span><div class="flex-1"><p class="text-xs text-slate-300 font-medium">${anomaly.message}</p>${anomaly.vehicles && anomaly.vehicles.length > 0 ? '<div class="mt-2 space-y-1">' + anomaly.vehicles.map(v => `<div class="flex items-center gap-2 text-[10px] font-mono bg-sp-primary/30 rounded-lg px-2 py-1 border border-sp-accent/10"><i class="fa-solid fa-car text-sp-red"></i><span class="font-bold text-white">${v.plate}</span><span class="text-slate-500">Spot: ${v.spot}</span></div>`).join('') + '</div>' : ''}</div></div></div>`).join('');
+    const visibleAnomalies = expandedAnomalies ? anomalies : anomalies.slice(0, 5);
+    const titleEl = alertBox.querySelector('h3');
+    const toggleBtn = alertBox.querySelector('.anomaly-toggle-btn');
+    if (toggleBtn) {
+        if (anomalies.length > 5) {
+            toggleBtn.classList.remove('hidden');
+            toggleBtn.innerHTML = expandedAnomalies ? '<i class="fa-solid fa-chevron-up text-[10px]"></i> Show Less' : `<i class="fa-solid fa-chevron-down text-[10px]"></i> Show All (${anomalies.length})`;
+        } else {
+            toggleBtn.classList.add('hidden');
+        }
+    }
+    anomalyList.innerHTML = visibleAnomalies.map(anomaly => `<div class="bg-white/5 border border-sp-red/20 rounded-xl p-3.5"><div class="flex items-start gap-3"><span class="px-2.5 py-1 text-xs font-bold bg-sp-red/10 text-sp-red rounded-lg">${anomaly.zone}</span><div class="flex-1"><p class="text-xs text-slate-300 font-medium">${anomaly.message}</p>${anomaly.vehicles && anomaly.vehicles.length > 0 ? '<div class="mt-2 space-y-1">' + anomaly.vehicles.map(v => `<div class="flex items-center gap-2 text-[10px] font-mono bg-sp-primary/30 rounded-lg px-2 py-1 border border-sp-accent/10"><i class="fa-solid fa-car text-sp-red"></i><span class="font-bold text-white">${v.plate}</span><span class="text-slate-500">Spot: ${v.spot}</span></div>`).join('') + '</div>' : ''}</div></div></div>`).join('');
+    updateAnomalyBadge();
 }
 
 function refreshAnomalies() { showToast('info', 'Scanning sensors...'); loadAnomalies().then(() => { showToast('success', 'Sensor scan complete.'); }); }
-function dismissAnomalies() { const alertBox = document.getElementById('anomaly-alert'); if (alertBox) { alertBox.classList.add('opacity-0', 'scale-95'); setTimeout(() => { alertBox.remove(); showToast('success', 'All anomaly alerts dismissed.'); }, 500); } }
+function dismissAnomalies() { anomalyDismissed = true; const alertBox = document.getElementById('anomaly-alert'); if (alertBox) { alertBox.classList.add('opacity-0', 'scale-95'); setTimeout(() => { alertBox.classList.add('hidden'); alertBox.classList.remove('opacity-0', 'scale-95'); showToast('success', 'Anomaly alerts dismissed for this session.'); }, 500); } updateAnomalyBadge(); }
+function toggleAnomaliesExpand() { expandedAnomalies = !expandedAnomalies; if (fullAnomalyList.length > 0) renderAnomalies(fullAnomalyList); }
+function updateAnomalyBadge() {
+    const badge = document.getElementById('anomaly-badge');
+    if (!badge) return;
+    const count = fullAnomalyList.length > 0 ? fullAnomalyList.length : (previousAnomalyCount > 0 ? previousAnomalyCount : 0);
+    if (count > 0 && !anomalyDismissed) { badge.style.display = 'inline-flex'; badge.textContent = count > 99 ? '99+' : count; }
+    else { badge.style.display = 'none'; }
+}
 
 function clearSensorLog() { const sensorLog = document.getElementById('sensor-log'); if (sensorLog) { sensorLog.setAttribute('data-empty', 'true'); sensorLog.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-center text-slate-500"><i class="fa-solid fa-satellite-dish text-2xl mb-2"></i><p class="text-xs font-medium">No recent sensor activity</p></div>'; showToast('info', 'Sensor log cleared.'); } }
+
+function loadUnregisteredVehicles() {
+    const tbody = document.getElementById('unregistered-table-body');
+    if (!tbody) return;
+    const allData = getAllCustomerParkingData();
+    const sessions = allData.sessions || [];
+    const activeSessions = sessions.filter(s => s.status === 'Active');
+    const registeredPlates = activeSessions.map(s => (s.vehicle || '').toUpperCase());
+    const vehicles = unregisteredVehicles.filter(v => !registeredPlates.includes((v.plate || '').toUpperCase()));
+    const allUsers = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
+    const registeredUsers = allUsers.map(u => (u.vehicle || '').toUpperCase()).filter(Boolean);
+    const unregistered = vehicles.filter(v => !registeredUsers.includes((v.plate || '').toUpperCase()));
+    const unregisteredEl = document.getElementById('stat-unregistered');
+    const registeredEl = document.getElementById('stat-registered');
+    const anomaliesEl = document.getElementById('stat-anomalies');
+    if (unregisteredEl) unregisteredEl.textContent = unregistered.length;
+    if (registeredEl) registeredEl.textContent = allUsers.length;
+    const localAnomalies = getLocalAnomalyCount();
+    if (anomaliesEl) anomaliesEl.textContent = localAnomalies + (unregistered.length > 0 ? ' + ' + unregistered.length + ' unregistered' : '');
+    if (unregistered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-500"><i class="fa-solid fa-circle-check text-2xl mb-2 text-sp-emerald"></i><p class="text-xs font-medium">No unregistered vehicles detected</p></td></tr>';
+        return;
+    }
+    tbody.innerHTML = unregistered.map(v => {
+        const time = v.detectedAt ? new Date(v.detectedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'Now';
+        const safePlate = (v.plate || '').replace(/'/g, '&#39;');
+        return '<tr class="hover:bg-white/5 transition-colors"><td class="py-3.5 font-bold text-white">' + (v.plate || 'N/A') + '</td><td class="py-3.5 text-slate-400">' + (v.zone || 'N/A') + '</td><td class="py-3.5 text-slate-400 font-semibold">' + (v.spot || '?') + '</td><td class="py-3.5 text-slate-500">' + time + '</td><td class="py-3.5 text-slate-400"><span class="px-2 py-0.5 rounded-full bg-white/5 text-sp-accent font-semibold text-[10px] border border-sp-accent/10">' + (v.sensor || 'Unknown') + '</span></td><td class="py-3.5 text-right"><button onclick="registerUnregisteredVehicle(\'' + safePlate + '\')" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-sp-emerald/10 hover:bg-sp-emerald/20 text-sp-emerald rounded-lg transition-all border border-sp-emerald/20"><i class="fa-solid fa-user-plus text-[10px]"></i> Register</button></td></tr>';
+    }).join('');
+}
+
+function getLocalAnomalyCount() {
+    const allData = getAllCustomerParkingData();
+    const sessions = allData.sessions || [];
+    let count = 0;
+    const activeSessions = sessions.filter(function(s) { return s.status === 'Active'; });
+    activeSessions.forEach(function(s) {
+        const zone = zonesData[s.zoneId] || Object.values(zonesData).find(function(z) { return z.name === s.zone; });
+        if (!zone) return;
+        const spotIndex = s.slotIndex;
+        if (spotIndex === undefined || spotIndex < 0 || spotIndex >= zone.spots) count++;
+        if (s.vehicle && s.vehicle.length < 3) count++;
+        if (s.cost > 1000) count++;
+    });
+    return count;
+}
+
+async function registerUnregisteredVehicle(plate) {
+    if (!plate) return;
+    const name = prompt('Enter customer name for plate ' + plate + ':');
+    if (!name) { showToast('info', 'Registration cancelled.'); return; }
+    const email = prompt('Enter customer email for plate ' + plate + ':');
+    if (!email) { showToast('info', 'Registration cancelled.'); return; }
+    const password = 'SmartPark' + Math.floor(Math.random() * 1000);
+    const users = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
+    if (users.some(u => (u.email || '').toLowerCase() === email.toLowerCase())) { showToast('error', 'Email already registered.'); return; }
+    users.push({ email: email.toLowerCase(), password: password, role: 'customer', name: name, plate: plate.toUpperCase() });
+    localStorage.setItem('smartParkUsers', JSON.stringify(users));
+    unregisteredVehicles = unregisteredVehicles.filter(v => (v.plate || '').toUpperCase() !== plate.toUpperCase());
+    showToast('success', 'Vehicle registered successfully! Customer credentials: ' + email + ' / ' + password);
+    loadUnregisteredVehicles();
+}
+
+function renderSensorLog() {
+    const sensorLog = document.getElementById('sensor-log');
+    if (!sensorLog) return;
+    const allData = getAllCustomerParkingData();
+    const sessions = allData.sessions || [];
+    const registeredPlates = sessions.filter(s => s.status === 'Active').map(s => (s.vehicle || '').toUpperCase());
+    const unregisteredPlates = unregisteredVehicles.map(v => (v.plate || '').toUpperCase());
+    const recent = sessions.filter(function(s) { return s.status === 'Active' && !unregisteredPlates.includes((s.vehicle || '').toUpperCase()); }).slice(0, 10);
+    if (recent.length === 0) {
+        sensorLog.setAttribute('data-empty', 'true');
+        sensorLog.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-center text-slate-500"><i class="fa-solid fa-satellite-dish text-2xl mb-2"></i><p class="text-xs font-medium">No recent sensor activity</p></div>';
+        return;
+    }
+    sensorLog.setAttribute('data-empty', 'false');
+    let html = '';
+    recent.forEach(function(s) {
+        const time = s.createdAt ? new Date(s.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'Now';
+        const plate = s.vehicle || 'UNKNOWN';
+        const zone = s.zone || 'Unknown';
+        const slot = s.slot || '?';
+        const sensorType = Math.random() > 0.5 ? 'Plate Reader' : (Math.random() > 0.5 ? 'Ultrasonic' : 'Camera');
+        const statusColor = 'text-sp-emerald';
+        const statusIcon = sensorType === 'Plate Reader' ? 'fa-camera' : (sensorType === 'Ultrasonic' ? 'fa-wave-square' : 'fa-video');
+        html += '<div class="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-sp-accent/10 hover:bg-white/10 transition-all"><div class="w-8 h-8 rounded-lg bg-sp-accent/10 text-sp-accent flex items-center justify-center flex-shrink-0"><i class="fa-solid ' + statusIcon + ' text-xs"></i></div><div class="flex-1 min-w-0"><div class="flex items-center justify-between mb-1"><span class="text-[10px] font-bold text-sp-accent uppercase tracking-wider">' + sensorType + '</span><span class="text-[10px] text-slate-500">' + time + '</span></div><p class="text-xs text-slate-300 font-medium truncate">' + plate + ' detected at ' + zone + ' - Slot ' + slot + '</p><div class="flex items-center gap-2 mt-1"><span class="inline-flex items-center gap-1 text-[10px] font-semibold ' + statusColor + '"><span class="w-1 h-1 rounded-full bg-sp-emerald"></span> Active</span></div></div></div>';
+    });
+    sensorLog.innerHTML = html;
+}
 function viewAllSensorActivity() { showToast('info', 'Loading full sensor logs...'); }
 
 let editMap, editMarker;
@@ -557,16 +832,78 @@ function deleteZone(zoneId) {
 }
 
 // Admin History
-let historyData = [
-    { id: 1, plate: 'DHK-METRO-9999', zone: 'Zone C', spot: 'C-05', duration: '2h 30m', fee: 50.00, payment: 'bKash', date: '2025-01-10' },
-    { id: 2, plate: 'DHK-METRO-8888', zone: 'Zone A', spot: 'A-02', duration: '1h 05m', fee: 20.00, payment: 'Nagad', date: '2025-01-11' },
-    { id: 3, plate: 'DHK-METRO-7777', zone: 'Zone D', spot: 'D-08', duration: '3h 15m', fee: 45.00, payment: 'Visa Card', date: '2025-01-12' },
-    { id: 4, plate: 'DHK-METRO-6666', zone: 'Zone B', spot: 'B-12', duration: '45m', fee: 15.00, payment: 'bKash', date: '2025-01-13' },
-    { id: 5, plate: 'DHK-METRO-5555', zone: 'Zone C', spot: 'C-01', duration: '1h 50m', fee: 35.00, payment: 'Cash', date: '2025-01-14' }
-];
+let historyData = [];
 let nextHistoryId = 6;
-let filteredHistoryData = [...historyData];
+let filteredHistoryData = [];
 let currentPage = 1; let recordsPerPage = 50; let totalPages = 1;
+
+function syncHistoryFromAllCustomers() {
+    const stored = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+    if (Object.keys(stored).length === 0) {
+        initDemoHistory();
+    }
+    const allByUser = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+    const allUsers = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
+    const userMap = {};
+    allUsers.forEach(function(u) { userMap[(u.email || '').toLowerCase()] = u.name || u.email; });
+    if (Object.keys(userMap).length === 0) {
+        userMap['demo@smartpark.com'] = 'Demo User';
+    }
+    historyData = [];
+    Object.keys(allByUser).forEach(function(email) {
+        const userData = allByUser[email];
+        const customerName = userMap[email.toLowerCase()] || email;
+        if (userData.history) {
+            userData.history.forEach(function(h) {
+                historyData.push({
+                    id: h.id || nextHistoryId++,
+                    email: email,
+                    plate: h.vehicle || 'N/A',
+                    customer: customerName,
+                    zone: h.zone || 'N/A',
+                    spot: h.slot || 'N/A',
+                    date: h.date || '',
+                    startTime: h.startTime || '',
+                    endTime: h.endTime || '',
+                    duration: h.duration || '1h',
+                    fee: h.cost || 0,
+                    payment: h.payment || 'Cash',
+                    paymentStatus: h.paymentStatus || 'Paid',
+                    customerNumber: h.customerNumber || '',
+                    trxId: h.trxId || ''
+                });
+            });
+        }
+    });
+    if (historyData.length > 0) {
+        const maxId = historyData.reduce(function(max, r) { return (r.id || 0) > max ? (r.id || 0) : max; }, 0);
+        nextHistoryId = maxId + 1;
+    }
+    filteredHistoryData = [...historyData];
+}
+
+function initDemoHistory() {
+    const stored = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+    const demoHistory = [
+        { id: 1, vehicle: 'DHK-1234', zone: 'Zone A - Central', slot: 'A-01', slotIndex: 0, date: '2026-07-27', startTime: '08:30', endTime: '10:45', duration: '2h 15m', cost: 95, payment: 'bKash', paymentStatus: 'Paid', status: 'Completed', name: 'Demo User', customerNumber: '018XXXXXXX', trxId: 'TRX-DEMO-001' },
+        { id: 2, vehicle: 'DHK-5678', zone: 'Zone B - Riverside', slot: 'B-03', slotIndex: 2, date: '2026-07-27', startTime: '09:00', endTime: '12:00', duration: '3h', cost: 150, payment: 'Nagad', paymentStatus: 'Paid', status: 'Completed', name: 'Demo User 2', customerNumber: '019XXXXXXX', trxId: 'TRX-DEMO-002' },
+        { id: 3, vehicle: 'DHK-9012', zone: 'Zone C - Tech Park', slot: 'C-02', slotIndex: 1, date: '2026-07-26', startTime: '14:00', endTime: '16:30', duration: '2h 30m', cost: 180, payment: 'Cash', paymentStatus: 'Paid', status: 'Completed', name: 'Demo User 3', customerNumber: '018XXXXXXX', trxId: 'TRX-DEMO-003' },
+        { id: 4, vehicle: 'DHK-3456', zone: 'Zone D - Mall Area', slot: 'D-04', slotIndex: 3, date: '2026-07-26', startTime: '10:00', endTime: '11:00', duration: '1h', cost: 70, payment: 'Visa Card', paymentStatus: 'Paid', status: 'Completed', name: 'Demo User 4', customerNumber: '017XXXXXXX', trxId: 'TRX-DEMO-004' },
+        { id: 5, vehicle: 'DHK-7890', zone: 'Zone A - Central', slot: 'A-05', slotIndex: 4, date: '2026-07-25', startTime: '07:00', endTime: '09:30', duration: '2h 30m', cost: 100, payment: 'bKash', paymentStatus: 'Paid', status: 'Completed', name: 'Demo User 5', customerNumber: '016XXXXXXX', trxId: 'TRX-DEMO-005' }
+    ];
+    const allUsers = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
+    const userEmails = allUsers.map(function(u) { return (u.email || '').toLowerCase(); });
+    userEmails.forEach(function(email) {
+        if (!stored[email] || !stored[email].history || stored[email].history.length === 0) {
+            stored[email] = stored[email] || { sessions: [], nextId: 1000, nextHistId: 2005, zoneSlots: {} };
+            stored[email].history = demoHistory.slice();
+        }
+    });
+    if (userEmails.length === 0) {
+        stored['demo@smartpark.com'] = { sessions: [], history: demoHistory, nextId: 1000, nextHistId: 2005, zoneSlots: {} };
+    }
+    localStorage.setItem('customerParkingData_by_user', JSON.stringify(stored));
+}
 
 function renderHistoryTable(data) {
     const tbody = document.getElementById('history-table-body');
@@ -579,11 +916,11 @@ function renderHistoryTable(data) {
     const pageRecords = allRecords.slice(start, end);
     tbody.innerHTML = '';
     if (pageRecords.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-500"><i class="fa-solid fa-inbox text-2xl mb-2"></i><p class="text-xs font-medium">No history records found</p></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="13" class="py-8 text-center text-slate-500"><i class="fa-solid fa-inbox text-2xl mb-2"></i><p class="text-xs font-medium">No history records found</p></td></tr>`;
         updatePaginationUI(0); return;
     }
     pageRecords.forEach(record => {
-        tbody.innerHTML += `<tr class="hover:bg-white/5 transition-colors"><td class="py-3.5 font-bold text-white">${record.plate}</td><td class="py-3.5 text-slate-400">${record.zone}</td><td class="py-3.5 text-slate-400 font-semibold">${record.spot}</td><td class="py-3.5 text-slate-500">${record.duration}</td><td class="py-3.5 text-white font-semibold">৳${record.fee.toFixed(2)}</td><td class="py-3.5"><span class="px-2 py-0.5 rounded-full bg-white/5 text-slate-400 font-semibold text-[10px] border border-sp-accent/10">${record.payment}</span></td><td class="py-3.5 text-right"><button onclick="deleteHistoryRecord(${record.id})" class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold bg-sp-red/10 hover:bg-sp-red/20 text-sp-red rounded-lg transition-all border border-sp-red/20"><i class="fa-solid fa-trash-can text-[10px]"></i> Delete</button></td></tr>`;
+        tbody.innerHTML += `<tr class="hover:bg-white/5 transition-all duration-300 border-b border-sp-accent/5 last:border-0"><td class="py-4 pl-5 font-bold text-white">${record.plate}</td><td class="py-4 text-slate-400 font-medium">${record.customer}</td><td class="py-4 text-slate-400 text-xs">${record.email || '-'}</td><td class="py-4 text-slate-400 text-xs font-mono">${record.customerNumber || '-'}</td><td class="py-4 text-slate-400 font-medium">${record.zone}</td><td class="py-4 text-slate-400 font-semibold">${record.spot}</td><td class="py-4 text-slate-400 text-xs"><div class="font-semibold">${record.date}</div><div class="text-[10px] text-slate-500">${record.startTime || ''}${record.endTime ? ' - ' + record.endTime : ''}</div></td><td class="py-4 text-slate-500"><span class="px-2.5 py-1 rounded-lg bg-white/5 text-slate-400 font-medium text-[10px] border border-sp-accent/5 inline-flex items-center gap-1"><i class="fa-regular fa-clock text-[8px]"></i> ${record.duration}</span></td><td class="py-4 text-white font-bold">৳${record.fee.toFixed(2)}</td><td class="py-4 text-slate-400"><span class="px-2.5 py-1 rounded-full bg-white/5 text-slate-400 font-bold text-[10px] border border-sp-accent/10 inline-flex items-center gap-1"><span class="w-1 h-1 rounded-full bg-sp-emerald"></span> ${record.paymentStatus || 'Paid'}</span></td><td class="py-4 text-slate-400 font-semibold">${record.payment || '-'}</td><td class="py-4 text-slate-400 text-xs font-mono">${record.trxId || '-'}</td><td class="py-4 pr-5 text-right"><button onclick="deleteHistoryRecord(${record.id})" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-sp-red/10 hover:bg-sp-red/20 text-sp-red rounded-xl transition-all duration-300 border border-sp-red/20"><i class="fa-solid fa-trash-can text-[10px]"></i> Delete</button></td></tr>`;
     });
     updatePaginationUI(allRecords.length);
 }
@@ -617,12 +954,33 @@ function clearDateFilter() { document.getElementById('filter-date-from').value =
 
 function deleteHistoryRecord(recordId) {
     const record = historyData.find(r => r.id === recordId); if (!record) return;
-    if (confirm(`Delete history record for ${record.plate} (${record.zone})?`)) { historyData = historyData.filter(r => r.id !== recordId); renderHistoryTable(); showToast('success', `History record for ${record.plate} deleted.`); }
+    if (confirm(`Delete history record for ${record.plate} (${record.zone})?`)) {
+        historyData = historyData.filter(r => r.id !== recordId);
+        const allByUser = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+        const userEmail = record.email;
+        if (userEmail && allByUser[userEmail] && allByUser[userEmail].history) {
+            allByUser[userEmail].history = allByUser[userEmail].history.filter(function(h) { return (h.id || 0) !== recordId; });
+            localStorage.setItem('customerParkingData_by_user', JSON.stringify(allByUser));
+        }
+        renderHistoryTable();
+        showToast('success', `History record for ${record.plate} deleted.`);
+    }
 }
 
 function deleteAllHistory() {
     if (historyData.length === 0) { showToast('info', 'No history records to delete.'); return; }
-    if (confirm('Are you sure you want to delete ALL history records? This cannot be undone.')) { historyData = []; renderHistoryTable(); showToast('success', 'All history records deleted.'); }
+    if (confirm('Are you sure you want to delete ALL history records? This cannot be undone.')) {
+        historyData = [];
+        const allByUser = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+        Object.keys(allByUser).forEach(function(email) {
+            if (allByUser[email].history) {
+                allByUser[email].history = [];
+            }
+        });
+        localStorage.setItem('customerParkingData_by_user', JSON.stringify(allByUser));
+        renderHistoryTable();
+        showToast('success', 'All history records deleted.');
+    }
 }
 
 function downloadHistoryReport() {
@@ -630,16 +988,16 @@ function downloadHistoryReport() {
     const today = new Date(); const dateStr = today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }); const timeStr = today.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     const totalRevenue = historyData.reduce((sum, r) => sum + r.fee, 0);
     let tableRows = '';
-    historyData.forEach((record) => { tableRows += `<tr><td style="padding:10px 12px;border-bottom:1px solid rgba(59,130,246,0.1);font-weight:600;color:#f8fafc;">${record.plate}</td><td style="padding:10px 12px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">${record.zone}</td><td style="padding:10px 12px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">${record.spot}</td><td style="padding:10px 12px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">${record.duration}</td><td style="padding:10px 12px;border-bottom:1px solid rgba(59,130,246,0.1);color:#f8fafc;font-weight:700;text-align:right;">৳${record.fee.toFixed(2)}</td><td style="padding:10px 12px;border-bottom:1px solid rgba(59,130,246,0.1);"><span class="badge-${(record.paymentStatus || 'Paid').toLowerCase()}">${record.payment}</span></td></tr>`; });
-    const reportHtml = `<!DOCTYPE html><html><head><title>SmartPark - Parking History Report</title><style>body{font-family:Inter,Poppins,sans-serif;padding:30px;background:#0B1426;color:#f8fafc;}table{width:100%;border-collapse:collapse;background:#152238;border-radius:12px;overflow:hidden;border:1px solid rgba(59,130,246,0.15);}th{background:#111B33;padding:12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#94a3b8;}td{font-size:12px;color:#cbd5e1;}<\/style><\/head><body><h2 style="color:#f8fafc;">SmartPark - Parking History Report</h2><p style="color:#94a3b8;">Generated: ${new Date().toLocaleString()} | Records: ${historyData.length}</p><table><thead><tr><th>Plate</th><th>Zone</th><th>Spot</th><th>Duration</th><th style="text-align:right;">Fee</th><th>Payment</th></tr></thead><tbody>${tableRows}</tbody></table><p style="margin-top:16px;font-size:14px;font-weight:700;color:#3B82F6;">Total Revenue: BDT ${totalRevenue.toFixed(2)}</p><button onclick="window.print()" style="margin-top:20px;padding:10px 24px;background:#3B82F6;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Print / Save PDF</button><\/body><\/html>`;
+    historyData.forEach(function(record) { tableRows += `<tr><td style="padding:14px 16px;border-bottom:1px solid rgba(59,130,246,0.1);font-weight:700;color:#f8fafc;font-size:13px;">${record.plate}</td><td style="padding:14px 16px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;font-size:13px;">${record.zone}</td><td style="padding:14px 16px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;font-size:13px;">${record.spot}</td><td style="padding:14px 16px;border-bottom:1px solid rgba(59,130,246,0.1);color:#64748b;font-size:13px;">${record.duration}</td><td style="padding:14px 16px;border-bottom:1px solid rgba(59,130,246,0.1);color:#f8fafc;font-weight:700;font-size:13px;text-align:right;">৳${record.fee.toFixed(2)}</td><td style="padding:14px 16px;border-bottom:1px solid rgba(59,130,246,0.1);"><span style="background:#ffffff08;color:#94a3b8;font-weight:600;font-size:11px;padding:4px 12px;border-radius:9999px;border:1px solid rgba(59,130,246,0.15);">${record.payment}</span></td></tr>`; });
+    const reportHtml = `<!DOCTYPE html><html><head><title>SmartPark - Parking History Report</title><style>body{font-family:Inter,Poppins,sans-serif;margin:0;padding:32px;background:#0B1426;color:#f8fafc;min-height:100vh;}.report-container{max-width:900px;margin:0 auto;}.report-header{margin-bottom:24px;padding:16px 20px;background:#111B33;border-radius:16px;border:1px solid rgba(59,130,246,0.15);}.report-title{font-size:22px;font-weight:700;margin:0 0 6px;color:#f8fafc;}.report-subtitle{font-size:12px;color:#64748b;margin:0;}.report-table{width:100%;border-collapse:collapse;background:#152238;border-radius:16px;overflow:hidden;border:1px solid rgba(59,130,246,0.15);}thead th{background:#111B33;padding:14px 16px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#94a3b8;}tbody tr:hover{background:rgba(59,130,246,0.05);}.report-footer{margin-top:20px;text-align:right;}.report-total{font-size:18px;font-weight:700;color:#3B82F6;}.report-actions{margin-top:24px;text-align:right;}@media print{body{background:#0B1426 !important;} .report-actions{display:none;}}</style></head><body><div class="report-container"><div class="report-header"><h1 class="report-title">Parking History Report</h1><p class="report-subtitle">Generated: ${new Date().toLocaleString()} | Records: ${historyData.length}</p></div><table class="report-table"><thead><tr><th>Plate</th><th>Zone</th><th>Spot</th><th>Duration</th><th style="text-align:right;">Fee</th><th>Payment</th></tr></thead><tbody>${tableRows}</tbody></table><div class="report-footer" style="margin-top:16px;padding:12px 16px;background:#111B33;border-radius:12px;border:1px solid rgba(59,130,246,0.15);"><p class="report-total">Total Revenue: BDT ${totalRevenue.toFixed(2)}</p></div><div class="report-actions"><button onclick="window.print()" style="padding:12px 28px;background:linear-gradient(135deg,#3B82F6,#60A5FA);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:Inter,Poppins,sans-serif;box-shadow:0 4px 14px rgba(59,130,246,0.35);">Print / Save PDF</button></div></div></body></html>`;
     const w = window.open('', '_blank'); w.document.write(reportHtml); w.document.close();
 }
 
 function renderSessionsTable() {
     const tbody = document.getElementById('sessions-table-body');
     if (!tbody) return;
-    const saved = getUserData('customerParkingData');
-    const sessions = saved ? saved.sessions.filter(s => s.status === 'Active') : [];
+    const allData = getAllCustomerParkingData();
+    const sessions = allData.sessions ? allData.sessions.filter(s => s.status === 'Active') : [];
     tbody.innerHTML = '';
     if (sessions.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-500"><i class="fa-solid fa-inbox text-2xl mb-2"></i><p class="text-xs font-medium">No active sessions</p></td></tr>`;
@@ -648,6 +1006,140 @@ function renderSessionsTable() {
     sessions.forEach(s => {
         tbody.innerHTML += `<tr class="hover:bg-white/5 transition-colors"><td class="py-3.5 font-bold text-white">${s.vehicle || 'N/A'}</td><td class="py-3.5 text-slate-400">${s.zone || 'N/A'}</td><td class="py-3.5 text-slate-400 font-semibold">${s.slot || 'N/A'}</td><td class="py-3.5 text-slate-400">${s.bookingType || 'Fixed'}</td><td class="py-3.5 text-white font-semibold">৳${(s.cost || 0).toFixed(2)}</td><td class="py-3.5 text-right"><span class="badge-success">Active</span></td></tr>`;
     });
+}
+
+// ---- Cash Verification ----
+function getAllPayments() {
+    try {
+        const allPayments = JSON.parse(localStorage.getItem('smartParkPayments_by_user')) || {};
+        let all = [];
+        Object.values(allPayments).forEach(function(userPayments) {
+            if (Array.isArray(userPayments)) all = all.concat(userPayments);
+        });
+        const latestByBooking = {};
+        all.forEach(function(p) {
+            const key = p.bookingId != null ? String(p.bookingId) : '_nobook_' + (p.id || '');
+            if (!latestByBooking[key] || (p.createdAt || '') > (latestByBooking[key].createdAt || '')) {
+                latestByBooking[key] = p;
+            }
+        });
+        return Object.values(latestByBooking);
+    } catch (e) { return []; }
+}
+function updatePaymentStatus(paymentId, status) {
+    try {
+        const allPayments = JSON.parse(localStorage.getItem('smartParkPayments_by_user')) || {};
+        let updated = false;
+        let bookingIdToUpdate = null;
+        Object.keys(allPayments).forEach(function(email) {
+            if (Array.isArray(allPayments[email])) {
+                allPayments[email].forEach(function(p) {
+                    if (p.id === paymentId) { p.status = status; p.verifiedAt = new Date().toISOString(); bookingIdToUpdate = p.bookingId; updated = true; }
+                });
+            }
+        });
+        if (updated) {
+            localStorage.setItem('smartParkPayments_by_user', JSON.stringify(allPayments));
+            if (bookingIdToUpdate !== null) { updateCustomerPaymentStatus(bookingIdToUpdate, status); }
+        }
+        return updated;
+    } catch (e) { return false; }
+}
+function updateCustomerPaymentStatus(bookingId, status) {
+    try {
+        const allData = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+        Object.keys(allData).forEach(function(email) {
+            const userData = allData[email];
+            if (userData && userData.history) {
+                userData.history.forEach(function(h) {
+                    if (Number(h.bookingId) === Number(bookingId)) { h.paymentStatus = status; }
+                });
+            }
+            if (userData && userData.sessions) {
+                userData.sessions.forEach(function(s) {
+                    if (Number(s.id) === Number(bookingId)) { s.paymentStatus = status; }
+                });
+            }
+        });
+        localStorage.setItem('customerParkingData_by_user', JSON.stringify(allData));
+    } catch (e) { console.error('Failed to update customer payment status:', e); }
+}
+function loadCashVerifications() {
+    const payments = getAllPayments().filter(function(p) { return p.paymentMethod === 'Cash' || p.paymentMethod === 'cash' || p.payment === 'Cash'; });
+    const pendingCount = payments.filter(function(p) { return p.status === 'Pending'; }).length;
+    const verifiedCount = payments.filter(function(p) { return p.status === 'Verified'; }).length;
+    const rejectedCount = payments.filter(function(p) { return p.status === 'Rejected'; }).length;
+    const totalAmount = payments.reduce(function(sum, p) { return sum + parseFloat(p.amount || 0); }, 0);
+    const pendingCountEl = document.getElementById('cash-pending-count');
+    const verifiedCountEl = document.getElementById('cash-verified-count');
+    const rejectedCountEl = document.getElementById('cash-rejected-count');
+    const totalAmountEl = document.getElementById('cash-total-amount');
+    if (pendingCountEl) pendingCountEl.textContent = pendingCount;
+    if (verifiedCountEl) verifiedCountEl.textContent = verifiedCount;
+    if (rejectedCountEl) rejectedCountEl.textContent = rejectedCount;
+    if (totalAmountEl) totalAmountEl.textContent = '৳' + totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    renderCashVerifications(payments);
+}
+function renderCashVerifications(payments) {
+    const tbody = document.getElementById('cash-table-body');
+    const emptyMsg = document.getElementById('cash-empty-msg');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    let data = payments || getAllPayments().filter(function(p) { return p.paymentMethod === 'Cash' || p.paymentMethod === 'cash' || p.payment === 'Cash'; });
+    const statusFilter = document.getElementById('cash-filter-status');
+    if (statusFilter && statusFilter.value !== 'all') {
+        data = data.filter(function(p) { return p.status === statusFilter.value; });
+    }
+    if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="py-8 text-center text-slate-500"><i class="fa-solid fa-inbox text-2xl mb-2"></i><p class="text-xs font-medium">No cash transactions found</p></td></tr>`;
+        if (emptyMsg) emptyMsg.classList.remove('hidden'); return;
+    }
+    if (emptyMsg) emptyMsg.classList.add('hidden');
+    data.forEach(function(p) {
+        const date = p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
+        const time = p.createdAt ? new Date(p.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+        const safeTrx = (p.trxId || p.customerNumber || 'N/A').replace(/'/g, '&#39;');
+        const safeCustomer = (p.customerName || 'N/A').replace(/'/g, '&#39;');
+        const statusConfig = {
+            'Pending': 'bg-sp-amber/10 text-sp-amber border-sp-amber/20',
+            'Verified': 'bg-sp-emerald/10 text-sp-emerald border-sp-emerald/20',
+            'Rejected': 'bg-sp-red/10 text-sp-red border-sp-red/20'
+        };
+        const statusIcons = { 'Pending': 'fa-clock', 'Verified': 'fa-circle-check', 'Rejected': 'fa-circle-xmark' };
+        const statusClass = statusConfig[p.status] || statusConfig['Pending'];
+        const actions = p.status === 'Pending' ?
+            `<div class="flex items-center gap-2 justify-end"><button onclick="verifyCashPayment('${p.id}', 'Verified')" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-sp-emerald/10 hover:bg-sp-emerald/20 text-sp-emerald rounded-lg border border-sp-emerald/20 transition-all"><i class="fa-solid fa-check text-[10px]"></i> Verify</button><button onclick="verifyCashPayment('${p.id}', 'Rejected')" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-sp-red/10 hover:bg-sp-red/20 text-sp-red rounded-lg border border-sp-red/20 transition-all"><i class="fa-solid fa-xmark text-[10px]"></i> Reject</button></div>` :
+            `<span class="text-[10px] text-slate-500 font-medium">${p.verifiedAt ? new Date(p.verifiedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>`;
+        tbody.innerHTML += `<tr class="hover:bg-white/5 transition-all border-b border-sp-accent/5 last:border-0"><td class="py-3.5 pl-5 text-xs font-bold text-slate-400">${p.id}</td><td class="py-3.5 text-sm font-semibold text-white">${safeCustomer}</td><td class="py-3.5 text-sm text-slate-400 font-medium">${p.vehicle || 'N/A'}</td><td class="py-3.5 text-sm text-slate-400">${p.zone || 'N/A'}</td><td class="py-3.5 text-sm text-slate-400 font-semibold">${p.slot || 'N/A'}</td><td class="py-3.5 text-sm text-white font-bold">৳${parseFloat(p.amount || 0).toFixed(2)}</td><td class="py-3.5 text-xs text-slate-400 font-mono">${safeTrx}</td><td class="py-3.5 text-xs text-slate-500">${date}</td><td class="py-3.5"><span class="px-2.5 py-1 rounded-full text-[10px] font-bold border inline-flex items-center gap-1 ${statusClass}"><span class="w-1 h-1 rounded-full ${p.status === 'Verified' ? 'bg-sp-emerald' : (p.status === 'Rejected' ? 'bg-sp-red' : 'bg-sp-amber')}"></span><i class="fa-solid ${statusIcons[p.status] || 'fa-clock'} text-[8px]"></i> ${p.status}</span></td>${actions ? `<td class="py-3.5 pr-5 text-right">${actions}</td>` : ''}</tr>`;
+    });
+}
+function verifyCashPayment(paymentId, status) {
+    if (!confirm('Mark this cash payment as ' + status + '?')) return;
+    if (updatePaymentStatus(paymentId, status)) {
+        showToast('success', 'Payment marked as ' + status);
+        loadCashVerifications();
+        updateRevenueUI();
+    } else {
+        showToast('error', 'Failed to update payment status.');
+    }
+}
+function exportCashReport() {
+    const payments = getAllPayments().filter(function(p) { return p.paymentMethod === 'Cash' || p.paymentMethod === 'cash' || p.payment === 'Cash'; });
+    if (payments.length === 0) { showToast('info', 'No cash transactions to export.'); return; }
+    let csv = 'ID,Customer,Vehicle,Zone,Slot,Amount,TrxID,Status,Created At\n';
+    payments.forEach(function(p) {
+        const date = p.createdAt ? new Date(p.createdAt).toISOString() : '';
+        const safeCsv = function(str) { return String(str || '').replace(/"/g, '""'); };
+        csv += `"${safeCsv(p.id)}","${safeCsv(p.customerName)}","${safeCsv(p.vehicle)}","${safeCsv(p.zone)}","${safeCsv(p.slot)}",${parseFloat(p.amount || 0).toFixed(2)},"${safeCsv(p.trxId || p.customerNumber)}","${safeCsv(p.status)}","${safeCsv(date)}"\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'cash_verification_' + new Date().toISOString().split('T')[0] + '.csv');
+    link.click();
+    URL.revokeObjectURL(url);
+    showToast('success', 'Cash report exported successfully!');
 }
 
 function showToast(type, message) {
@@ -774,7 +1266,66 @@ function getAIResponse(msg) {
     return 'I can help you with parking analytics, occupancy, anomalies, and revenue. Try asking "Show occupancy analytics" or "Check anomalies" or "What is today\'s revenue?"';
 }
 
-function getUserData(key, defaultValue) { return defaultValue; }
+function getAllCustomerParkingData() {
+    try {
+        const allData = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+        let allSessions = [];
+        let allHistory = [];
+        let allZoneSlots = {};
+        let maxNextId = 1000;
+        let maxNextHistId = 2000;
+        Object.values(allData).forEach(function(userData) {
+            if (userData.sessions) allSessions = allSessions.concat(userData.sessions);
+            if (userData.history) allHistory = allHistory.concat(userData.history);
+            if (userData.zoneSlots) Object.assign(allZoneSlots, userData.zoneSlots);
+            if (userData.nextId && userData.nextId > maxNextId) maxNextId = userData.nextId;
+            if (userData.nextHistId && userData.nextHistId > maxNextHistId) maxNextHistId = userData.nextHistId;
+        });
+        return { sessions: allSessions, history: allHistory, zoneSlots: allZoneSlots, nextId: maxNextId, nextHistId: maxNextHistId };
+    } catch (e) { return { sessions: [], history: [], zoneSlots: {}, nextId: 1000, nextHistId: 2000 }; }
+}
+
+function getAllCustomerPayments() {
+    try {
+        const allPayments = JSON.parse(localStorage.getItem('smartParkPayments_by_user')) || {};
+        let all = [];
+        Object.values(allPayments).forEach(function(userPayments) {
+            if (Array.isArray(userPayments)) all = all.concat(userPayments);
+        });
+        return all;
+    } catch (e) { return []; }
+}
+
+function recalculateZoneOccupancy(allSessions, allZoneSlots) {
+    Object.values(zonesData).forEach(function(z) {
+        z.occupied = 0;
+        z.free = z.spots || 0;
+        if (!z.spotStatus) z.spotStatus = Array.from({length: z.spots || 0}, (_, i) => ({ id: (z.id || '').replace('Zone-','') + '-' + String(i+1).padStart(2,'0'), index: i, occupied: false, plate: null, sessionId: null }));
+        else z.spotStatus.forEach(function(s) { s.occupied = false; s.plate = null; s.sessionId = null; });
+    });
+    const activeSessions = allSessions.filter(function(s) { return s.status === 'Active'; });
+    activeSessions.forEach(function(s) {
+        const zone = zonesData[s.zoneId] || Object.values(zonesData).find(function(z) { return z.name === s.zone; });
+        if (zone) {
+            zone.occupied = (zone.occupied || 0) + 1;
+            zone.free = Math.max(0, zone.spots - zone.occupied);
+            if (s.slotIndex !== undefined && s.slotIndex >= 0 && s.slotIndex < zone.spotStatus.length) {
+                zone.spotStatus[s.slotIndex].occupied = true;
+                zone.spotStatus[s.slotIndex].plate = s.vehicle || null;
+                zone.spotStatus[s.slotIndex].sessionId = s.id || null;
+            }
+        }
+    });
+}
+
+function getUserData(key, defaultValue) {
+    try {
+        const allData = JSON.parse(localStorage.getItem(key + '_by_user')) || {};
+        const user = getLoggedInUser();
+        if (user && user.email && allData[user.email]) return allData[user.email];
+    } catch (e) {}
+    return defaultValue;
+}
 
 function logout() { localStorage.removeItem('token_admin'); localStorage.removeItem('loggedInUser_admin'); localStorage.removeItem('token_customer'); localStorage.removeItem('loggedInUser_customer'); window.location.href = 'index.html'; }
 
@@ -811,6 +1362,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === 'smartParkZones_local') {
             loadZonesFromLocalStorage();
             if (document.getElementById('zones-grid')) renderZonesGrid();
+        }
+        if (e.key === 'customerParkingData_by_user') {
+            triggerRefresh();
+        }
+        if (e.key === 'smartParkPayments_by_user') {
+            if (document.getElementById('cash-table-body')) loadCashVerifications();
+            triggerRefresh();
         }
     });
 });

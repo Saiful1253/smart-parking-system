@@ -148,10 +148,17 @@ async function refreshData() { await loadData(); renderSessions(); showToast('in
 function loadData() {
     try {
         var saved = getUserData('customerParkingData');
-        if (saved) { sessions = saved.sessions || []; nextBookingId = saved.nextId || 1000; zoneSlots = saved.zoneSlots || {}; }
+        if (saved) { sessions = saved.sessions || []; nextBookingId = saved.nextId || 1000; zoneSlots = saved.zoneSlots || {}; history = saved.history || []; }
     } catch(e) {}
 }
-function saveData() { setUserData('customerParkingData', { sessions: sessions, nextId: nextBookingId, zoneSlots: zoneSlots, history: [], nextHistId: 2000 }); }
+function saveData(extraHistory) {
+    var saved = getUserData('customerParkingData');
+    var currentHistory = saved ? saved.history : [];
+    if (extraHistory && Array.isArray(extraHistory)) {
+        currentHistory = currentHistory.concat(extraHistory);
+    }
+    setUserData('customerParkingData', { sessions: sessions, nextId: nextBookingId, zoneSlots: zoneSlots, history: currentHistory, nextHistId: 2000 });
+}
 
 function renderSessions() {
     var container = document.getElementById('session-card-container');
@@ -263,14 +270,16 @@ function closePaymentModal() {
 function confirmPayment() {
     var customerNumber = document.getElementById('pay-customer-number').value.trim();
     var trxId = document.getElementById('pay-trx-id').value.trim();
-    if (!customerNumber) { showToast('error', 'Please enter your ' + pendingPaymentMethod + ' number.'); return; }
-    if (!trxId) { trxId = 'TRX' + String(Date.now()).slice(-8) + 'DEMO'; document.getElementById('pay-trx-id').value = trxId; }
+    if (pendingPaymentMethod !== 'Cash') {
+        if (!customerNumber) { showToast('error', 'Please enter your ' + pendingPaymentMethod + ' number.'); return; }
+    }
+    if (!trxId) { trxId = pendingPaymentMethod === 'Cash' ? 'CASH-' + String(Date.now()).slice(-8) : 'TRX' + String(Date.now()).slice(-8) + 'DEMO'; document.getElementById('pay-trx-id').value = trxId; }
     var idx = sessions.findIndex(function(s) { return s.id == pendingPaymentSessionId; });
     if (idx === -1) { showToast('error', 'Session not found.'); closePaymentModal(); return; }
     var s = sessions[idx];
     if (s.status !== 'Active') { showToast('error', 'Session is not active.'); closePaymentModal(); return; }
-    s.payment = pendingPaymentMethod; s.customerNumber = customerNumber; s.trxId = trxId; s.paid = true; s.paymentStatus = 'Pending';
-    savePaymentRecord({ id: 'PAY-' + String(Date.now()).slice(-8), bookingId: s.id, customerName: s.name || 'N/A', vehicle: s.vehicle || 'N/A', zone: s.zone, slot: s.slot, amount: s.cost, paymentMethod: pendingPaymentMethod, customerNumber: customerNumber, trxId: trxId, status: 'Pending', createdAt: new Date().toISOString() });
+    s.payment = pendingPaymentMethod; s.customerNumber = customerNumber || '-'; s.trxId = trxId; s.paid = true; s.paymentStatus = 'Pending';
+    savePaymentRecord({ id: 'PAY-' + String(Date.now()).slice(-8), bookingId: s.id, customerName: s.name || 'N/A', vehicle: s.vehicle || 'N/A', zone: s.zone, slot: s.slot, amount: s.cost, paymentMethod: pendingPaymentMethod, customerNumber: customerNumber || '-', trxId: trxId, status: 'Pending', createdAt: new Date().toISOString() });
     closePaymentModal();
     endSession(pendingPaymentSessionId, true);
 }
@@ -303,11 +312,8 @@ async function endSession(sessionId, skipConfirm) {
     var now = new Date();
     var exitTimeStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
     var entryTimeStr = s.entryTime || '00:00';
-    var hist = { id: 2000 + sessions.filter(function(ss){return ss.status==='Completed';}).length, bookingId: s.id, name: s.name || 'Customer', vehicle: s.vehicle || 'N/A', zone: s.zone || 'N/A', slot: s.slot || 'N/A', date: s.date || now.toISOString().split('T')[0], entryTime: entryTimeStr, exitTime: exitTimeStr, duration: durationLabel, cost: s.cost || 0, payment: s.payment || 'Cash', paymentStatus: 'Paid' };
-    var saved = getUserData('customerParkingData');
-    var history = saved ? saved.history : [];
-    history.push(hist);
-    saveData();
+    var hist = { id: 2000 + sessions.filter(function(ss){return ss.status==='Completed';}).length, bookingId: s.id, name: s.name || 'Customer', vehicle: s.vehicle || 'N/A', zone: s.zone || 'N/A', slot: s.slot || 'N/A', date: s.date || now.toISOString().split('T')[0], entryTime: entryTimeStr, exitTime: exitTimeStr, duration: durationLabel, cost: s.cost || 0, payment: s.payment || 'Cash', paymentStatus: s.paymentStatus || 'Paid', status: 'Completed' };
+    saveData([hist]);
     renderSessions();
     showToast('success', 'Session #' + s.id + ' ended. Paid via ' + s.payment + '. Total: ৳' + s.cost.toFixed(2));
 }

@@ -209,7 +209,7 @@ async function loadData() {
         else { historyData = []; }
     } catch (error) {
         var saved = getUserData('customerParkingData');
-        if (saved && saved.history) { historyData = saved.history.filter(function(h) { return h.status === 'Completed' || h.paymentStatus === 'Paid'; }); }
+        if (saved && saved.history) { historyData = saved.history || []; }
         else { historyData = []; }
     }
 }

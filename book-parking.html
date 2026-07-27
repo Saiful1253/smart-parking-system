@@ -358,6 +358,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('book-time').value = new Date().toTimeString().slice(0,5);
     loadData();
     loadZonesFromAPI().then(function() {
+        initZoneSlots();
+        syncZoneOccupancy(sessions);
         renderZones();
         document.getElementById('zone-count-label').textContent = Object.keys(zonesData).length + ' zone' + (Object.keys(zonesData).length !== 1 ? 's' : '');
     });
@@ -371,11 +373,15 @@ function refreshData() { renderZones(); if (map) map.invalidateSize(); showToast
 function initZoneSlots() {
     Object.keys(zonesData).forEach(function(key) {
         var z = zonesData[key];
-        if (!zoneSlots[key]) zoneSlots[key] = new Array(z.spots).fill(false);
+        if (!zoneSlots[key] || zoneSlots[key].length !== z.spots) {
+            zoneSlots[key] = new Array(z.spots).fill(false);
+        }
     });
     sessions.forEach(function(s) {
         if (s.status === 'Active' && s.slotIndex !== undefined && s.zoneId && zoneSlots[s.zoneId]) {
-            if (zoneSlots[s.zoneId][s.slotIndex] !== undefined) zoneSlots[s.zoneId][s.slotIndex] = true;
+            if (s.slotIndex >= 0 && s.slotIndex < zoneSlots[s.zoneId].length) {
+                zoneSlots[s.zoneId][s.slotIndex] = true;
+            }
         }
     });
 }
@@ -390,7 +396,7 @@ function loadData() {
             nextHistoryId = saved.nextHistId || 2000;
             zoneSlots = saved.zoneSlots || {};
             if (Object.keys(zoneSlots).length === 0) initZoneSlots();
-            syncZoneOccupancy();
+            syncZoneOccupancy(sessions);
         } else { initZoneSlots(); }
     } catch(e) {}
 }
@@ -582,6 +588,10 @@ function confirmBooking(e) {
     if (!z) return;
     if (z.free <= 0) { showToast('error', 'Sorry, no slots available in ' + z.name + '.'); return; }
     var slots = zoneSlots[zoneId];
+    if (!slots || slots.length !== z.spots) {
+        zoneSlots[zoneId] = new Array(z.spots).fill(false);
+        slots = zoneSlots[zoneId];
+    }
     var slotIndex = -1;
     if (slots) { for (var si = 0; si < slots.length; si++) { if (!slots[si]) { slots[si] = true; slotIndex = si; break; } } }
     if (slotIndex === -1) { showToast('error', 'No free slots available in ' + z.name + '.'); return; }
@@ -606,7 +616,8 @@ function createMeterBooking() {
     var booking = { id: nextBookingId++, name: formData.name, vehicle: formData.vehicle, vehicleType: formData.vehicleType, zone: z.name, zoneId: zoneId, slot: document.getElementById('book-slot').value, slotIndex: slotIndex, date: formData.date, entryTime: formData.entryTime, durationHours: 1, bookingType: 'meter', meterRate: z.rate, cost: cost, paymentMethod: formData.paymentMethod, status: 'Active', createdAt: new Date().toISOString(), paid: false };
     sessions.push(booking);
     saveData();
-    syncZoneOccupancy();
+    syncZoneOccupancy(sessions);
+    renderZones();
     closeBookingModal();
     showToast('success', 'Metered booking created! ৳' + cost.toFixed(2) + ' initial charge.');
 }
@@ -653,7 +664,8 @@ function confirmPaymentFromBooking() {
     sessions.push(booking);
     savePaymentRecord({ id: 'PAY-' + String(Date.now()).slice(-8), bookingId: booking.id, customerName: booking.name, vehicle: booking.vehicle, zone: booking.zone, slot: booking.slot, amount: booking.cost, paymentMethod: booking.paymentMethod, customerNumber: customerNumber, trxId: trxId, status: 'Pending', createdAt: new Date().toISOString() });
     saveData();
-    syncZoneOccupancy();
+    syncZoneOccupancy(sessions);
+    renderZones();
     closePaymentModal();
     showToast('success', 'Booking confirmed! ৳' + cost.toFixed(2) + ' paid via ' + booking.paymentMethod + '.');
 }
