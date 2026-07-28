@@ -667,6 +667,7 @@ function confirmPaymentFromBooking() {
     syncZoneOccupancy(sessions);
     renderZones();
     closePaymentModal();
+    window.dispatchEvent(new StorageEvent('storage', { key: 'smartParkPayments_by_user' }));
     showToast('success', 'Booking confirmed! ৳' + cost.toFixed(2) + ' paid via ' + booking.paymentMethod + '.');
 }
 

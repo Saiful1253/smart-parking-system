@@ -835,7 +835,7 @@ function deleteZone(zoneId) {
 let historyData = [];
 let nextHistoryId = 6;
 let filteredHistoryData = [];
-let currentPage = 1; let recordsPerPage = 50; let totalPages = 1;
+let currentPage = 1; let recordsPerPage = 25; let totalPages = 1;
 
 function syncHistoryFromAllCustomers() {
     const stored = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
@@ -989,8 +989,52 @@ function downloadHistoryReport() {
     const totalRevenue = historyData.reduce((sum, r) => sum + r.fee, 0);
     let tableRows = '';
     historyData.forEach(function(record) { tableRows += `<tr><td style="padding:14px 16px;border-bottom:1px solid rgba(59,130,246,0.1);font-weight:700;color:#f8fafc;font-size:13px;">${record.plate}</td><td style="padding:14px 16px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;font-size:13px;">${record.zone}</td><td style="padding:14px 16px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;font-size:13px;">${record.spot}</td><td style="padding:14px 16px;border-bottom:1px solid rgba(59,130,246,0.1);color:#64748b;font-size:13px;">${record.duration}</td><td style="padding:14px 16px;border-bottom:1px solid rgba(59,130,246,0.1);color:#f8fafc;font-weight:700;font-size:13px;text-align:right;">৳${record.fee.toFixed(2)}</td><td style="padding:14px 16px;border-bottom:1px solid rgba(59,130,246,0.1);"><span style="background:#ffffff08;color:#94a3b8;font-weight:600;font-size:11px;padding:4px 12px;border-radius:9999px;border:1px solid rgba(59,130,246,0.15);">${record.payment}</span></td></tr>`; });
-    const reportHtml = `<!DOCTYPE html><html><head><title>SmartPark - Parking History Report</title><style>body{font-family:Inter,Poppins,sans-serif;margin:0;padding:32px;background:#0B1426;color:#f8fafc;min-height:100vh;}.report-container{max-width:900px;margin:0 auto;}.report-header{margin-bottom:24px;padding:16px 20px;background:#111B33;border-radius:16px;border:1px solid rgba(59,130,246,0.15);}.report-title{font-size:22px;font-weight:700;margin:0 0 6px;color:#f8fafc;}.report-subtitle{font-size:12px;color:#64748b;margin:0;}.report-table{width:100%;border-collapse:collapse;background:#152238;border-radius:16px;overflow:hidden;border:1px solid rgba(59,130,246,0.15);}thead th{background:#111B33;padding:14px 16px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#94a3b8;}tbody tr:hover{background:rgba(59,130,246,0.05);}.report-footer{margin-top:20px;text-align:right;}.report-total{font-size:18px;font-weight:700;color:#3B82F6;}.report-actions{margin-top:24px;text-align:right;}@media print{body{background:#0B1426 !important;} .report-actions{display:none;}}</style></head><body><div class="report-container"><div class="report-header"><h1 class="report-title">Parking History Report</h1><p class="report-subtitle">Generated: ${new Date().toLocaleString()} | Records: ${historyData.length}</p></div><table class="report-table"><thead><tr><th>Plate</th><th>Zone</th><th>Spot</th><th>Duration</th><th style="text-align:right;">Fee</th><th>Payment</th></tr></thead><tbody>${tableRows}</tbody></table><div class="report-footer" style="margin-top:16px;padding:12px 16px;background:#111B33;border-radius:12px;border:1px solid rgba(59,130,246,0.15);"><p class="report-total">Total Revenue: BDT ${totalRevenue.toFixed(2)}</p></div><div class="report-actions"><button onclick="window.print()" style="padding:12px 28px;background:linear-gradient(135deg,#3B82F6,#60A5FA);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:Inter,Poppins,sans-serif;box-shadow:0 4px 14px rgba(59,130,246,0.35);">Print / Save PDF</button></div></div></body></html>`;
+    const reportHtml = `<!DOCTYPE html><html><head><title>SmartPark - Parking History Report</title><style>body{font-family:Inter,Poppins,sans-serif;margin:0;padding:32px;background:#0B1426;color:#f8fafc;min-height:100vh;}.report-container{max-width:900px;margin:0 auto;}.report-header{margin-bottom:24px;padding:16px 20px;background:#111B33;border-radius:16px;border:1px solid rgba(59,130,246,0.15);}.report-title{font-size:22px;font-weight:700;margin:0 0 6px;color:#f8fafc;}.report-subtitle{font-size:12px;color:#64748b;margin:0;}.report-table{width:100%;border-collapse:collapse;background:#152238;border-radius:16px;overflow:hidden;border:1px solid rgba(59,130,246,0.15);}thead th{background:#111B33;padding:14px 16px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#94a3b8;}tbody tr:hover{background:rgba(59,130,246,0.05);}.report-footer{margin-top:20px;text-align:right;}.report-total{font-size:18px;font-weight:700;color:#3B82F6;}.report-actions{margin-top:24px;text-align:right;}@media print{body{background:#0B1426 !important;} .report-actions{display:none;}}</style></head><body><div class="report-container"><div class="report-header"><h1 class="report-title">Parking History Report</h1><p class="report-subtitle">Generated: ${new Date().toLocaleString()} | Records: ${historyData.length}</p></div><table class="report-table"><thead><tr><th>Plate</th><th>Zone</th><th>Spot</th><th>Duration</th><th style="text-align:right;">Fee</th><th>Payment</th></tr></thead><tbody>${tableRows}</tbody></table><div class="report-footer" style="margin-top:16px;padding:12px 16px;background:#111B33;border-radius:12px;border:1px solid rgba(59,130,246,0.15);"><p class="report-total">Total Revenue: BDT ${totalRevenue.toFixed(2)}</p></div><div class="report-actions"><button onclick="window.print()" style="padding:12px 28px;background:linear-gradient(135deg,#3B82F6,#60A5FA);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;">Print / Save as PDF</button></div></div></body></html>`;
     const w = window.open('', '_blank'); w.document.write(reportHtml); w.document.close();
+}
+
+function exportHistoryPDF() {
+    if (historyData.length === 0) { showToast('info', 'No history records to export.'); return; }
+    const w = window.open('', '_blank');
+    if (!w) { showToast('error', 'Please allow popups to export PDF.'); return; }
+    const totalRevenue = historyData.reduce((sum, r) => sum + r.fee, 0);
+    let rows = '';
+    historyData.forEach(function(record) {
+        rows += `<tr><td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);font-weight:600;color:#f8fafc;">${record.plate}</td>`;
+        rows += `<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">${record.customer || '-'}</td>`;
+        rows += `<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">${record.zone}</td>`;
+        rows += `<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">${record.spot}</td>`;
+        rows += `<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#64748b;">${record.duration}</td>`;
+        rows += `<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#f8fafc;font-weight:700;text-align:right;">৳${record.fee.toFixed(2)}</td>`;
+        rows += `<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">${record.payment || '-'}</td></tr>`;
+    });
+    const pdfDoc = `<!DOCTYPE html><html><head><title>SmartPark - History Report</title><style>body{font-family:Inter,Poppins,sans-serif;padding:30px;background:#0B1426;color:#f8fafc;}h2{color:#f8fafc;margin-bottom:4px;}p{color:#94a3b8;margin-bottom:16px;}table{width:100%;border-collapse:collapse;background:#152238;border-radius:12px;overflow:hidden;border:1px solid rgba(59,130,246,0.15);}th{background:#111B33;padding:10px 8px;font-size:11px;text-align:left;color:#94a3b8;font-weight:700;}td{font-size:12px;color:#cbd5e1;}.summary{display:flex;gap:20px;margin-bottom:20px;}.summary div{background:#152238;padding:12px 20px;border-radius:10px;border:1px solid rgba(59,130,246,0.15);}.summary span{font-size:12px;color:#94a3b8;}.summary strong{font-size:18px;color:#f8fafc;display:block;}button{margin-top:20px;padding:10px 24px;background:#3B82F6;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}button:hover{background:#2563EB;}</style></head><body>`;
+    pdfDoc += `<h2>SmartPark - Parking History Report</h2>`;
+    pdfDoc += `<p>Generated: ${new Date().toLocaleString()} | Total Records: ${historyData.length}</p>`;
+    pdfDoc += `<div class="summary"><div><span>Total Revenue</span><strong style="color:#3B82F6;">BDT ${totalRevenue.toFixed(2)}</strong></div><div><span>Records</span><strong style="color:#f8fafc;">${historyData.length}</strong></div></div>`;
+    pdfDoc += `<table><thead><tr><th>Plate</th><th>Customer</th><th>Zone</th><th>Spot</th><th>Duration</th><th style="text-align:right;">Fee</th><th>Payment</th></tr></thead><tbody>${rows}</tbody></table>`;
+    pdfDoc += `<p style="margin-top:16px;font-size:14px;font-weight:700;color:#3B82F6;">Total Revenue: BDT ${totalRevenue.toFixed(2)}</p>`;
+    pdfDoc += `<button onclick="window.print()">Print / Save as PDF</button>`;
+    pdfDoc += `</body></html>`;
+    w.document.write(pdfDoc); w.document.close();
+    showToast('success', 'PDF exported! Use Print to save as PDF.');
+}
+
+function exportHistoryCSV() {
+    if (historyData.length === 0) { showToast('info', 'No history records to export.'); return; }
+    let csv = 'Plate,Customer,Email,Phone,Zone,Spot,Date,Start Time,End Time,Duration,Fee,Status,Payment,Trx ID\n';
+    historyData.forEach(function(record) {
+        const safeCsv = function(str) { return String(str || '').replace(/"/g, '""'); };
+        csv += `"${safeCsv(record.plate)}","${safeCsv(record.customer)}","${safeCsv(record.email)}","${safeCsv(record.customerNumber)}","${safeCsv(record.zone)}","${safeCsv(record.spot)}","${safeCsv(record.date)}","${safeCsv(record.startTime)}","${safeCsv(record.endTime)}","${safeCsv(record.duration)}",${parseFloat(record.fee || 0).toFixed(2)},"${safeCsv(record.paymentStatus)}","${safeCsv(record.payment)}","${safeCsv(record.trxId)}"\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'parking_history_' + new Date().toISOString().split('T')[0] + '.csv');
+    link.click();
+    URL.revokeObjectURL(url);
+    showToast('success', 'History exported as CSV!');
 }
 
 function renderSessionsTable() {
@@ -1016,14 +1060,7 @@ function getAllPayments() {
         Object.values(allPayments).forEach(function(userPayments) {
             if (Array.isArray(userPayments)) all = all.concat(userPayments);
         });
-        const latestByBooking = {};
-        all.forEach(function(p) {
-            const key = p.bookingId != null ? String(p.bookingId) : '_nobook_' + (p.id || '');
-            if (!latestByBooking[key] || (p.createdAt || '') > (latestByBooking[key].createdAt || '')) {
-                latestByBooking[key] = p;
-            }
-        });
-        return Object.values(latestByBooking);
+        return all;
     } catch (e) { return []; }
 }
 function updatePaymentStatus(paymentId, status) {
@@ -1065,7 +1102,7 @@ function updateCustomerPaymentStatus(bookingId, status) {
     } catch (e) { console.error('Failed to update customer payment status:', e); }
 }
 function loadCashVerifications() {
-    const payments = getAllPayments().filter(function(p) { return p.paymentMethod === 'Cash' || p.paymentMethod === 'cash' || p.payment === 'Cash'; });
+    const payments = getAllPayments();
     const pendingCount = payments.filter(function(p) { return p.status === 'Pending'; }).length;
     const verifiedCount = payments.filter(function(p) { return p.status === 'Verified'; }).length;
     const rejectedCount = payments.filter(function(p) { return p.status === 'Rejected'; }).length;
@@ -1085,7 +1122,7 @@ function renderCashVerifications(payments) {
     const emptyMsg = document.getElementById('cash-empty-msg');
     if (!tbody) return;
     tbody.innerHTML = '';
-    let data = payments || getAllPayments().filter(function(p) { return p.paymentMethod === 'Cash' || p.paymentMethod === 'cash' || p.payment === 'Cash'; });
+    let data = payments || getAllPayments();
     const statusFilter = document.getElementById('cash-filter-status');
     if (statusFilter && statusFilter.value !== 'all') {
         data = data.filter(function(p) { return p.status === statusFilter.value; });
@@ -1114,7 +1151,7 @@ function renderCashVerifications(payments) {
     });
 }
 function verifyCashPayment(paymentId, status) {
-    if (!confirm('Mark this cash payment as ' + status + '?')) return;
+    if (!confirm('Mark this payment as ' + status + '?')) return;
     if (updatePaymentStatus(paymentId, status)) {
         showToast('success', 'Payment marked as ' + status);
         loadCashVerifications();
@@ -1123,8 +1160,61 @@ function verifyCashPayment(paymentId, status) {
         showToast('error', 'Failed to update payment status.');
     }
 }
+function exportCashPDF() {
+    const payments = getAllPayments();
+    if (payments.length === 0) { showToast('info', 'No transactions to export.'); return; }
+    const w = window.open('', '_blank');
+    if (!w) { showToast('error', 'Please allow popups to export PDF.'); return; }
+    let rows = '';
+    payments.forEach(function(p) {
+        const date = p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
+        const statusColor = p.status === 'Verified' ? 'color:#10B981;' : (p.status === 'Rejected' ? 'color:#EF4444;' : 'color:#F59E0B;');
+        rows += '<tr><td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);font-weight:600;color:#f8fafc;">' + (p.id || 'N/A') + '</td>';
+        rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">' + (p.customerName || 'N/A') + '</td>';
+        rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">' + (p.vehicle || 'N/A') + '</td>';
+        rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">' + (p.zone || 'N/A') + '</td>';
+        rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;font-weight:600;">' + (p.slot || 'N/A') + '</td>';
+        rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#f8fafc;font-weight:700;text-align:right;">BDT ' + parseFloat(p.amount || 0).toFixed(2) + '</td>';
+        rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;font-family:monospace;">' + (p.trxId || p.customerNumber || 'N/A') + '</td>';
+        rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">' + date + '</td>';
+        rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);' + statusColor + 'font-weight:600;">' + (p.status || 'Pending') + '</td></tr>';
+    });
+    const totalAmount = payments.reduce(function(s, p) { return s + parseFloat(p.amount || 0); }, 0);
+    const pendingCount = payments.filter(function(p) { return p.status === 'Pending'; }).length;
+    const verifiedCount = payments.filter(function(p) { return p.status === 'Verified'; }).length;
+    const rejectedCount = payments.filter(function(p) { return p.status === 'Rejected'; }).length;
+    var pdfDoc = '<!DOCTYPE html><html><head><title>SmartPark - Payment Verification Report</title>';
+    pdfDoc += '<style>body{font-family:Inter,Poppins,sans-serif;padding:30px;background:#0B1426;color:#f8fafc;}';
+    pdfDoc += 'h2{color:#f8fafc;margin-bottom:4px;}';
+    pdfDoc += 'p{color:#94a3b8;margin-bottom:16px;}';
+    pdfDoc += 'table{width:100%;border-collapse:collapse;background:#152238;border-radius:12px;overflow:hidden;border:1px solid rgba(59,130,246,0.15);}';
+    pdfDoc += 'th{background:#111B33;padding:10px 8px;font-size:11px;text-align:left;color:#94a3b8;font-weight:700;}';
+    pdfDoc += 'td{font-size:12px;color:#cbd5e1;}';
+    pdfDoc += '.summary{display:flex;gap:20px;margin-bottom:20px;}';
+    pdfDoc += '.summary div{background:#152238;padding:12px 20px;border-radius:10px;border:1px solid rgba(59,130,246,0.15);}';
+    pdfDoc += '.summary span{font-size:12px;color:#94a3b8;}';
+    pdfDoc += '.summary strong{font-size:18px;color:#f8fafc;display:block;}';
+    pdfDoc += 'button{margin-top:20px;padding:10px 24px;background:#3B82F6;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}';
+    pdfDoc += 'button:hover{background:#2563EB;}</style></head><body>';
+    pdfDoc += '<h2>SmartPark - Payment Verification Report</h2>';
+    pdfDoc += '<p>Generated: ' + new Date().toLocaleString() + ' | Total Records: ' + payments.length + '</p>';
+    pdfDoc += '<div class="summary">';
+    pdfDoc += '<div><span>Pending</span><strong style="color:#F59E0B;">' + pendingCount + '</strong></div>';
+    pdfDoc += '<div><span>Verified</span><strong style="color:#10B981;">' + verifiedCount + '</strong></div>';
+    pdfDoc += '<div><span>Rejected</span><strong style="color:#EF4444;">' + rejectedCount + '</strong></div>';
+    pdfDoc += '<div><span>Total Amount</span><strong style="color:#3B82F6;">BDT ' + totalAmount.toFixed(2) + '</strong></div>';
+    pdfDoc += '</div>';
+    pdfDoc += '<table><thead><tr><th>ID</th><th>Customer</th><th>Vehicle</th><th>Zone</th><th>Slot</th><th style="text-align:right;">Amount</th><th>TrxID</th><th>Date</th><th>Status</th></tr></thead><tbody>';
+    pdfDoc += rows;
+    pdfDoc += '</tbody></table>';
+    pdfDoc += '<p style="margin-top:16px;font-size:14px;font-weight:700;color:#3B82F6;">Total Amount: BDT ' + totalAmount.toFixed(2) + '</p>';
+    pdfDoc += '<button onclick="window.print()">Print / Save as PDF</button>';
+    pdfDoc += '</body></html>';
+    w.document.write(pdfDoc); w.document.close();
+    showToast('success', 'PDF exported! Use Print to save as PDF.');
+}
 function exportCashReport() {
-    const payments = getAllPayments().filter(function(p) { return p.paymentMethod === 'Cash' || p.paymentMethod === 'cash' || p.payment === 'Cash'; });
+    const payments = getAllPayments();
     if (payments.length === 0) { showToast('info', 'No cash transactions to export.'); return; }
     let csv = 'ID,Customer,Vehicle,Zone,Slot,Amount,TrxID,Status,Created At\n';
     payments.forEach(function(p) {
