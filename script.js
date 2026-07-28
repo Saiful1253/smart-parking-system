@@ -32,7 +32,7 @@ async function fetchUserSessions() {
         else { showToast('error', data.msg || 'Failed to fetch sessions.'); return []; }
     } catch (error) {
         var saved = getUserData('customerParkingData');
-        return saved && saved.sessions ? saved.sessions.filter(function(s) { return s.status === 'Active'; }) : [];
+        return saved && saved.sessions ? saved.sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; }) : [];
     }
 }
 
@@ -182,7 +182,7 @@ window.addEventListener('storage', function(e) {
 function initZoneSlots(zoneSlots) { Object.keys(zonesData).forEach(function(key) { var z = zonesData[key]; if (!zoneSlots[key]) zoneSlots[key] = new Array(z.spots).fill(false); }); }
 function syncZoneOccupancy(sessions) {
     Object.values(zonesData).forEach(function(z) { z.occupied = 0; });
-    sessions.forEach(function(s) { if (s.status === 'Active') { var zone = Object.values(zonesData).find(function(z) { return z.name === s.zone; }); if (zone) zone.occupied = (zone.occupied || 0) + 1; } });
+    sessions.forEach(function(s) { if (s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected') { var zone = Object.values(zonesData).find(function(z) { return z.name === s.zone; }); if (zone) zone.occupied = (zone.occupied || 0) + 1; } });
     Object.values(zonesData).forEach(function(z) { z.free = Math.max(0, z.spots - z.occupied); });
 }
 function saveData(sessions, history, nextBookingId, nextHistoryId, zoneSlots) { setUserData('customerParkingData', { sessions: sessions, history: history, nextId: nextBookingId, nextHistId: nextHistoryId, zoneSlots: zoneSlots }); }
@@ -446,7 +446,7 @@ function getAIResponse(msg) {
     }
     if (lower.includes('status') || lower.includes('session') || lower.includes('active')) {
         var saved = getUserData('customerParkingData');
-        var activeCount = saved && saved.sessions ? saved.sessions.filter(function(s) { return s.status === 'Active'; }).length : 0;
+        var activeCount = saved && saved.sessions ? saved.sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; }).length : 0;
         return '📊 You currently have ' + activeCount + ' active parking session(s). Check "My Sessions" for live updates!';
     }
     if (lower.includes('end') || lower.includes('stop') || lower.includes('cancel')) {

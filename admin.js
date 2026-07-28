@@ -112,7 +112,7 @@ async function loadDashboardStats() {
     updateRevenueUI();
 }
 
-function updateSpottedVehiclesUI(stats) { const spottedCountEl = document.getElementById('spotted-vehicles-count'); if (spottedCountEl) { const count = (stats.anomalies && stats.anomalies.length) || getLocalAnomalyCount(); spottedCountEl.textContent = count; } }
+function updateSpottedVehiclesUI(stats) { const spottedCountEl = document.getElementById('spotted-vehicles-count'); if (spottedCountEl) { spottedCountEl.textContent = getLocalAnomalyCount(); } }
 function updateZonesSpotsUI(stats) {
     const zonesEl = document.getElementById('stat-zones');
     const spotsEl = document.getElementById('stat-spots');
@@ -149,7 +149,7 @@ async function refreshZones() {
         if (document.getElementById('sensor-log')) renderSensorLog();
         if (document.getElementById('active-sessions-count')) {
             let count = 0;
-            if (allData.sessions) count = allData.sessions.filter(function(s) { return s.status === 'Active'; }).length;
+            if (allData.sessions) count = allData.sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; }).length;
             document.getElementById('active-sessions-count').textContent = count;
         }
         if (document.getElementById('stat-free')) {
@@ -174,7 +174,7 @@ setInterval(async () => {
         if (document.getElementById('sensor-log')) renderSensorLog();
         if (document.getElementById('active-sessions-count')) {
             let count = 0;
-            if (allData.sessions) count = allData.sessions.filter(function(s) { return s.status === 'Active'; }).length;
+            if (allData.sessions) count = allData.sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; }).length;
             document.getElementById('active-sessions-count').textContent = count;
         }
         if (document.getElementById('stat-free')) {
@@ -195,6 +195,7 @@ setInterval(async () => {
 }, 10000);
 
 document.addEventListener('DOMContentLoaded', async () => {
+    migrateRejectedSessions();
     loadZonesFromLocalStorage();
     updateDashboardStatsFromLocal();
     updateRevenueUI();
@@ -206,7 +207,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (document.getElementById('bookingTrendChart')) { initBookingTrendChart(); loadBookingTrend('week'); }
     if (document.getElementById('active-sessions-count')) {
         let count = 0;
-        if (allData.sessions) count = allData.sessions.filter(function(s) { return s.status === 'Active'; }).length;
+        if (allData.sessions) count = allData.sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; }).length;
         document.getElementById('active-sessions-count').textContent = count;
     }
     if (document.getElementById('sessions-table-body')) renderSessionsTable();
@@ -223,7 +224,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (document.getElementById('sensor-log')) renderSensorLog();
     if (document.getElementById('active-sessions-count')) {
         let count = 0;
-        if (allData.sessions) count = allData.sessions.filter(function(s) { return s.status === 'Active'; }).length;
+        if (allData.sessions) count = allData.sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; }).length;
         document.getElementById('active-sessions-count').textContent = count;
     }
     if (document.getElementById('zones-grid')) renderZonesGrid();
@@ -444,7 +445,7 @@ async function triggerRefresh() {
         if (document.getElementById('cash-table-body')) loadCashVerifications();
         if (document.getElementById('active-sessions-count')) {
             let count = 0;
-            if (allData.sessions) count = allData.sessions.filter(function(s) { return s.status === 'Active'; }).length;
+            if (allData.sessions) count = allData.sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; }).length;
             document.getElementById('active-sessions-count').textContent = count;
         }
         if (document.getElementById('stat-free')) {
@@ -462,22 +463,37 @@ async function triggerRefresh() {
 async function loadAnomalies() {
     try {
         const token = localStorage.getItem('token_admin');
-        const response = await fetch(`${API_BASE}/api/admin/dashboard-stats`, { method: 'GET', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
-        const contentType = response.headers.get('content-type') || ''; const isJson = contentType.includes('application/json'); const data = isJson ? await response.json() : {};
-        if (response.ok && data.spottedVehiclesList && data.spottedVehiclesList.length > 0) {
-            unregisteredVehicles = (data.spottedVehiclesList || []).map(v => ({ ...v, detectedAt: v.detectedAt || new Date().toISOString(), sensor: v.sensor || 'Plate Reader' }));
+        const dashboardResponse = await fetch(`${API_BASE}/api/admin/dashboard-stats`, { method: 'GET', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
+        const dashboardContentType = dashboardResponse.headers.get('content-type') || '';
+        const dashboardJson = dashboardContentType.includes('application/json') ? await dashboardResponse.json() : {};
+        if (dashboardResponse.ok && dashboardJson.spottedVehiclesList && dashboardJson.spottedVehiclesList.length > 0) {
+            unregisteredVehicles = dashboardJson.spottedVehiclesList.map(v => ({ ...v, detectedAt: v.detectedAt || new Date().toISOString(), sensor: v.sensor || 'Plate Reader' }));
         } else {
             unregisteredVehicles = [];
         }
-        const actualAnomalies = (data.anomalies && data.anomalies.length > 0) ? data.anomalies : [];
-        if (actualAnomalies.length > 0) {
-            renderAnomalies(actualAnomalies);
-        } else {
-            renderLocalAnomalies();
+
+        let anomalies = [];
+        try {
+            const anomaliesResponse = await fetch(`${API_BASE}/api/admin/anomalies`, { method: 'GET', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
+            const anomaliesContentType = anomaliesResponse.headers.get('content-type') || '';
+            const anomaliesJson = anomaliesContentType.includes('application/json') ? await anomaliesResponse.json() : {};
+            if (anomaliesResponse.ok && anomaliesJson.anomalies && anomaliesJson.anomalies.length > 0) {
+                anomalies = anomaliesJson.anomalies;
+            }
+        } catch (e) { console.error('Failed to fetch anomalies:', e); }
+
+        if (anomalies.length === 0) {
+            anomalies = getLocalAnomalies();
         }
-    } catch (err) { 
+
+        if (anomalies.length > 0) {
+            renderAnomalies(anomalies);
+        } else {
+            renderAnomalies([]);
+        }
+    } catch (err) {
         unregisteredVehicles = [];
-        renderLocalAnomalies(); 
+        renderAnomalies(getLocalAnomalies());
     }
 }
 
@@ -486,12 +502,45 @@ function renderLocalAnomalies() {
     const sessions = allData.sessions || [];
     const anomalies = [];
     const activeSessions = sessions.filter(function(s) { return s.status === 'Active'; });
+
+    // Detect zone overflow: more active sessions than zone capacity
+    const zoneOccupancy = {};
     activeSessions.forEach(function(s) {
-        const zone = zonesData[s.zoneId] || Object.values(zonesData).find(function(z) { return z.name === s.zone; });
+        const zoneId = s.zoneId || (s.zone ? s.zone.replace(/ - .*$/, '').replace('Zone ', 'Zone-') : null);
+        if (!zoneId) return;
+        if (!zoneOccupancy[zoneId]) zoneOccupancy[zoneId] = [];
+        zoneOccupancy[zoneId].push(s);
+    });
+
+    Object.keys(zoneOccupancy).forEach(function(zoneId) {
+        const zone = zonesData[zoneId] || Object.values(zonesData).find(function(z) { return z.id === zoneId || z.name === (zoneId.replace('Zone-', 'Zone ') + ' - Central'); });
+        if (!zone) return;
+        const occupied = zoneOccupancy[zoneId].length;
+        if (occupied > zone.spots) {
+            anomalies.push({
+                zone: zone.name,
+                type: 'overflow',
+                message: `${occupied - zone.spots} extra vehicle(s) detected in ${zone.name} (Plates: ${zoneOccupancy[zoneId].map(s => s.vehicle || 'N/A').join(', ')}) — capacity exceeded!`,
+                severity: 'critical',
+                vehicles: zoneOccupancy[zoneId].map(s => ({ plate: s.vehicle || 'N/A', spot: s.slot || 'N/A' }))
+            });
+        }
+    });
+
+    // Detect invalid / mismatched slots
+    activeSessions.forEach(function(s) {
+        const zoneId = s.zoneId || (s.zone ? s.zone.replace(/ - .*$/, '').replace('Zone ', 'Zone-') : null);
+        const zone = zonesData[zoneId] || Object.values(zonesData).find(function(z) { return z.id === zoneId || z.name === s.zone; });
         if (!zone) return;
         const spotIndex = s.slotIndex;
-        if (spotIndex === undefined || spotIndex < 0 || spotIndex >= zone.spots) {
-            anomalies.push({ zone: s.zone || 'Unknown', type: 'invalid_slot', message: `Invalid slot index ${spotIndex} for ${s.vehicle || 'vehicle'}`, severity: 'warning', vehicles: [{ plate: s.vehicle || 'N/A', spot: '?' }] });
+        if (spotIndex !== undefined && spotIndex !== null && (spotIndex < 0 || spotIndex >= zone.spots)) {
+            anomalies.push({
+                zone: zone.name,
+                type: 'invalid_slot',
+                message: `Invalid slot index ${spotIndex} for ${s.vehicle || 'vehicle'}`,
+                severity: 'warning',
+                vehicles: [{ plate: s.vehicle || 'N/A', spot: '?' }]
+            });
         }
         if (s.vehicle && s.vehicle.length < 3) {
             anomalies.push({ zone: s.zone || 'Unknown', type: 'short_plate', message: `Suspicious plate: ${s.vehicle} in ${s.zone}`, severity: 'warning', vehicles: [{ plate: s.vehicle, spot: s.slot || '?' }] });
@@ -503,6 +552,126 @@ function renderLocalAnomalies() {
     renderAnomalies(anomalies);
 }
 
+function getLocalAnomalies() {
+    const allData = getAllCustomerParkingData();
+    const sessions = allData.sessions || [];
+    const anomalies = [];
+    const activeSessions = sessions.filter(function(s) { return s.status === 'Active'; });
+
+    // Detect zone overflow: more active sessions than zone capacity
+    const zoneOccupancy = {};
+    activeSessions.forEach(function(s) {
+        const zoneId = s.zoneId || (s.zone ? s.zone.replace(/ - .*$/, '').replace('Zone ', 'Zone-') : null);
+        if (!zoneId) return;
+        if (!zoneOccupancy[zoneId]) zoneOccupancy[zoneId] = [];
+        zoneOccupancy[zoneId].push(s);
+    });
+
+    Object.keys(zoneOccupancy).forEach(function(zoneId) {
+        const zone = zonesData[zoneId] || Object.values(zonesData).find(function(z) { return z.id === zoneId || z.name === (zoneId.replace('Zone-', 'Zone ') + ' - Central'); });
+        if (!zone) return;
+        const occupied = zoneOccupancy[zoneId].length;
+        if (occupied > zone.spots) {
+            anomalies.push({
+                zone: zone.name,
+                type: 'overflow',
+                message: `${occupied - zone.spots} extra vehicle(s) detected in ${zone.name} (Plates: ${zoneOccupancy[zoneId].map(s => s.vehicle || 'N/A').join(', ')}) — capacity exceeded!`,
+                severity: 'critical',
+                vehicles: zoneOccupancy[zoneId].map(s => ({ plate: s.vehicle || 'N/A', spot: s.slot || 'N/A' }))
+            });
+        }
+    });
+
+    // Detect invalid / mismatched slots
+    activeSessions.forEach(function(s) {
+        const zoneId = s.zoneId || (s.zone ? s.zone.replace(/ - .*$/, '').replace('Zone ', 'Zone-') : null);
+        const zone = zonesData[zoneId] || Object.values(zonesData).find(function(z) { return z.id === zoneId || z.name === s.zone; });
+        if (!zone) return;
+        const spotIndex = s.slotIndex;
+        if (spotIndex !== undefined && spotIndex !== null && (spotIndex < 0 || spotIndex >= zone.spots)) {
+            anomalies.push({
+                zone: zone.name,
+                type: 'invalid_slot',
+                message: `Invalid slot ${s.slot || spotIndex} in ${zone.name} for plate ${s.vehicle || 'N/A'} — slot does not exist.`,
+                severity: 'critical',
+                vehicles: [{ plate: s.vehicle || 'N/A', spot: s.slot || '?' }]
+            });
+        }
+    });
+
+    // Detect slot conflicts: multiple vehicles assigned to the same slot
+    const slotMap = {};
+    activeSessions.forEach(function(s) {
+        const zoneId = s.zoneId || (s.zone ? s.zone.replace(/ - .*$/, '').replace('Zone ', 'Zone-') : null);
+        const spotIndex = s.slotIndex;
+        const slot = s.slot || (spotIndex !== undefined && spotIndex !== null ? String(spotIndex + 1).padStart(2, '0') : '');
+        if (!zoneId || spotIndex === undefined || spotIndex === null) return;
+        const key = zoneId + ':' + spotIndex;
+        if (!slotMap[key]) slotMap[key] = { sessions: [], zoneId: zoneId, slotIndex: spotIndex, slot: slot };
+        slotMap[key].sessions.push(s);
+    });
+
+    Object.values(slotMap).forEach(function(entry) {
+        if (entry.sessions.length > 1) {
+            const zone = zonesData[entry.zoneId] || Object.values(zonesData).find(function(z) { return z.id === entry.zoneId || z.name === (entry.zoneId.replace('Zone-', 'Zone ') + ' - Central'); });
+            if (!zone) return;
+            anomalies.push({
+                zone: zone.name,
+                type: 'slot_conflict',
+                message: `Slot ${entry.slot || entry.slotIndex} in ${zone.name} occupied by ${entry.sessions.length} vehicles (Plates: ${entry.sessions.map(s => s.vehicle || 'N/A').join(', ')}) — only one vehicle per slot allowed.`,
+                severity: 'critical',
+                vehicles: entry.sessions.map(s => ({ plate: s.vehicle || 'N/A', spot: s.slot || '?' }))
+            });
+        }
+    });
+
+    // Detect duplicate bookings: same vehicle with multiple active sessions
+    const vehicleBookings = activeSessions.reduce(function(acc, session) {
+        const plate = (session.vehicle || '').toUpperCase();
+        if (!plate) return acc;
+        if (!acc[plate]) acc[plate] = [];
+        acc[plate].push(session);
+        return acc;
+    }, {});
+
+    for (const plate in vehicleBookings) {
+        const userSessions = vehicleBookings[plate];
+        if (userSessions.length > 1) {
+            anomalies.push({
+                zone: 'Multiple Zones',
+                type: 'multiple_bookings',
+                message: `Vehicle ${plate} has ${userSessions.length} active bookings.`,
+                severity: 'critical',
+                vehicles: userSessions.map(s => ({ plate: s.vehicle || 'N/A', spot: s.slot || '?' }))
+            });
+        }
+    }
+
+    // Detect "2 online 2" bookings anomaly (same user with 2 active online bookings)
+    const onlineBookingsByUser = activeSessions.filter(s => s.type === 'online').reduce((acc, session) => {
+        const uid = session.userId;
+        if (!uid) return acc;
+        if (!acc[uid]) acc[uid] = [];
+        acc[uid].push(session);
+        return acc;
+    }, {});
+
+    for (const userId in onlineBookingsByUser) {
+        const userSessions = onlineBookingsByUser[userId];
+        if (userSessions.length === 2) {
+            anomalies.push({
+                zone: 'Multiple Zones',
+                type: 'multiple_online_bookings',
+                message: `Customer ${userId} has 2 active online bookings.`,
+                severity: 'critical',
+                vehicles: userSessions.map(s => ({ plate: s.vehicle || 'N/A', spot: s.slot || '?' }))
+            });
+        }
+    }
+
+    return anomalies;
+}
+
 function renderAnomalies(anomalies) {
     const alertBox = document.getElementById('anomaly-alert'); const anomalyList = document.getElementById('anomaly-list');
     if (!alertBox || !anomalyList) return;
@@ -511,6 +680,8 @@ function renderAnomalies(anomalies) {
     anomalyDismissed = false;
     previousAnomalyCount = anomalies.length;
     fullAnomalyList = anomalies;
+    const countSpan = alertBox.querySelector('[data-anomaly-count]');
+    if (countSpan) countSpan.textContent = `(${anomalies.length})`;
     alertBox.classList.remove('hidden');
     const visibleAnomalies = expandedAnomalies ? anomalies : anomalies.slice(0, 5);
     const titleEl = alertBox.querySelector('h3');
@@ -574,6 +745,21 @@ function getLocalAnomalyCount() {
     const sessions = allData.sessions || [];
     let count = 0;
     const activeSessions = sessions.filter(function(s) { return s.status === 'Active'; });
+
+    // Detect slot conflicts: multiple vehicles assigned to the same slot
+    const slotMap = {};
+    activeSessions.forEach(function(s) {
+        const zoneId = s.zoneId || (s.zone ? s.zone.replace(/ - .*$/, '').replace('Zone ', 'Zone-') : null);
+        const spotIndex = s.slotIndex;
+        if (!zoneId || spotIndex === undefined || spotIndex === null) return;
+        const key = zoneId + ':' + spotIndex;
+        if (!slotMap[key]) slotMap[key] = { count: 0 };
+        slotMap[key].count++;
+    });
+    Object.values(slotMap).forEach(function(entry) {
+        if (entry.count > 1) count++;
+    });
+
     activeSessions.forEach(function(s) {
         const zone = zonesData[s.zoneId] || Object.values(zonesData).find(function(z) { return z.name === s.zone; });
         if (!zone) return;
@@ -608,7 +794,7 @@ function renderSensorLog() {
     const sessions = allData.sessions || [];
     const registeredPlates = sessions.filter(s => s.status === 'Active').map(s => (s.vehicle || '').toUpperCase());
     const unregisteredPlates = unregisteredVehicles.map(v => (v.plate || '').toUpperCase());
-    const recent = sessions.filter(function(s) { return s.status === 'Active' && !unregisteredPlates.includes((s.vehicle || '').toUpperCase()); }).slice(0, 10);
+    const recent = sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected' && !unregisteredPlates.includes((s.vehicle || '').toUpperCase()); }).slice(0, 10);
     if (recent.length === 0) {
         sensorLog.setAttribute('data-empty', 'true');
         sensorLog.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-center text-slate-500"><i class="fa-solid fa-satellite-dish text-2xl mb-2"></i><p class="text-xs font-medium">No recent sensor activity</p></div>';
@@ -621,10 +807,13 @@ function renderSensorLog() {
         const plate = s.vehicle || 'UNKNOWN';
         const zone = s.zone || 'Unknown';
         const slot = s.slot || '?';
-        const sensorType = Math.random() > 0.5 ? 'Plate Reader' : (Math.random() > 0.5 ? 'Ultrasonic' : 'Camera');
-        const statusColor = 'text-sp-emerald';
-        const statusIcon = sensorType === 'Plate Reader' ? 'fa-camera' : (sensorType === 'Ultrasonic' ? 'fa-wave-square' : 'fa-video');
-        html += '<div class="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-sp-accent/10 hover:bg-white/10 transition-all"><div class="w-8 h-8 rounded-lg bg-sp-accent/10 text-sp-accent flex items-center justify-center flex-shrink-0"><i class="fa-solid ' + statusIcon + ' text-xs"></i></div><div class="flex-1 min-w-0"><div class="flex items-center justify-between mb-1"><span class="text-[10px] font-bold text-sp-accent uppercase tracking-wider">' + sensorType + '</span><span class="text-[10px] text-slate-500">' + time + '</span></div><p class="text-xs text-slate-300 font-medium truncate">' + plate + ' detected at ' + zone + ' - Slot ' + slot + '</p><div class="flex items-center gap-2 mt-1"><span class="inline-flex items-center gap-1 text-[10px] font-semibold ' + statusColor + '"><span class="w-1 h-1 rounded-full bg-sp-emerald"></span> Active</span></div></div></div>';
+        const sensorType = (plate || '').length % 3 === 0 ? 'Plate Reader' : ((plate || '').length % 3 === 1 ? 'Ultrasonic' : 'Camera');
+        const isRejected = (s.paymentStatus || '') === 'Rejected';
+        const statusColor = isRejected ? 'text-sp-red' : 'text-sp-emerald';
+        const statusBg = isRejected ? 'bg-sp-red' : 'bg-sp-emerald';
+        const statusText = isRejected ? 'Inactive' : 'Active';
+        const sensorIcon = sensorType === 'Plate Reader' ? 'fa-camera' : (sensorType === 'Ultrasonic' ? 'fa-wave-square' : 'fa-video');
+        html += '<div class="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-sp-accent/10 hover:bg-white/10 transition-all"><div class="w-8 h-8 rounded-lg bg-sp-accent/10 text-sp-accent flex items-center justify-center flex-shrink-0"><i class="fa-solid ' + sensorIcon + ' text-xs"></i></div><div class="flex-1 min-w-0"><div class="flex items-center justify-between mb-1"><span class="text-[10px] font-bold text-sp-accent uppercase tracking-wider">' + sensorType + '</span><span class="text-[10px] text-slate-500">' + time + '</span></div><p class="text-xs text-slate-300 font-medium truncate">' + plate + ' detected at ' + zone + ' - Slot ' + slot + '</p><div class="flex items-center gap-2 mt-1"><span class="inline-flex items-center gap-1 text-[10px] font-semibold ' + statusColor + '"><span class="w-1 h-1 rounded-full ' + statusBg + '"></span> ' + statusText + '</span></div></div></div>';
     });
     sensorLog.innerHTML = html;
 }
@@ -1094,14 +1283,21 @@ function updateCustomerPaymentStatus(bookingId, status) {
             }
             if (userData && userData.sessions) {
                 userData.sessions.forEach(function(s) {
-                    if (Number(s.id) === Number(bookingId)) { s.paymentStatus = status; }
+                    if (Number(s.id) === Number(bookingId)) { s.paymentStatus = status; if (status === 'Rejected') { s.status = 'Rejected'; } }
                 });
             }
         });
         localStorage.setItem('customerParkingData_by_user', JSON.stringify(allData));
     } catch (e) { console.error('Failed to update customer payment status:', e); }
 }
+// Admin Cash Verification Pagination
+let cashFilteredData = [];
+let cashCurrentPage = 1;
+let cashRecordsPerPage = 25;
+let cashTotalPages = 1;
+
 function loadCashVerifications() {
+    cashCurrentPage = 1;
     const payments = getAllPayments();
     const pendingCount = payments.filter(function(p) { return p.status === 'Pending'; }).length;
     const verifiedCount = payments.filter(function(p) { return p.status === 'Verified'; }).length;
@@ -1127,12 +1323,21 @@ function renderCashVerifications(payments) {
     if (statusFilter && statusFilter.value !== 'all') {
         data = data.filter(function(p) { return p.status === statusFilter.value; });
     }
-    if (data.length === 0) {
+    cashFilteredData = data;
+    cashTotalPages = Math.ceil(data.length / cashRecordsPerPage) || 1;
+    if (cashCurrentPage > cashTotalPages) cashCurrentPage = cashTotalPages;
+    if (cashCurrentPage < 1) cashCurrentPage = 1;
+    const start = (cashCurrentPage - 1) * cashRecordsPerPage;
+    const end = Math.min(start + cashRecordsPerPage, data.length);
+    const pageData = data.slice(start, end);
+    if (pageData.length === 0) {
         tbody.innerHTML = `<tr><td colspan="10" class="py-8 text-center text-slate-500"><i class="fa-solid fa-inbox text-2xl mb-2"></i><p class="text-xs font-medium">No cash transactions found</p></td></tr>`;
-        if (emptyMsg) emptyMsg.classList.remove('hidden'); return;
+        if (emptyMsg) emptyMsg.classList.remove('hidden');
+        updateCashPaginationUI(data.length);
+        return;
     }
     if (emptyMsg) emptyMsg.classList.add('hidden');
-    data.forEach(function(p) {
+    pageData.forEach(function(p) {
         const date = p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
         const time = p.createdAt ? new Date(p.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
         const safeTrx = (p.trxId || p.customerNumber || 'N/A').replace(/'/g, '&#39;');
@@ -1145,10 +1350,28 @@ function renderCashVerifications(payments) {
         const statusIcons = { 'Pending': 'fa-clock', 'Verified': 'fa-circle-check', 'Rejected': 'fa-circle-xmark' };
         const statusClass = statusConfig[p.status] || statusConfig['Pending'];
         const actions = p.status === 'Pending' ?
-            `<div class="flex items-center gap-2 justify-end"><button onclick="verifyCashPayment('${p.id}', 'Verified')" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-sp-emerald/10 hover:bg-sp-emerald/20 text-sp-emerald rounded-lg border border-sp-emerald/20 transition-all"><i class="fa-solid fa-check text-[10px]"></i> Verify</button><button onclick="verifyCashPayment('${p.id}', 'Rejected')" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-sp-red/10 hover:bg-sp-red/20 text-sp-red rounded-lg border border-sp-red/20 transition-all"><i class="fa-solid fa-xmark text-[10px]"></i> Reject</button></div>` :
-            `<span class="text-[10px] text-slate-500 font-medium">${p.verifiedAt ? new Date(p.verifiedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>`;
+            `<div class="flex items-center gap-2 justify-end"><button onclick="verifyCashPayment('${p.id}', 'Verified')" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-sp-emerald/10 hover:bg-sp-emerald/20 text-sp-emerald rounded-lg border border-sp-emerald/20 transition-all"><i class="fa-solid fa-check text-[10px]"></i> Verify</button><button onclick="verifyCashPayment('${p.id}', 'Rejected')" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-sp-red/10 hover:bg-sp-red/20 text-sp-red rounded-lg border border-sp-red/20 transition-all"><i class="fa-solid fa-xmark text-[10px]"></i> Reject</button><button onclick="deleteCashPayment('${p.id}')" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-sp-red/10 hover:bg-sp-red/20 text-sp-red rounded-lg border border-sp-red/20 transition-all" title="Delete"><i class="fa-solid fa-trash-can text-[10px]"></i></button></div>` :
+            `<div class="flex items-center gap-2 justify-end"><button onclick="deleteCashPayment('${p.id}')" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-sp-red/10 hover:bg-sp-red/20 text-sp-red rounded-lg border border-sp-red/20 transition-all" title="Delete"><i class="fa-solid fa-trash-can text-[10px]"></i> Delete</button></div><span class="text-[10px] text-slate-500 font-medium">${p.verifiedAt ? new Date(p.verifiedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span>`;
         tbody.innerHTML += `<tr class="hover:bg-white/5 transition-all border-b border-sp-accent/5 last:border-0"><td class="py-3.5 pl-5 text-xs font-bold text-slate-400">${p.id}</td><td class="py-3.5 text-sm font-semibold text-white">${safeCustomer}</td><td class="py-3.5 text-sm text-slate-400 font-medium">${p.vehicle || 'N/A'}</td><td class="py-3.5 text-sm text-slate-400">${p.zone || 'N/A'}</td><td class="py-3.5 text-sm text-slate-400 font-semibold">${p.slot || 'N/A'}</td><td class="py-3.5 text-sm text-white font-bold">৳${parseFloat(p.amount || 0).toFixed(2)}</td><td class="py-3.5 text-xs text-slate-400 font-mono">${safeTrx}</td><td class="py-3.5 text-xs text-slate-500">${date}</td><td class="py-3.5"><span class="px-2.5 py-1 rounded-full text-[10px] font-bold border inline-flex items-center gap-1 ${statusClass}"><span class="w-1 h-1 rounded-full ${p.status === 'Verified' ? 'bg-sp-emerald' : (p.status === 'Rejected' ? 'bg-sp-red' : 'bg-sp-amber')}"></span><i class="fa-solid ${statusIcons[p.status] || 'fa-clock'} text-[8px]"></i> ${p.status}</span></td>${actions ? `<td class="py-3.5 pr-5 text-right">${actions}</td>` : ''}</tr>`;
     });
+    updateCashPaginationUI(data.length);
+}
+function updateCashPaginationUI(totalRecordCount) {
+    const pageInfo = document.getElementById('cash-page-info');
+    const btnFirst = document.getElementById('cash-btn-first');
+    const btnPrev = document.getElementById('cash-btn-prev');
+    const btnNext = document.getElementById('cash-btn-next');
+    const btnLast = document.getElementById('cash-btn-last');
+    if (pageInfo) pageInfo.textContent = `Page ${cashCurrentPage} of ${cashTotalPages}`;
+    if (btnFirst) btnFirst.disabled = cashCurrentPage <= 1;
+    if (btnPrev) btnPrev.disabled = cashCurrentPage <= 1;
+    if (btnNext) btnNext.disabled = cashCurrentPage >= cashTotalPages || totalRecordCount === 0;
+    if (btnLast) btnLast.disabled = cashCurrentPage >= cashTotalPages || totalRecordCount === 0;
+}
+function goToCashPage(page) {
+    if (page < 1 || page > cashTotalPages) return;
+    cashCurrentPage = page;
+    renderCashVerifications(cashFilteredData);
 }
 function verifyCashPayment(paymentId, status) {
     if (!confirm('Mark this payment as ' + status + '?')) return;
@@ -1156,6 +1379,7 @@ function verifyCashPayment(paymentId, status) {
         showToast('success', 'Payment marked as ' + status);
         loadCashVerifications();
         updateRevenueUI();
+        triggerRefresh();
     } else {
         showToast('error', 'Failed to update payment status.');
     }
@@ -1230,6 +1454,33 @@ function exportCashReport() {
     link.click();
     URL.revokeObjectURL(url);
     showToast('success', 'Cash report exported successfully!');
+}
+function deleteCashPayment(paymentId) {
+    if (!confirm('Delete this payment record?')) return;
+    const allPayments = JSON.parse(localStorage.getItem('smartParkPayments_by_user')) || {};
+    let deleted = false;
+    Object.keys(allPayments).forEach(function(email) {
+        if (Array.isArray(allPayments[email])) {
+            const originalLength = allPayments[email].length;
+            allPayments[email] = allPayments[email].filter(function(p) { return p.id !== paymentId; });
+            if (allPayments[email].length < originalLength) deleted = true;
+        }
+    });
+    if (deleted) {
+        localStorage.setItem('smartParkPayments_by_user', JSON.stringify(allPayments));
+        showToast('success', 'Payment record deleted.');
+        loadCashVerifications();
+    } else {
+        showToast('error', 'Payment record not found.');
+    }
+}
+function deleteAllCashPayments() {
+    const payments = getAllPayments();
+    if (payments.length === 0) { showToast('info', 'No cash transactions to delete.'); return; }
+    if (!confirm('Are you sure you want to delete ALL payment records? This cannot be undone.')) return;
+    localStorage.setItem('smartParkPayments_by_user', JSON.stringify({}));
+    showToast('success', 'All payment records deleted.');
+    loadCashVerifications();
 }
 
 function showToast(type, message) {
@@ -1356,6 +1607,24 @@ function getAIResponse(msg) {
     return 'I can help you with parking analytics, occupancy, anomalies, and revenue. Try asking "Show occupancy analytics" or "Check anomalies" or "What is today\'s revenue?"';
 }
 
+function migrateRejectedSessions() {
+    try {
+        const allRaw = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+        let needsSave = false;
+        Object.values(allRaw).forEach(function(userData) {
+            if (userData && userData.sessions) {
+                userData.sessions.forEach(function(s) {
+                    if (s.paymentStatus === 'Rejected' && s.status === 'Active') {
+                        s.status = 'Rejected';
+                        needsSave = true;
+                    }
+                });
+            }
+        });
+        if (needsSave) localStorage.setItem('customerParkingData_by_user', JSON.stringify(allRaw));
+    } catch (e) { console.error('Failed to migrate rejected sessions:', e); }
+}
+
 function getAllCustomerParkingData() {
     try {
         const allData = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
@@ -1393,7 +1662,7 @@ function recalculateZoneOccupancy(allSessions, allZoneSlots) {
         if (!z.spotStatus) z.spotStatus = Array.from({length: z.spots || 0}, (_, i) => ({ id: (z.id || '').replace('Zone-','') + '-' + String(i+1).padStart(2,'0'), index: i, occupied: false, plate: null, sessionId: null }));
         else z.spotStatus.forEach(function(s) { s.occupied = false; s.plate = null; s.sessionId = null; });
     });
-    const activeSessions = allSessions.filter(function(s) { return s.status === 'Active'; });
+    const activeSessions = allSessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; });
     activeSessions.forEach(function(s) {
         const zone = zonesData[s.zoneId] || Object.values(zonesData).find(function(z) { return z.name === s.zone; });
         if (zone) {
