@@ -36,6 +36,7 @@
             <a href="#" onclick="switchAdminTab('map', this); return false;" class="admin-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300"><i class="fa-solid fa-map-location-dot text-lg"></i><span>Live Map</span></a>
             <a href="#" onclick="switchAdminTab('customer', this); return false;" class="admin-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300"><i class="fa-solid fa-user-plus text-lg"></i><span>Customers</span></a>
             <a href="#" onclick="switchAdminTab('cash', this); return false;" class="admin-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300"><i class="fa-solid fa-money-bill-transfer text-lg"></i><span>Payment Verify</span></a>
+            <a href="#" onclick="switchAdminTab('anomalies', this); return false;" class="admin-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300 relative"><i class="fa-solid fa-triangle-exclamation text-lg"></i><span>Anomalies</span><span id="anomaly-nav-badge" class="hidden absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-sp-red text-white rounded-full border border-sp-secondary leading-none flex items-center justify-center">0</span></a>
             <a href="#" onclick="switchAdminTab('settings', this); return false;" class="admin-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300"><i class="fa-solid fa-sliders text-lg"></i><span>Settings</span></a>
         </nav>
     </div>
@@ -59,7 +60,7 @@
 
     <!-- DASHBOARD VIEW -->
     <div id="dashboard-view" class="p-6 space-y-6">
-        <div id="anomaly-alert" class="hidden glass-card border border-sp-red/30 p-5"><div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-sp-red/10 text-sp-red flex items-center justify-center"><i class="fa-solid fa-triangle-exclamation text-lg animate-pulse"></i></div><div><h3 class="text-base font-bold text-sp-red">Slot Anomaly Detected <span data-anomaly-count></span></h3><p class="text-xs text-red-400">Sensor mismatches, invalid slots, or suspicious bookings.</p></div></div><div class="flex items-center gap-2"><button onclick="toggleAnomaliesExpand()" class="anomaly-toggle-btn hidden px-3.5 py-1.5 text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-300 border border-sp-accent/10 rounded-lg"><i class="fa-solid fa-chevron-down text-[10px]"></i> Show All</button><button onclick="refreshAnomalies()" class="px-3.5 py-1.5 text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-300 border border-sp-accent/10 rounded-lg"><i class="fa-solid fa-rotate text-[10px]"></i> Refresh</button><button onclick="dismissAnomalies()" class="px-3.5 py-1.5 text-xs font-semibold bg-sp-red hover:bg-sp-red/80 text-white rounded-lg"><i class="fa-solid fa-check text-[10px]"></i> Dismiss All</button></div></div><div class="space-y-2.5" id="anomaly-list"></div></div>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
             <div class="stat-card p-5 flex items-center justify-between"><div class="space-y-1 relative z-10"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Zones</p><h4 class="text-3xl font-extrabold text-white" id="stat-zones">0</h4></div><div class="w-12 h-12 rounded-full bg-sp-accent/10 text-sp-accent flex items-center justify-center text-xl relative z-10"><i class="fa-solid fa-location-dot"></i></div></div>
             <div class="stat-card p-5 flex items-center justify-between"><div class="space-y-1 relative z-10"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Spots</p><h4 class="text-3xl font-extrabold text-white" id="stat-spots">0</h4></div><div class="w-12 h-12 rounded-full bg-sp-emerald/10 text-sp-emerald flex items-center justify-center text-xl relative z-10"><i class="fa-solid fa-square-p"></i></div></div>
@@ -173,6 +174,23 @@
             </div>
             <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>Plate</th><th>Zone</th><th>Slot</th><th>Detected At</th><th>Sensor</th><th>Action</th></tr></thead><tbody id="unregistered-table-body"></tbody></table></div>
             <div class="flex items-center justify-between mt-4"><div class="text-xs text-slate-500">Showing unregistered vehicles only</div></div>
+        </div>
+    </div>
+
+    <!-- ANOMALIES VIEW -->
+    <div id="anomalies-view" class="p-6 hidden">
+        <div class="flex items-center justify-between mb-6">
+            <div><h2 class="text-xl font-bold text-white">Anomaly Detection</h2><p class="text-xs text-slate-500">Sensor mismatches, invalid slots, or suspicious bookings</p></div>
+            <div class="flex items-center gap-2">
+                <button onclick="redetectAnomalies()" class="px-3.5 py-2 text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-300 border border-sp-accent/10 rounded-lg"><i class="fa-solid fa-rotate text-[10px] mr-1.5"></i> Rescan</button>
+                <button onclick="clearAnomalies()" class="px-3.5 py-2 text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-400 border border-sp-accent/10 rounded-lg">Clear</button>
+            </div>
+        </div>
+        <div class="glass-card overflow-hidden">
+            <table class="data-table">
+                <thead><tr><th>Zone</th><th>Anomaly</th><th>Vehicles</th><th>Time</th><th class="text-right">Action</th></tr></thead>
+                <tbody id="anomalies-table-body"></tbody>
+            </table>
         </div>
     </div>
 </main>

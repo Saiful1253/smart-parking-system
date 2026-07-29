@@ -22,10 +22,6 @@ const API_BASE = (() => {
     } catch (error) { localStorage.removeItem('token_admin'); localStorage.removeItem('loggedInUser_admin'); window.location.href = 'index.html'; }
 })();
 
-let anomalyDismissed = false;
-let expandedAnomalies = false;
-let fullAnomalyList = [];
-let previousAnomalyCount = 0;
 
 function isAdminActiveSession(s) {
     return s.status === 'Active' && s.paymentStatus !== 'Rejected' && (s.paid === true || s.paymentStatus);
@@ -219,7 +215,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateChartFromZones();
     await loadDashboardStats();
     await loadAnomalies();
-    if (document.getElementById('anomaly-list')) await loadAnomalies();
     if (document.getElementById('sessions-table-body')) renderSessionsTable();
     if (document.getElementById('history-table-body')) { syncHistoryFromAllCustomers(); renderHistoryTable(); }
     if (document.getElementById('sensor-log')) renderSensorLog();
@@ -280,9 +275,9 @@ function toggleSidebar() { const sidebar = document.getElementById('sidebar'); i
 document.addEventListener('click', (e) => { const sidebar = document.getElementById('sidebar'); if (window.innerWidth < 768 && sidebar && !sidebar.contains(e.target) && !e.target.closest('header button')) sidebar.classList.add('-translate-x-full'); });
 
 function switchAdminTab(tabId, element) {
-    const navItems = document.querySelectorAll('.admin-nav-item'); navItems.forEach(item => { item.className = "admin-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300"; });
-    if (element) element.className = "admin-nav-item active flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl bg-sp-accent/10 text-sp-accent transition-all duration-300";
-    const views = ['dashboard-view', 'zones-view', 'sessions-view', 'history-view', 'map-view', 'customer-view', 'cash-view', 'settings-view'];
+    const navItems = document.querySelectorAll('.admin-nav-item'); navItems.forEach(item => { item.className = "admin-nav-item relative flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300"; });
+    if (element) { element.className = "admin-nav-item active relative flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl bg-sp-accent/10 text-sp-accent transition-all duration-300"; }
+    const views = ['dashboard-view', 'zones-view', 'sessions-view', 'history-view', 'map-view', 'customer-view', 'cash-view', 'anomalies-view', 'settings-view'];
     views.forEach(view => { const el = document.getElementById(view); if (el) el.classList.add('hidden'); });
     const activeView = document.getElementById(`${tabId}-view`);
     if (activeView) {
@@ -292,9 +287,10 @@ function switchAdminTab(tabId, element) {
         if (tabId === 'cash') loadCashVerifications();
         if (tabId === 'history') { syncHistoryFromAllCustomers(); renderHistoryTable(); }
         if (tabId === 'dashboard') {}
+        if (tabId === 'anomalies') loadAnomalies();
     }
     const pageTitle = document.getElementById('page-title'); const pageSubtitle = document.getElementById('page-subtitle');
-    const titles = { dashboard: { title: 'Dashboard', subtitle: 'AI-powered parking management overview' }, zones: { title: 'Parking Zones', subtitle: 'Configure and monitor parking zones and rates' }, sessions: { title: 'Active Sessions', subtitle: 'Real-time list of vehicles currently parked' }, history: { title: 'Parking History', subtitle: 'Historical log of completed sessions and payments' }, map: { title: 'Live Parking Map', subtitle: 'Visual representation of parking lot occupancy' }, customer: { title: 'Customer Management', subtitle: 'Registered customers and unregistered vehicle registration' }, cash: { title: 'Cash Verification', subtitle: 'Verify manual cash payments' }, settings: { title: 'System Settings', subtitle: 'Configure system parameters and accounts' } };
+    const titles = { dashboard: { title: 'Dashboard', subtitle: 'AI-powered parking management overview' }, zones: { title: 'Parking Zones', subtitle: 'Configure and monitor parking zones and rates' }, sessions: { title: 'Active Sessions', subtitle: 'Real-time list of vehicles currently parked' }, history: { title: 'Parking History', subtitle: 'Historical log of completed sessions and payments' }, map: { title: 'Live Parking Map', subtitle: 'Visual representation of parking lot occupancy' }, customer: { title: 'Customer Management', subtitle: 'Registered customers and unregistered vehicle registration' }, cash: { title: 'Payment Verification', subtitle: 'Verify manual cash payments' }, anomalies: { title: 'Anomaly Detection', subtitle: 'Sensor mismatches, invalid slots, or suspicious bookings' }, settings: { title: 'System Settings', subtitle: 'Configure system parameters and accounts' } };
     if (titles[tabId]) { pageTitle.textContent = titles[tabId].title; pageSubtitle.textContent = titles[tabId].subtitle; }
     if (window.innerWidth < 768) document.getElementById('sidebar').classList.add('-translate-x-full');
 }
@@ -488,11 +484,8 @@ async function loadAnomalies() {
             anomalies = getLocalAnomalies();
         }
 
-        if (anomalies.length > 0) {
-            renderAnomalies(anomalies);
-        } else {
-            renderAnomalies([]);
-        }
+        try { localStorage.setItem('smartpark_anomalies', JSON.stringify(anomalies)); } catch (e) {}
+        renderAnomalies(anomalies);
     } catch (err) {
         unregisteredVehicles = [];
         renderAnomalies(getLocalAnomalies());
@@ -500,59 +493,8 @@ async function loadAnomalies() {
 }
 
 function renderLocalAnomalies() {
-    const allData = getAllCustomerParkingData();
-    const sessions = allData.sessions || [];
-    const anomalies = [];
-    const activeSessions = sessions.filter(isAdminActiveSession);
-
-    // Detect zone overflow: more active sessions than zone capacity
-    const zoneOccupancy = {};
-    activeSessions.forEach(function(s) {
-        const zoneId = s.zoneId || (s.zone ? s.zone.replace(/ - .*$/, '').replace('Zone ', 'Zone-') : null);
-        if (!zoneId) return;
-        if (!zoneOccupancy[zoneId]) zoneOccupancy[zoneId] = [];
-        zoneOccupancy[zoneId].push(s);
-    });
-
-    Object.keys(zoneOccupancy).forEach(function(zoneId) {
-        const zone = zonesData[zoneId] || Object.values(zonesData).find(function(z) { return z.id === zoneId || z.name === (zoneId.replace('Zone-', 'Zone ') + ' - Central'); });
-        if (!zone) return;
-        const occupied = zoneOccupancy[zoneId].length;
-        if (occupied > zone.spots) {
-            anomalies.push({
-                zone: zone.name,
-                type: 'overflow',
-                message: `${occupied - zone.spots} extra vehicle(s) detected in ${zone.name} (Plates: ${zoneOccupancy[zoneId].map(s => s.vehicle || 'N/A').join(', ')}) — capacity exceeded!`,
-                severity: 'critical',
-                vehicles: zoneOccupancy[zoneId].map(function(s) {
-                    return { plate: s.vehicle || 'N/A', spot: s.slot || 'N/A', status: 'online' };
-                })
-            });
-        }
-    });
-
-    // Detect invalid / mismatched slots
-    activeSessions.forEach(function(s) {
-        const zoneId = s.zoneId || (s.zone ? s.zone.replace(/ - .*$/, '').replace('Zone ', 'Zone-') : null);
-        const zone = zonesData[zoneId] || Object.values(zonesData).find(function(z) { return z.id === zoneId || z.name === s.zone; });
-        if (!zone) return;
-        const spotIndex = s.slotIndex;
-        if (spotIndex !== undefined && spotIndex !== null && (spotIndex < 0 || spotIndex >= zone.spots)) {
-            anomalies.push({
-                zone: zone.name,
-                type: 'invalid_slot',
-                message: `Invalid slot index ${spotIndex} for ${s.vehicle || 'vehicle'}`,
-                severity: 'warning',
-                vehicles: [{ plate: s.vehicle || 'N/A', spot: '?', status: 'offline' }]
-            });
-        }
-        if (s.vehicle && s.vehicle.length < 3) {
-            anomalies.push({ zone: s.zone || 'Unknown', type: 'short_plate', message: `Suspicious plate: ${s.vehicle} in ${s.zone}`, severity: 'warning', vehicles: [{ plate: s.vehicle, spot: s.slot || '?', status: 'offline' }] });
-        }
-        if (s.cost > 1000) {
-            anomalies.push({ zone: s.zone || 'Unknown', type: 'high_cost', message: `High cost booking: ৳${s.cost.toFixed(2)} for ${s.vehicle}`, severity: 'warning', vehicles: [{ plate: s.vehicle, spot: s.slot || '?', status: 'offline' }] });
-        }
-    });
+    var anomalies = getLocalAnomalies();
+    localStorage.setItem('smartpark_anomalies', JSON.stringify(anomalies));
     renderAnomalies(anomalies);
 }
 
@@ -696,41 +638,25 @@ function getLocalAnomalies() {
 }
 
 function renderAnomalies(anomalies) {
-    const alertBox = document.getElementById('anomaly-alert'); const anomalyList = document.getElementById('anomaly-list');
-    if (!alertBox || !anomalyList) return;
-    if (!anomalies || anomalies.length === 0) { alertBox.classList.add('hidden'); previousAnomalyCount = 0; return; }
-    if (anomalyDismissed && anomalies.length === previousAnomalyCount) return;
-    anomalyDismissed = false;
-    previousAnomalyCount = anomalies.length;
-    fullAnomalyList = anomalies;
-    const countSpan = alertBox.querySelector('[data-anomaly-count]');
-    if (countSpan) countSpan.textContent = `(${anomalies.length})`;
-    alertBox.classList.remove('hidden');
-    const visibleAnomalies = expandedAnomalies ? anomalies : anomalies.slice(0, 5);
-    const titleEl = alertBox.querySelector('h3');
-    const toggleBtn = alertBox.querySelector('.anomaly-toggle-btn');
-    if (toggleBtn) {
-        if (anomalies.length > 5) {
-            toggleBtn.classList.remove('hidden');
-            toggleBtn.innerHTML = expandedAnomalies ? '<i class="fa-solid fa-chevron-up text-[10px]"></i> Show Less' : `<i class="fa-solid fa-chevron-down text-[10px]"></i> Show All (${anomalies.length})`;
-        } else {
-            toggleBtn.classList.add('hidden');
-        }
-    }
-    anomalyList.innerHTML = visibleAnomalies.map(anomaly => `<div class="bg-white/5 border border-sp-red/20 rounded-xl p-3.5"><div class="flex items-start gap-3"><span class="px-2.5 py-1 text-xs font-bold bg-sp-red/10 text-sp-red rounded-lg">${anomaly.zone}</span><div class="flex-1"><p class="text-xs text-slate-300 font-medium">${anomaly.message}</p>${anomaly.vehicles && anomaly.vehicles.length > 0 ? '<div class="mt-2 space-y-1">' + anomaly.vehicles.map(function(v) { var statusText = v.status === 'online' ? 'Online' : (v.status === 'offline' ? 'Offline' : ''); var statusColor = v.status === 'online' ? 'text-sp-emerald bg-sp-emerald/10 border-sp-emerald/20' : (v.status === 'offline' ? 'text-sp-red bg-sp-red/10 border-sp-red/20' : 'text-slate-400 bg-white/5 border-sp-accent/10'); return '<div class="flex items-center gap-2 text-[10px] font-mono bg-sp-primary/30 rounded-lg px-2 py-1 border border-sp-accent/10"><i class="fa-solid fa-car text-sp-red"></i><span class="font-bold text-white">' + v.plate + '</span><span class="text-slate-500">Spot: ' + v.spot + '</span>' + (statusText ? '<span class="ml-auto px-1.5 py-0.5 text-[9px] font-bold rounded border ' + statusColor + '">' + statusText + '</span>' : '') + '</div>'; }).join('') + '</div>' : ''}</div></div></div>`).join('');
-    updateAnomalyBadge();
+    updateAnomalyNav(anomalies);
+    const tbody = document.getElementById('anomalies-table-body');
+    if (!tbody) return;
+    if (!anomalies || anomalies.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="py-10 text-center text-slate-500"><i class="fa-solid fa-circle-check text-2xl mb-2 text-sp-emerald"></i><p class="text-xs font-semibold text-slate-400">No active anomalies</p><p class="text-[10px] text-slate-500 mt-1">System is operating normally</p></td></tr>'; return; }
+    tbody.innerHTML = anomalies.map(function(a) { return '<tr class="hover:bg-white/5 transition-colors"><td class="py-3.5 text-slate-400 font-medium">' + (a.zone || 'N/A') + '</td><td class="py-3.5 text-slate-300 text-xs">' + (a.message || 'N/A') + '</td><td class="py-3.5">' + (a.vehicles && a.vehicles.length > 0 ? a.vehicles.map(function(v) { return '<span class="inline-flex items-center gap-1 text-[10px] font-mono bg-white/5 border border-sp-accent/10 rounded-full px-2 py-1 mr-1 mb-1"><i class="fa-solid fa-car text-sp-red"></i><span class="font-bold text-white">' + v.plate + '</span></span>'; }).join('') : '<span class="text-slate-500">-</span>') + '</td><td class="py-3.5 text-slate-500 text-xs">' + (a.detectedAt ? new Date(a.detectedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-') + '</td><td class="py-3.5 text-right"><span class="px-2 py-1 text-[10px] font-bold bg-sp-red/10 text-sp-red border border-sp-red/20 rounded-lg">Open</span></td></tr>'; }).join('');
+    try { localStorage.setItem('smartpark_anomalies', JSON.stringify(anomalies)); } catch (e) {}
 }
-
-function refreshAnomalies() { showToast('info', 'Scanning sensors...'); loadAnomalies().then(() => { showToast('success', 'Sensor scan complete.'); }); }
-function dismissAnomalies() { anomalyDismissed = true; const alertBox = document.getElementById('anomaly-alert'); if (alertBox) { alertBox.classList.add('opacity-0', 'scale-95'); setTimeout(() => { alertBox.classList.add('hidden'); alertBox.classList.remove('opacity-0', 'scale-95'); showToast('success', 'Anomaly alerts dismissed for this session.'); }, 500); } updateAnomalyBadge(); }
-function toggleAnomaliesExpand() { expandedAnomalies = !expandedAnomalies; if (fullAnomalyList.length > 0) renderAnomalies(fullAnomalyList); }
-function updateAnomalyBadge() {
-    const badge = document.getElementById('anomaly-badge');
+function updateAnomalyNav(anomalies) {
+    const badge = document.getElementById('anomaly-nav-badge');
     if (!badge) return;
-    const count = fullAnomalyList.length > 0 ? fullAnomalyList.length : (previousAnomalyCount > 0 ? previousAnomalyCount : 0);
-    if (count > 0 && !anomalyDismissed) { badge.style.display = 'inline-flex'; badge.textContent = count > 99 ? '99+' : count; }
-    else { badge.style.display = 'none'; }
+    const count = (anomalies || []).length;
+    if (count > 0) { badge.classList.remove('hidden'); badge.textContent = count > 99 ? '99+' : count; }
+    else { badge.classList.add('hidden'); }
 }
+function dismissAnomalies() { try { localStorage.setItem('smartpark_anomalies', JSON.stringify([])); } catch (e) {} renderAnomalies([]); showToast('success', 'Anomaly alerts dismissed for this session.'); }
+function redetectAnomalies() { showToast('info', 'Rescanning sensors...'); loadAnomalies().then(function(){ showToast('success', 'Rescan complete.'); }); }
+function clearAnomalies() { if (confirm('Clear all anomaly history?')) { try { localStorage.removeItem('smartpark_anomalies'); } catch (e) {} renderAnomalies([]); showToast('success', 'Anomaly history cleared.'); } }
+function loadStoredAnomalies() { try { var data = JSON.parse(localStorage.getItem('smartpark_anomalies') || '[]'); renderAnomalies(data); } catch (e) { renderAnomalies([]); } }
+function getLocalAnomalyCount() { try { return (JSON.parse(localStorage.getItem('smartpark_anomalies') || '[]')).length; } catch (e) { return 0; } }
 
 function clearSensorLog() { const sensorLog = document.getElementById('sensor-log'); if (sensorLog) { sensorLog.setAttribute('data-empty', 'true'); sensorLog.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-center text-slate-500"><i class="fa-solid fa-satellite-dish text-2xl mb-2"></i><p class="text-xs font-medium">No recent sensor activity</p></div>'; showToast('info', 'Sensor log cleared.'); } }
 
@@ -762,47 +688,6 @@ function loadUnregisteredVehicles() {
         return '<tr class="hover:bg-white/5 transition-colors"><td class="py-3.5 font-bold text-white">' + (v.plate || 'N/A') + '</td><td class="py-3.5 text-slate-400">' + (v.zone || 'N/A') + '</td><td class="py-3.5 text-slate-400 font-semibold">' + (v.spot || '?') + '</td><td class="py-3.5 text-slate-500">' + time + '</td><td class="py-3.5 text-slate-400"><span class="px-2 py-0.5 rounded-full bg-white/5 text-sp-accent font-semibold text-[10px] border border-sp-accent/10">' + (v.sensor || 'Unknown') + '</span></td><td class="py-3.5 text-right"><button onclick="registerUnregisteredVehicle(\'' + safePlate + '\')" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-sp-emerald/10 hover:bg-sp-emerald/20 text-sp-emerald rounded-lg transition-all border border-sp-emerald/20"><i class="fa-solid fa-user-plus text-[10px]"></i> Register</button></td></tr>';
     }).join('');
 }
-function getLocalAnomalyCount() {
-    const allData = getAllCustomerParkingData();
-    const sessions = allData.sessions || [];
-    const activeSessions = sessions.filter(isAdminActiveSession);
-    const anomalousSessionIds = new Set();
-
-    // Detect slot conflicts: multiple distinct vehicles assigned to the same slot
-    const slotMap = {};
-    activeSessions.forEach(function(s) {
-        const zoneId = s.zoneId || (s.zone ? s.zone.replace(/ - .*$/, '').replace('Zone ', 'Zone-') : null);
-        const spotIndex = s.slotIndex;
-        const plate = (s.vehicle || '').toUpperCase();
-        if (!zoneId || spotIndex === undefined || spotIndex === null || !plate) return;
-        const zone = zonesData[zoneId];
-        if (!zone) return;
-        if (spotIndex < 0 || spotIndex >= zone.spots) return;
-        const key = zoneId + ':' + spotIndex;
-        if (!slotMap[key]) slotMap[key] = { uniquePlates: [], sessionIds: [] };
-        if (!slotMap[key].uniquePlates.some(function(p) { return p.toUpperCase() === plate; })) {
-            slotMap[key].uniquePlates.push(s.vehicle || 'N/A');
-            slotMap[key].sessionIds.push(s.id);
-        }
-    });
-    Object.values(slotMap).forEach(function(entry) {
-        if (entry.uniquePlates.length > 1) {
-            entry.sessionIds.forEach(function(id) { anomalousSessionIds.add(id); });
-        }
-    });
-
-    activeSessions.forEach(function(s) {
-        const zone = zonesData[s.zoneId] || Object.values(zonesData).find(function(z) { return z.name === s.zone; });
-        if (!zone) return;
-        const spotIndex = s.slotIndex;
-
-        if (spotIndex === undefined || spotIndex < 0 || spotIndex >= zone.spots) anomalousSessionIds.add(s.id);
-        if (s.vehicle && s.vehicle.length < 3) anomalousSessionIds.add(s.id);
-        if (s.cost > 1000) anomalousSessionIds.add(s.id);
-    });
-    return anomalousSessionIds.size;
-}
-
 function getSystemActiveSessionCount() {
     const allData = getAllCustomerParkingData();
     const sessions = allData.sessions || [];
