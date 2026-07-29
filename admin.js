@@ -556,7 +556,7 @@ function getLocalAnomalies() {
     const allData = getAllCustomerParkingData();
     const sessions = allData.sessions || [];
     const anomalies = [];
-    const activeSessions = sessions.filter(function(s) { return s.status === 'Active'; });
+    const activeSessions = sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; });
 
     // Detect zone overflow: more active sessions than zone capacity
     const zoneOccupancy = {};
@@ -599,28 +599,34 @@ function getLocalAnomalies() {
         }
     });
 
-    // Detect slot conflicts: multiple vehicles assigned to the same slot
+    // Detect slot conflicts: multiple distinct vehicles assigned to the same slot
     const slotMap = {};
     activeSessions.forEach(function(s) {
         const zoneId = s.zoneId || (s.zone ? s.zone.replace(/ - .*$/, '').replace('Zone ', 'Zone-') : null);
         const spotIndex = s.slotIndex;
+        const plate = (s.vehicle || '').toUpperCase();
         const slot = s.slot || (spotIndex !== undefined && spotIndex !== null ? String(spotIndex + 1).padStart(2, '0') : '');
-        if (!zoneId || spotIndex === undefined || spotIndex === null) return;
+        if (!zoneId || spotIndex === undefined || spotIndex === null || !plate) return;
+        const zone = zonesData[zoneId] || Object.values(zonesData).find(function(z) { return z.id === zoneId || z.name === (zoneId.replace('Zone-', 'Zone ') + ' - Central'); });
+        if (!zone) return;
+        if (spotIndex < 0 || spotIndex >= zone.spots) return;
         const key = zoneId + ':' + spotIndex;
-        if (!slotMap[key]) slotMap[key] = { sessions: [], zoneId: zoneId, slotIndex: spotIndex, slot: slot };
-        slotMap[key].sessions.push(s);
+        if (!slotMap[key]) slotMap[key] = { zoneId: zoneId, slotIndex: spotIndex, slot: slot, uniquePlates: [] };
+        if (!slotMap[key].uniquePlates.some(function(p) { return p.toUpperCase() === plate; })) {
+            slotMap[key].uniquePlates.push(s.vehicle || 'N/A');
+        }
     });
 
     Object.values(slotMap).forEach(function(entry) {
-        if (entry.sessions.length > 1) {
+        if (entry.uniquePlates.length > 1) {
             const zone = zonesData[entry.zoneId] || Object.values(zonesData).find(function(z) { return z.id === entry.zoneId || z.name === (entry.zoneId.replace('Zone-', 'Zone ') + ' - Central'); });
             if (!zone) return;
             anomalies.push({
                 zone: zone.name,
                 type: 'slot_conflict',
-                message: `Slot ${entry.slot || entry.slotIndex} in ${zone.name} occupied by ${entry.sessions.length} vehicles (Plates: ${entry.sessions.map(s => s.vehicle || 'N/A').join(', ')}) — only one vehicle per slot allowed.`,
+                message: `Slot ${entry.slot || entry.slotIndex} in ${zone.name} occupied by ${entry.uniquePlates.length} vehicles (Plates: ${entry.uniquePlates.join(', ')}) — only one vehicle per slot allowed.`,
                 severity: 'critical',
-                vehicles: entry.sessions.map(s => ({ plate: s.vehicle || 'N/A', spot: s.slot || '?' }))
+                vehicles: entry.uniquePlates.map(function(p) { return { plate: p, spot: entry.slot || '?' }; })
             });
         }
     });
@@ -744,20 +750,26 @@ function getLocalAnomalyCount() {
     const allData = getAllCustomerParkingData();
     const sessions = allData.sessions || [];
     let count = 0;
-    const activeSessions = sessions.filter(function(s) { return s.status === 'Active'; });
+    const activeSessions = sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; });
 
-    // Detect slot conflicts: multiple vehicles assigned to the same slot
+    // Detect slot conflicts: multiple distinct vehicles assigned to the same slot
     const slotMap = {};
     activeSessions.forEach(function(s) {
         const zoneId = s.zoneId || (s.zone ? s.zone.replace(/ - .*$/, '').replace('Zone ', 'Zone-') : null);
         const spotIndex = s.slotIndex;
-        if (!zoneId || spotIndex === undefined || spotIndex === null) return;
+        const plate = (s.vehicle || '').toUpperCase();
+        if (!zoneId || spotIndex === undefined || spotIndex === null || !plate) return;
+        const zone = zonesData[zoneId];
+        if (!zone) return;
+        if (spotIndex < 0 || spotIndex >= zone.spots) return;
         const key = zoneId + ':' + spotIndex;
-        if (!slotMap[key]) slotMap[key] = { count: 0 };
-        slotMap[key].count++;
+        if (!slotMap[key]) slotMap[key] = { uniquePlates: [] };
+        if (!slotMap[key].uniquePlates.some(function(p) { return p.toUpperCase() === plate; })) {
+            slotMap[key].uniquePlates.push(s.vehicle || 'N/A');
+        }
     });
     Object.values(slotMap).forEach(function(entry) {
-        if (entry.count > 1) count++;
+        if (entry.uniquePlates.length > 1) count++;
     });
 
     activeSessions.forEach(function(s) {
