@@ -110,6 +110,123 @@ function getPaymentsForUser() {
     const allPayments = JSON.parse(localStorage.getItem('smartParkPayments_by_user')) || {}; return allPayments[user.email] || [];
 }
 
+function getCustomerAnomalies() {
+    var anomalies = [];
+    var user = getLoggedInUser();
+    if (!user) return anomalies;
+
+    var saved = getUserData('customerParkingData');
+    var userSessions = (saved && saved.sessions) ? saved.sessions.filter(function(s) {
+        return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected';
+    }) : [];
+
+    if (userSessions.length === 0) return anomalies;
+
+    var allSessions = [];
+    try {
+        var allData = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+        Object.keys(allData).forEach(function(email) {
+            if (allData[email] && allData[email].sessions) {
+                allSessions = allSessions.concat(allData[email].sessions);
+            }
+        });
+    } catch (e) { allSessions = userSessions; }
+
+    var activeAll = allSessions.filter(function(s) {
+        return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected';
+    });
+
+    if (userSessions.length > 1) {
+        anomalies.push({
+            type: 'multiple_sessions',
+            severity: 'warning',
+            message: 'You have ' + userSessions.length + ' active parking sessions. End sessions you no longer need to avoid conflicts.',
+            sessionIds: userSessions.map(function(s) { return s.id; })
+        });
+    }
+
+    var vehicleMap = {};
+    userSessions.forEach(function(s) {
+        var plate = (s.vehicle || '').toUpperCase();
+        if (!plate) return;
+        if (!vehicleMap[plate]) vehicleMap[plate] = [];
+        vehicleMap[plate].push(s);
+    });
+    Object.keys(vehicleMap).forEach(function(plate) {
+        if (vehicleMap[plate].length > 1) {
+            anomalies.push({
+                type: 'duplicate_vehicle',
+                severity: 'critical',
+                message: 'Vehicle ' + plate + ' has ' + vehicleMap[plate].length + ' active bookings. Only one active booking per vehicle is allowed.',
+                sessionIds: vehicleMap[plate].map(function(s) { return s.id; })
+            });
+        }
+    });
+
+    userSessions.forEach(function(s) {
+        if (s.slotIndex === undefined || s.slotIndex === null) return;
+        var zone = Object.values(zonesData).find(function(z) { return z.id === s.zoneId || z.name === s.zone; });
+        if (!zone) return;
+        if (s.slotIndex < 0 || s.slotIndex >= zone.spots) {
+            anomalies.push({
+                type: 'invalid_slot',
+                severity: 'critical',
+                message: 'Your booking in ' + (s.zone || 'Unknown') + ' uses an invalid slot (' + (s.slot || '?') + '). Please contact support.',
+                sessionId: s.id
+            });
+        }
+    });
+
+    userSessions.forEach(function(s) {
+        var zone = Object.values(zonesData).find(function(z) { return z.id === s.zoneId || z.name === s.zone; });
+        if (!zone) return;
+        var zoneActiveCount = activeAll.filter(function(ss) {
+            return (ss.zoneId === zone.id || ss.zone === zone.name);
+        }).length;
+        if (zoneActiveCount > zone.spots) {
+            anomalies.push({
+                type: 'zone_overflow',
+                severity: 'critical',
+                message: zone.name + ' is over capacity (' + zoneActiveCount + '/' + zone.spots + '). Your booking may be at risk.',
+                zoneId: zone.id
+            });
+        }
+    });
+
+    userSessions.forEach(function(s) {
+        if (s.bookingType !== 'fixed' || !s.durationHours) return;
+        var createdAt = s.createdAt ? new Date(s.createdAt).getTime() : Date.now();
+        var elapsedSeconds = Math.floor((Date.now() - createdAt) / 1000);
+        var fixedDurationSecs = s.durationHours * 3600;
+        if (elapsedSeconds >= fixedDurationSecs) {
+            anomalies.push({
+                type: 'expired_session',
+                severity: 'warning',
+                message: 'Your fixed session in ' + (s.zone || 'Unknown') + ' has expired. Please end it to free the slot.',
+                sessionId: s.id
+            });
+        }
+    });
+
+    var fixedSessions = userSessions.filter(function(s) { return s.bookingType === 'fixed' && s.durationHours; });
+    for (var i = 0; i < fixedSessions.length; i++) {
+        for (var j = i + 1; j < fixedSessions.length; j++) {
+            var s1 = fixedSessions[i];
+            var s2 = fixedSessions[j];
+            if ((s1.zoneId === s2.zoneId || s1.zone === s2.zone) && s1.id !== s2.id) {
+                anomalies.push({
+                    type: 'overlapping_sessions',
+                    severity: 'warning',
+                    message: 'You have overlapping fixed sessions in ' + (s1.zone || 'Unknown') + '. Please end one to avoid double-booking.',
+                    sessionIds: [s1.id, s2.id]
+                });
+            }
+        }
+    }
+
+    return anomalies;
+}
+
 function savePaymentRecord(paymentRecord) {
     const user = getLoggedInUser(); if (!user) return;
     let allPayments = JSON.parse(localStorage.getItem('smartParkPayments_by_user')) || {};
@@ -447,7 +564,25 @@ function getAIResponse(msg) {
     if (lower.includes('status') || lower.includes('session') || lower.includes('active')) {
         var saved = getUserData('customerParkingData');
         var activeCount = saved && saved.sessions ? saved.sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; }).length : 0;
-        return '📊 You currently have ' + activeCount + ' active parking session(s). Check "My Sessions" for live updates!';
+        var anomalies = [];
+        try { anomalies = getCustomerAnomalies(); } catch (e) { anomalies = []; }
+        var msg = '📊 You currently have ' + activeCount + ' active parking session(s).';
+        if (anomalies.length > 0) {
+            msg += ' ⚠️ ' + anomalies.length + ' anomaly/anomalies detected. Check "My Sessions" for details.';
+        }
+        return msg + ' Check "My Sessions" for live updates!';
+    }
+    if (lower.includes('anomaly') || lower.includes('alert') || lower.includes('warning') || lower.includes('issue') || lower.includes('problem')) {
+        var anomalies = [];
+        try { anomalies = getCustomerAnomalies(); } catch (e) { anomalies = []; }
+        if (anomalies.length === 0) return '✅ No anomalies detected. Your parking is running smoothly!';
+        var criticals = anomalies.filter(function(a) { return a.severity === 'critical'; });
+        var warnings = anomalies.filter(function(a) { return a.severity === 'warning'; });
+        var msg = '⚠️ Detected ' + anomalies.length + ' anomaly/anomalies: ';
+        if (criticals.length > 0) msg += criticals.length + ' critical, ';
+        if (warnings.length > 0) msg += warnings.length + ' warning. ';
+        msg += 'Please check the alerts on your sessions page.';
+        return msg;
     }
     if (lower.includes('end') || lower.includes('stop') || lower.includes('cancel')) {
         return 'To end a session, go to "My Sessions" and click the "End Session" button. Make sure to complete payment first if using metered booking.';

@@ -76,6 +76,7 @@
             <button onclick="refreshData()" class="btn-secondary py-2 px-4 text-xs"><i class="fa-solid fa-rotate mr-1.5"></i> Refresh</button>
         </div>
     </div>
+    <div id="customer-anomaly-alerts" class="hidden mb-6 space-y-3"></div>
     <div id="session-card-container" class="max-w-2xl mx-auto space-y-4"></div>
 </main>
 
@@ -141,9 +142,34 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (!loggedInUser || loggedInUser.role !== 'customer') { window.location.href = 'index.html'; return; }
     await loadData();
     renderSessions();
+    renderCustomerAnomalies();
 });
 
-async function refreshData() { await loadData(); renderSessions(); showToast('info', 'Data refreshed!'); }
+async function refreshData() { await loadData(); renderSessions(); renderCustomerAnomalies(); showToast('info', 'Data refreshed!'); }
+
+function renderCustomerAnomalies() {
+    var container = document.getElementById('customer-anomaly-alerts');
+    if (!container) return;
+    var anomalies = [];
+    try { anomalies = getCustomerAnomalies(); } catch (e) { anomalies = []; }
+    if (anomalies.length === 0) {
+        container.classList.add('hidden');
+        container.innerHTML = '';
+        return;
+    }
+    container.classList.remove('hidden');
+    var html = '';
+    anomalies.forEach(function(a) {
+        var icon = a.severity === 'critical' ? 'fa-circle-exclamation text-sp-red' : 'fa-triangle-exclamation text-sp-amber';
+        var bg = a.severity === 'critical' ? 'bg-sp-red/10 border-sp-red/20' : 'bg-sp-amber/10 border-sp-amber/20';
+        var textColor = a.severity === 'critical' ? 'text-sp-red' : 'text-sp-amber';
+        html += '<div class="glass-card p-4 flex items-start gap-3 ' + bg + ' border rounded-xl">' +
+            '<div class="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0"><i class="fa-solid ' + icon + '"></i></div>' +
+            '<div class="flex-1 min-w-0"><p class="text-xs font-bold ' + textColor + ' uppercase tracking-wider">' + a.type.replace(/_/g, ' ') + '</p>' +
+            '<p class="text-xs text-slate-400 mt-0.5">' + a.message + '</p></div></div>';
+    });
+    container.innerHTML = html;
+}
 
 function loadData() {
     try {
@@ -153,7 +179,7 @@ function loadData() {
 }
 function saveData(extraHistory) {
     var saved = getUserData('customerParkingData');
-    var currentHistory = saved ? saved.history : [];
+    var currentHistory = (saved && saved.history && Array.isArray(saved.history)) ? saved.history.slice() : [];
     if (extraHistory && Array.isArray(extraHistory)) {
         currentHistory = currentHistory.concat(extraHistory);
     }
@@ -177,7 +203,10 @@ function renderSessions() {
         var rate = s.bookingType === 'meter' ? (s.meterRate || 5.00) : 5.00;
         var isFixed = s.bookingType !== 'meter';
         var createdAt = s.createdAt ? new Date(s.createdAt).getTime() : Date.now();
+        var fixedDurationSecs = isFixed ? ((s.durationHours || 1) * 3600) : null;
         var elapsedSeconds = Math.floor((Date.now() - createdAt) / 1000);
+        if (isFixed && elapsedSeconds > fixedDurationSecs) elapsedSeconds = fixedDurationSecs;
+        var isExpired = isFixed && elapsedSeconds >= fixedDurationSecs;
         var entryTime = s.entryTime || 'N/A';
         var entryDate = s.date ? new Date(s.date + 'T' + entryTime) : new Date();
         var formattedEntry = entryDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
@@ -198,15 +227,15 @@ function renderSessions() {
                         '</div>' +
                     '</div>' +
                 '</div>' +
-                '<span class="px-3 py-1 text-[10px] font-bold rounded-full bg-sp-emerald/10 text-sp-emerald border border-sp-emerald/20 flex-shrink-0">Active</span>' +
+                '<span class="px-3 py-1 text-[10px] font-bold rounded-full bg-sp-emerald/10 text-sp-emerald border border-sp-emerald/20 flex-shrink-0">' + (isExpired ? 'Expired' : 'Active') + '</span>' +
             '</div>' +
             '<div class="p-5">' +
                 '<div class="bg-sp-secondary/50 border border-sp-accent/10 rounded-2xl p-5 mb-5">' +
                     '<div class="flex items-center justify-between mb-4">' +
                         '<div class="flex items-center gap-2"><i class="fa-solid fa-gauge-high text-sp-accent text-sm"></i><span class="text-sm font-bold text-white">Live Meter</span></div>' +
-                        '<span class="px-2.5 py-1 text-[10px] font-bold rounded-full bg-sp-emerald/10 text-sp-emerald border border-sp-emerald/20">' + (isFixed ? (s.durationHours == 1 ? '1st Hour (Fixed)' : s.durationHours + ' Hours (Fixed)') : 'Metered') + '</span>' +
+                        '<span class="px-2.5 py-1 text-[10px] font-bold rounded-full ' + (isExpired ? 'bg-sp-emerald/10 text-sp-emerald border border-sp-emerald/20' : 'bg-sp-accent/10 text-sp-accent border border-sp-accent/20') + '">' + (isFixed ? (s.durationHours == 1 ? '1st Hour (Fixed)' : s.durationHours + ' Hours (Fixed)') : 'Metered') + '</span>' +
                     '</div>' +
-                    '<div class="text-center mb-4"><p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Time Elapsed</p><div class="font-mono text-3xl font-bold text-white tracking-widest" id="timer-display-' + s.id + '">00:00:00</div></div>' +
+                    '<div class="text-center mb-4"><p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Time Elapsed</p><div class="font-mono text-3xl font-bold tracking-widest" id="timer-display-' + s.id + '" style="color:' + (isExpired ? '#10B981' : '#fff') + '">' + (isExpired ? 'EXPIRED' : '00:00:00') + '</div>' + (isExpired ? '<p class="text-xs text-sp-emerald font-bold mt-2">Session expired</p>' : '') + '</div>' +
                     '<hr class="border-sp-accent/10 my-4">' +
                     '<div class="text-center"><p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Current Charge</p><p class="text-4xl font-extrabold text-sp-accent" id="cost-display-' + s.id + '">৳' + s.cost.toFixed(2) + '</p><p class="text-xs text-slate-500 mt-1">Flat ৳' + rate.toFixed(1) + ' for 1st hour</p></div>' +
                 '</div>' +
@@ -217,18 +246,36 @@ function renderSessions() {
                     '<button onclick="payWith(\'' + s.id + '\', \'Rocket\')" class="py-3 rounded-xl text-white font-bold text-sm" style="background:#8b5cf6;"><i class="fa-solid fa-phone mr-1.5"></i> Rocket</button>' +
                     '<button onclick="payWith(\'' + s.id + '\', \'Cash\')" class="py-3 rounded-xl font-bold text-sm border-2" style="background:white;color:#059669;border-color:#059669;"><i class="fa-solid fa-money-bill-wave mr-1.5"></i> Cash</button>' +
                 '</div>' : '<button onclick="payWith(\'' + s.id + '\', \'' + (s.payment || 'bKash') + '\')" class="btn-primary w-full py-3"><i class="fa-solid fa-credit-card mr-2"></i> Pay Now (৳' + s.cost.toFixed(2) + ')</button>')) +
-                '<button onclick="endSession(\'' + s.id + '\', false)" class="w-full mt-3 py-3 text-sm font-bold rounded-xl border-2 border-sp-red text-sp-red hover:bg-sp-red/10 transition-all"><i class="fa-solid fa-stop-circle mr-2"></i> End Session</button>' +
+                '<button onclick="endSession(\'' + s.id + '\', false); renderSessions();" class="w-full mt-3 py-3 text-sm font-bold rounded-xl border-2 border-sp-red text-sp-red hover:bg-sp-red/10 transition-all"><i class="fa-solid fa-stop-circle mr-2"></i> ' + (isExpired ? 'End Expired Session' : 'End Session') + '</button>' +
             '</div>';
         container.appendChild(card);
 
         liveTimers[s.id] = setInterval(function() {
             var now = Date.now();
             var secs = Math.floor((now - createdAt) / 1000);
+            if (isFixed && secs > fixedDurationSecs) secs = fixedDurationSecs;
             var timerEl = document.getElementById('timer-display-' + s.id);
             var costEl = document.getElementById('cost-display-' + s.id);
+            if (isFixed && secs >= fixedDurationSecs) {
+                if (timerEl && !timerEl.dataset.expired) {
+                    timerEl.dataset.expired = 'true';
+                    timerEl.classList.add('text-sp-emerald');
+                    timerEl.textContent = 'EXPIRED';
+                    var warning = document.getElementById('timer-warning-' + s.id);
+                    if (!warning) {
+                        var p = document.createElement('p');
+                        p.id = 'timer-warning-' + s.id;
+                        p.className = 'text-xs text-sp-emerald font-bold mt-2';
+                        p.textContent = 'Session expired';
+                        timerEl.parentNode.appendChild(p);
+                    }
+                }
+                if (costEl) costEl.textContent = '৳' + s.cost.toFixed(2);
+                return;
+            }
             if (timerEl) timerEl.textContent = String(Math.floor(secs/3600)).padStart(2,'0') + ':' + String(Math.floor((secs%3600)/60)).padStart(2,'0') + ':' + String(secs%60).padStart(2,'0');
             if (costEl) {
-                if (isFixed) { costEl.textContent = '৳' + s.cost.toFixed(2); }
+                if (isFixed) costEl.textContent = '৳' + s.cost.toFixed(2);
                 else { var runningCost = (rate / 3600) * secs; costEl.textContent = '৳' + runningCost.toFixed(2); }
             }
         }, 1000);
@@ -287,7 +334,7 @@ function confirmPayment() {
     
     // Save payment changes before ending session to prevent overwriting admin updates
     var savedHistory = getUserData('customerParkingData');
-    var currentHistory = savedHistory ? savedHistory.history : [];
+    var currentHistory = (savedHistory && savedHistory.history && Array.isArray(savedHistory.history)) ? savedHistory.history.slice() : [];
     setUserData('customerParkingData', { sessions: sessions, nextId: nextBookingId, zoneSlots: zoneSlots, history: currentHistory, nextHistId: 2000 });
     
     closePaymentModal();
@@ -375,6 +422,7 @@ function toggleMobileMenu() {
         </div>
         <div class="ai-quick-actions">
             <button class="ai-quick-btn" onclick="sendAIQuick('My current parking status')">My status</button>
+            <button class="ai-quick-btn" onclick="sendAIQuick('Check anomalies')">Check anomalies</button>
             <button class="ai-quick-btn" onclick="sendAIQuick('End my session')">End session</button>
             <button class="ai-quick-btn" onclick="sendAIQuick('Payment help')">Payment help</button>
         </div>

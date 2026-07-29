@@ -24,7 +24,19 @@ const API_BASE = (() => {
 
 
 function isAdminActiveSession(s) {
-    return s.status === 'Active' && s.paymentStatus !== 'Rejected' && (s.paid === true || s.paymentStatus);
+    var status = String(s.status || '').trim();
+    var paymentStatus = String(s.paymentStatus || '').trim();
+    return status === 'Active' && paymentStatus !== 'Rejected';
+}
+function isValidVehiclePlate(vehicle) {
+    if (!vehicle || typeof vehicle !== 'string') return false;
+    var v = vehicle.trim();
+    if (v.length < 3) return false;
+    var alphanumeric = v.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (alphanumeric.length < 3) return false;
+    if (!/[A-Z]/.test(alphanumeric)) return false;
+    if (!/[0-9]/.test(alphanumeric)) return false;
+    return true;
 }
 
 async function loadZonesFromAPI() {
@@ -112,7 +124,18 @@ async function loadDashboardStats() {
     updateRevenueUI();
 }
 
-function updateSpottedVehiclesUI(stats) { const spottedCountEl = document.getElementById('spotted-vehicles-count'); if (spottedCountEl) { spottedCountEl.textContent = getLocalAnomalyCount(); } }
+function updateSpottedVehiclesUI(stats) {
+    const spottedCountEl = document.getElementById('spotted-vehicles-count');
+    if (spottedCountEl) {
+        var count = getLocalAnomalyCount();
+        if (count === 0) {
+            var computed = getLocalAnomalies();
+            try { localStorage.setItem('smartpark_anomalies', JSON.stringify(computed)); } catch (e) {}
+            count = computed.length;
+        }
+        spottedCountEl.textContent = count;
+    }
+}
 function updateZonesSpotsUI(stats) {
     const zonesEl = document.getElementById('stat-zones');
     const spotsEl = document.getElementById('stat-spots');
@@ -128,9 +151,15 @@ function updateDashboardStatsFromLocal() {
     const zonesEl = document.getElementById('stat-zones');
     const spotsEl = document.getElementById('stat-spots');
     const freeEl = document.getElementById('stat-free');
+    const anomaliesEl = document.getElementById('stat-anomalies');
     if (zonesEl) zonesEl.textContent = totalZones;
     if (spotsEl) spotsEl.textContent = totalSpots;
     if (freeEl) freeEl.textContent = freeSpots;
+    if (anomaliesEl) {
+        var computed = getLocalAnomalies();
+        try { localStorage.setItem('smartpark_anomalies', JSON.stringify(computed)); } catch (e) {}
+        anomaliesEl.textContent = computed.length;
+    }
 }
 async function updateDashboardStats() { await loadDashboardStats(); }
 
@@ -180,6 +209,11 @@ setInterval(async () => {
             const totalSpots = zones.reduce(function(sum, z) { return sum + (z.spots || 0); }, 0);
             const totalOccupied = zones.reduce(function(sum, z) { return sum + (z.occupied || 0); }, 0);
             document.getElementById('stat-free').textContent = Math.max(0, totalSpots - totalOccupied);
+        }
+        if (document.getElementById('stat-anomalies')) {
+            var computed = getLocalAnomalies();
+            try { localStorage.setItem('smartpark_anomalies', JSON.stringify(computed)); } catch (e) {}
+            document.getElementById('stat-anomalies').textContent = computed.length;
         }
     }
 }, 5000);
@@ -283,11 +317,11 @@ function switchAdminTab(tabId, element) {
     if (activeView) {
         activeView.classList.remove('hidden');
         if (tabId === 'map') setTimeout(() => initAdminMap(), 100);
-        if (tabId === 'customer') loadUnregisteredVehicles();
+        if (tabId === 'customer') { loadUnregisteredVehicles(); updateCustomerPageAnomalyCount(); }
         if (tabId === 'cash') loadCashVerifications();
         if (tabId === 'history') { syncHistoryFromAllCustomers(); renderHistoryTable(); }
         if (tabId === 'dashboard') {}
-        if (tabId === 'anomalies') loadAnomalies();
+        if (tabId === 'anomalies') { loadAnomalies(); populateAnomalyCustomerFilter(); renderActiveCustomersTable(); }
     }
     const pageTitle = document.getElementById('page-title'); const pageSubtitle = document.getElementById('page-subtitle');
     const titles = { dashboard: { title: 'Dashboard', subtitle: 'AI-powered parking management overview' }, zones: { title: 'Parking Zones', subtitle: 'Configure and monitor parking zones and rates' }, sessions: { title: 'Active Sessions', subtitle: 'Real-time list of vehicles currently parked' }, history: { title: 'Parking History', subtitle: 'Historical log of completed sessions and payments' }, map: { title: 'Live Parking Map', subtitle: 'Visual representation of parking lot occupancy' }, customer: { title: 'Customer Management', subtitle: 'Registered customers and unregistered vehicle registration' }, cash: { title: 'Payment Verification', subtitle: 'Verify manual cash payments' }, anomalies: { title: 'Anomaly Detection', subtitle: 'Sensor mismatches, invalid slots, or suspicious bookings' }, settings: { title: 'System Settings', subtitle: 'Configure system parameters and accounts' } };
@@ -472,11 +506,7 @@ async function loadAnomalies() {
             const anomaliesContentType = anomaliesResponse.headers.get('content-type') || '';
             const anomaliesJson = anomaliesContentType.includes('application/json') ? await anomaliesResponse.json() : {};
             if (anomaliesResponse.ok && anomaliesJson.anomalies && anomaliesJson.anomalies.length > 0) {
-                const allData = getAllCustomerParkingData();
-                const localPlates = new Set((allData.sessions || []).filter(isAdminActiveSession).map(s => (s.vehicle || '').toUpperCase()));
-                anomalies = anomaliesJson.anomalies.filter(function(a) {
-                    return (a.vehicles || []).some(function(v) { return localPlates.has((v.plate || '').toUpperCase()); });
-                });
+                anomalies = anomaliesJson.anomalies;
             }
         } catch (e) { console.error('Failed to fetch anomalies:', e); }
 
@@ -486,9 +516,13 @@ async function loadAnomalies() {
 
         try { localStorage.setItem('smartpark_anomalies', JSON.stringify(anomalies)); } catch (e) {}
         renderAnomalies(anomalies);
+        populateAnomalyCustomerFilter();
+        renderActiveCustomersTable();
     } catch (err) {
         unregisteredVehicles = [];
         renderAnomalies(getLocalAnomalies());
+        populateAnomalyCustomerFilter();
+        renderActiveCustomersTable();
     }
 }
 
@@ -502,7 +536,37 @@ function getLocalAnomalies() {
     const allData = getAllCustomerParkingData();
     const sessions = allData.sessions || [];
     const anomalies = [];
-    const activeSessions = sessions.filter(isAdminActiveSession);
+    const activeSessions = sessions.filter(function(s) { return isAdminActiveSession(s); });
+
+    const allUsers = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
+    const userMap = {};
+    allUsers.forEach(function(u) { userMap[(u.email || '').toLowerCase()] = u.name || u.email; });
+
+    const rawData = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+    const plateToCustomer = {};
+    Object.keys(rawData).forEach(function(email) {
+        const userData = rawData[email];
+        if (userData && userData.sessions) {
+            userData.sessions.forEach(function(s) {
+                const plate = (s.vehicle || '').toUpperCase();
+                if (plate && !plateToCustomer[plate]) {
+                    plateToCustomer[plate] = { email: email, name: userMap[email.toLowerCase()] || email };
+                }
+            });
+        }
+    });
+
+    function getCustomersForPlates(plates) {
+        var customers = [];
+        var seen = new Set();
+        plates.forEach(function(plate) {
+            var key = (plate || '').toUpperCase();
+            if (!key || seen.has(key)) return;
+            var info = plateToCustomer[key];
+            if (info) { seen.add(key); customers.push(info.name || info.email); }
+        });
+        return customers.length > 0 ? customers.join(', ') : 'Unknown';
+    }
 
     // Detect zone overflow: more active sessions than zone capacity
     const zoneOccupancy = {};
@@ -525,7 +589,8 @@ function getLocalAnomalies() {
                 severity: 'critical',
                 vehicles: zoneOccupancy[zoneId].map(function(s) {
                     return { plate: s.vehicle || 'N/A', spot: s.slot || 'N/A', status: 'online' };
-                })
+                }),
+                customers: getCustomersForPlates(zoneOccupancy[zoneId].map(function(s) { return s.vehicle || 'N/A'; }))
             });
         }
     });
@@ -542,7 +607,8 @@ function getLocalAnomalies() {
                 type: 'invalid_slot',
                 message: `Invalid slot ${s.slot || spotIndex} in ${zone.name} for plate ${s.vehicle || 'N/A'} — slot does not exist.`,
                 severity: 'critical',
-                vehicles: [{ plate: s.vehicle || 'N/A', spot: s.slot || '?', status: 'offline' }]
+                vehicles: [{ plate: s.vehicle || 'N/A', spot: s.slot || '?', status: 'offline' }],
+                customers: getCustomersForPlates([s.vehicle || 'N/A'])
             });
         }
     });
@@ -581,7 +647,8 @@ function getLocalAnomalies() {
                 type: 'slot_conflict',
                 message: `Slot ${entry.slot || entry.slotIndex} in ${zone.name} occupied by ${entry.uniquePlates.length} vehicles (Plates: ${entry.uniquePlates.join(', ')}) — only one vehicle per slot allowed.`,
                 severity: 'critical',
-                vehicles: entry.uniquePlates.map(function(p) { return { plate: p, spot: entry.slot || '?', status: plateStatusMap[(p || '').toUpperCase()] || 'offline' }; })
+                vehicles: entry.uniquePlates.map(function(p) { return { plate: p, spot: entry.slot || '?', status: plateStatusMap[(p || '').toUpperCase()] || 'offline' }; }),
+                customers: getCustomersForPlates(entry.uniquePlates)
             });
         }
     });
@@ -605,7 +672,8 @@ function getLocalAnomalies() {
                 severity: 'critical',
                 vehicles: userSessions.map(function(s) {
                     return { plate: s.vehicle || 'N/A', spot: s.slot || '?', status: 'online' };
-                })
+                }),
+                customers: getCustomersForPlates([plate])
             });
         }
     }
@@ -629,8 +697,36 @@ function getLocalAnomalies() {
                 severity: 'critical',
                 vehicles: userSessions.map(function(s) {
                     return { plate: s.vehicle || 'N/A', spot: s.slot || '?', status: 'online' };
-                })
+                }),
+                customers: userId
             });
+        }
+    }
+
+    // Detect duplicate sessions: same vehicle with multiple sessions (active + completed)
+    const vehicleSessionMap = {};
+    sessions.forEach(function(s) {
+        const plate = (s.vehicle || '').toUpperCase();
+        if (!plate) return;
+        if (!vehicleSessionMap[plate]) vehicleSessionMap[plate] = [];
+        vehicleSessionMap[plate].push(s);
+    });
+
+    for (const plate in vehicleSessionMap) {
+        const vehicleSessions = vehicleSessionMap[plate];
+        if (vehicleSessions.length > 1) {
+            const hasActive = vehicleSessions.some(function(s) { return s.status === 'Active'; });
+            const hasCompleted = vehicleSessions.some(function(s) { return s.status === 'Completed'; });
+            if (hasActive && hasCompleted) {
+                anomalies.push({
+                    zone: vehicleSessions.find(function(s) { return s.status === 'Active'; })?.zone || 'Multiple Zones',
+                    type: 'duplicate_sessions',
+                    message: `Vehicle ${plate} has both active and completed sessions (${vehicleSessions.length} total entries detected).`,
+                    severity: 'warning',
+                    vehicles: vehicleSessions.map(function(s) { return { plate: s.vehicle || 'N/A', spot: s.slot || '?', status: s.status.toLowerCase() }; }),
+                    customers: getCustomersForPlates([plate])
+                });
+            }
         }
     }
 
@@ -641,9 +737,81 @@ function renderAnomalies(anomalies) {
     updateAnomalyNav(anomalies);
     const tbody = document.getElementById('anomalies-table-body');
     if (!tbody) return;
-    if (!anomalies || anomalies.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="py-10 text-center text-slate-500"><i class="fa-solid fa-circle-check text-2xl mb-2 text-sp-emerald"></i><p class="text-xs font-semibold text-slate-400">No active anomalies</p><p class="text-[10px] text-slate-500 mt-1">System is operating normally</p></td></tr>'; return; }
-    tbody.innerHTML = anomalies.map(function(a) { return '<tr class="hover:bg-white/5 transition-colors"><td class="py-3.5 text-slate-400 font-medium">' + (a.zone || 'N/A') + '</td><td class="py-3.5 text-slate-300 text-xs">' + (a.message || 'N/A') + '</td><td class="py-3.5">' + (a.vehicles && a.vehicles.length > 0 ? a.vehicles.map(function(v) { return '<span class="inline-flex items-center gap-1 text-[10px] font-mono bg-white/5 border border-sp-accent/10 rounded-full px-2 py-1 mr-1 mb-1"><i class="fa-solid fa-car text-sp-red"></i><span class="font-bold text-white">' + v.plate + '</span></span>'; }).join('') : '<span class="text-slate-500">-</span>') + '</td><td class="py-3.5 text-slate-500 text-xs">' + (a.detectedAt ? new Date(a.detectedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-') + '</td><td class="py-3.5 text-right"><span class="px-2 py-1 text-[10px] font-bold bg-sp-red/10 text-sp-red border border-sp-red/20 rounded-lg">Open</span></td></tr>'; }).join('');
+    if (!anomalies || anomalies.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="py-10 text-center text-slate-500"><i class="fa-solid fa-circle-check text-2xl mb-2 text-sp-emerald"></i><p class="text-xs font-semibold text-slate-400">No active anomalies</p><p class="text-[10px] text-slate-500 mt-1">System is operating normally</p></td></tr>'; return; }
+    tbody.innerHTML = anomalies.map(function(a) {
+        var plates = (a.vehicles || []).map(function(v) { return (v.plate || '').toUpperCase(); }).filter(Boolean);
+        var deleteHtml = '';
+        if (plates.length > 0) {
+            deleteHtml = '<button class="px-2 py-1 text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-colors" onclick="deleteVehicleFromAnomaly(\'' + plates[0] + '\')">Delete</button>';
+        }
+        return '<tr class="hover:bg-white/5 transition-colors"><td class="py-3.5 text-slate-300 text-xs font-medium">' + (a.customers || 'Unknown') + '</td><td class="py-3.5 text-slate-400 font-medium">' + (a.zone || 'N/A') + '</td><td class="py-3.5 text-slate-300 text-xs">' + (a.message || 'N/A') + '</td><td class="py-3.5">' + (a.vehicles && a.vehicles.length > 0 ? a.vehicles.map(function(v) { return '<span class="inline-flex items-center gap-1 text-[10px] font-mono bg-white/5 border border-sp-accent/10 rounded-full px-2 py-1 mr-1 mb-1"><i class="fa-solid fa-car text-sp-red"></i><span class="font-bold text-white">' + v.plate + '</span></span>'; }).join('') : '<span class="text-slate-500">-</span>') + '</td><td class="py-3.5 text-slate-500 text-xs">' + (a.detectedAt ? new Date(a.detectedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-') + '</td><td class="py-3.5 text-right">' + deleteHtml + '</td></tr>';
+    }).join('');
     try { localStorage.setItem('smartpark_anomalies', JSON.stringify(anomalies)); } catch (e) {}
+}
+function deleteVehicleFromAnomaly(plate) {
+    if (!plate) return;
+    var allRaw = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+    var updated = false;
+    Object.keys(allRaw).forEach(function(email) {
+        var userData = allRaw[email];
+        if (!userData || !userData.sessions) return;
+        var before = userData.sessions.length;
+        userData.sessions = userData.sessions.filter(function(s) {
+            return !(s.status === 'Active' && (s.vehicle || '').toUpperCase() === plate.toUpperCase());
+        });
+        if (userData.sessions.length !== before) {
+            updated = true;
+            if (userData.sessions.length === 0 && userData.history && userData.history.length === 0) {
+                delete allRaw[email];
+            }
+        }
+    });
+    if (updated) {
+        localStorage.setItem('customerParkingData_by_user', JSON.stringify(allRaw));
+        triggerRefresh();
+        loadAnomalies();
+        populateAnomalyCustomerFilter();
+        showToast('success', 'Vehicle ' + plate + ' has been removed from all active sessions.');
+    } else {
+        showToast('info', 'No active sessions found for vehicle ' + plate + '.');
+    }
+}
+function renderActiveCustomersTable() {
+    const tbody = document.getElementById('active-customers-table-body');
+    if (!tbody) return;
+    const allData = getAllCustomerParkingData();
+    const sessions = allData.sessions || [];
+    const activeSessions = sessions.filter(function(s) { return isAdminActiveSession(s); });
+    const allUsers = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
+    const userMap = {};
+    allUsers.forEach(function(u) { userMap[(u.email || '').toLowerCase()] = u.name || u.email; });
+    const rawData = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+    const plateToCustomer = {};
+    Object.keys(rawData).forEach(function(email) {
+        const userData = rawData[email];
+        if (userData && userData.sessions) {
+            userData.sessions.forEach(function(s) {
+                const plate = (s.vehicle || '').toUpperCase();
+                if (plate && !plateToCustomer[plate]) {
+                    plateToCustomer[plate] = { email: email, name: userMap[email.toLowerCase()] || email };
+                }
+            });
+        }
+    });
+    if (activeSessions.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-500"><i class="fa-solid fa-inbox text-2xl mb-2"></i><p class="text-xs font-medium">No active customer sessions</p></td></tr>';
+        return;
+    }
+    const rows = [];
+    activeSessions.forEach(function(s) {
+        var plate = (s.vehicle || '').toUpperCase();
+        if (!plate) return;
+        var info = plateToCustomer[plate] || { name: 'Unknown', email: '' };
+        var customerName = info.name || 'Unknown';
+        var actionHtml = '<button class="px-2 py-1 text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-colors" onclick="endAdminSession(' + s.id + ')">End</button>';
+        rows.push('<tr class="hover:bg-white/5 transition-colors"><td class="py-3.5 text-slate-300 text-xs font-medium">' + customerName + '</td><td class="py-3.5 text-slate-400 font-bold">' + (s.vehicle || 'N/A') + '</td><td class="py-3.5 text-slate-400">' + (s.zone || 'N/A') + '</td><td class="py-3.5 text-slate-400 font-semibold">' + (s.slot || 'N/A') + '</td><td class="py-3.5 text-slate-400">' + (s.bookingType || 'Fixed') + '</td><td class="py-3.5 text-right">' + actionHtml + '</td></tr>');
+    });
+    tbody.innerHTML = rows.join('');
 }
 function updateAnomalyNav(anomalies) {
     const badge = document.getElementById('anomaly-nav-badge');
@@ -652,11 +820,54 @@ function updateAnomalyNav(anomalies) {
     if (count > 0) { badge.classList.remove('hidden'); badge.textContent = count > 99 ? '99+' : count; }
     else { badge.classList.add('hidden'); }
 }
+function populateAnomalyCustomerFilter() {
+    const select = document.getElementById('anomaly-customer-filter');
+    if (!select) return;
+    const allUsers = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
+    const existing = new Set(Array.from(select.options).map(function(o) { return o.value; }));
+    allUsers.forEach(function(u) {
+        var email = (u.email || '').toLowerCase();
+        var name = u.name || u.email;
+        if (!existing.has(email)) {
+            var option = document.createElement('option');
+            option.value = email;
+            option.textContent = name;
+            select.appendChild(option);
+        }
+    });
+}
+function applyAnomalyCustomerFilter() {
+    const filterVal = document.getElementById('anomaly-customer-filter').value;
+    const statusEl = document.getElementById('anomaly-filter-status');
+    let anomalies = [];
+    try { anomalies = JSON.parse(localStorage.getItem('smartpark_anomalies') || '[]'); } catch (e) { anomalies = []; }
+    if (filterVal === 'all') {
+        renderAnomalies(anomalies);
+        if (statusEl) statusEl.textContent = 'Showing all anomalies';
+        return;
+    }
+    var selectEl = document.getElementById('anomaly-customer-filter');
+    var selectedOption = selectEl ? selectEl.options[selectEl.selectedIndex] : null;
+    var filterName = selectedOption ? selectedOption.textContent.toLowerCase() : '';
+    var filtered = anomalies.filter(function(a) {
+        var customers = (a.customers || '').toLowerCase();
+        return customers.indexOf(filterVal.toLowerCase()) !== -1 || customers.indexOf(filterName) !== -1;
+    });
+    renderAnomalies(filtered);
+    if (statusEl) statusEl.textContent = 'Showing anomalies for: ' + (selectedOption ? selectedOption.textContent : filterVal);
+}
 function dismissAnomalies() { try { localStorage.setItem('smartpark_anomalies', JSON.stringify([])); } catch (e) {} renderAnomalies([]); showToast('success', 'Anomaly alerts dismissed for this session.'); }
-function redetectAnomalies() { showToast('info', 'Rescanning sensors...'); loadAnomalies().then(function(){ showToast('success', 'Rescan complete.'); }); }
+function redetectAnomalies() { showToast('info', 'Rescanning sensors...'); loadAnomalies().then(function(){ populateAnomalyCustomerFilter(); showToast('success', 'Rescan complete.'); }); }
 function clearAnomalies() { if (confirm('Clear all anomaly history?')) { try { localStorage.removeItem('smartpark_anomalies'); } catch (e) {} renderAnomalies([]); showToast('success', 'Anomaly history cleared.'); } }
 function loadStoredAnomalies() { try { var data = JSON.parse(localStorage.getItem('smartpark_anomalies') || '[]'); renderAnomalies(data); } catch (e) { renderAnomalies([]); } }
 function getLocalAnomalyCount() { try { return (JSON.parse(localStorage.getItem('smartpark_anomalies') || '[]')).length; } catch (e) { return 0; } }
+function updateCustomerPageAnomalyCount() {
+    const anomaliesEl = document.getElementById('stat-anomalies');
+    if (!anomaliesEl) return;
+    var computed = getLocalAnomalies();
+    try { localStorage.setItem('smartpark_anomalies', JSON.stringify(computed)); } catch (e) {}
+    anomaliesEl.textContent = computed.length;
+}
 
 function clearSensorLog() { const sensorLog = document.getElementById('sensor-log'); if (sensorLog) { sensorLog.setAttribute('data-empty', 'true'); sensorLog.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-center text-slate-500"><i class="fa-solid fa-satellite-dish text-2xl mb-2"></i><p class="text-xs font-medium">No recent sensor activity</p></div>'; showToast('info', 'Sensor log cleared.'); } }
 
@@ -676,7 +887,12 @@ function loadUnregisteredVehicles() {
     const anomaliesEl = document.getElementById('stat-anomalies');
     if (unregisteredEl) unregisteredEl.textContent = unregistered.length;
     if (registeredEl) registeredEl.textContent = allUsers.length;
-    const localAnomalies = getLocalAnomalyCount();
+    var localAnomalies = getLocalAnomalyCount();
+    if (localAnomalies === 0) {
+        var computed = getLocalAnomalies();
+        try { localStorage.setItem('smartpark_anomalies', JSON.stringify(computed)); } catch (e) {}
+        localAnomalies = computed.length;
+    }
     if (anomaliesEl) anomaliesEl.textContent = localAnomalies + (unregistered.length > 0 ? ' + ' + unregistered.length + ' unregistered' : '');
     if (unregistered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-500"><i class="fa-solid fa-circle-check text-2xl mb-2 text-sp-emerald"></i><p class="text-xs font-medium">No unregistered vehicles detected</p></td></tr>';
@@ -1162,26 +1378,60 @@ function renderSessionsTable() {
     const tbody = document.getElementById('sessions-table-body');
     if (!tbody) return;
     const allData = getAllCustomerParkingData();
-    const sessions = allData.sessions || [];
+    const sessions = (allData.sessions || []).filter(isAdminActiveSession);
     tbody.innerHTML = '';
     if (sessions.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-500"><i class="fa-solid fa-inbox text-2xl mb-2"></i><p class="text-xs font-medium">No sessions found</p></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-500"><i class="fa-solid fa-inbox text-2xl mb-2"></i><p class="text-xs font-medium">No active sessions found</p></td></tr>`;
         return;
     }
     sessions.forEach(s => {
-        var isActive = isAdminActiveSession(s);
-        var statusBadge = '';
-        if (isActive) {
-            statusBadge = '<span class="badge-success">Active</span>';
-        } else if (s.paymentStatus === 'Rejected' || s.status === 'Rejected') {
-            statusBadge = '<span class="badge-danger">Rejected / Offline</span>';
-        } else if (s.status === 'Completed') {
-            statusBadge = '<span class="badge-neutral">Completed</span>';
-        } else {
-            statusBadge = '<span class="badge-warning">Inactive</span>';
-        }
-        tbody.innerHTML += `<tr class="hover:bg-white/5 transition-colors"><td class="py-3.5 font-bold text-white">${s.vehicle || 'N/A'}</td><td class="py-3.5 text-slate-400">${s.zone || 'N/A'}</td><td class="py-3.5 text-slate-400 font-semibold">${s.slot || 'N/A'}</td><td class="py-3.5 text-slate-400">${s.bookingType || 'Fixed'}</td><td class="py-3.5 text-white font-semibold">৳${(s.cost || 0).toFixed(2)}</td><td class="py-3.5 text-right">${statusBadge}</td></tr>`;
+        var statusBadge = '<span class="badge-success">Active</span>';
+        var actionHtml = '<button class="px-2 py-1 text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-colors" onclick="endAdminSession(' + s.id + ')">End</button>';
+        tbody.innerHTML += `<tr class="hover:bg-white/5 transition-colors"><td class="py-3.5 font-bold text-white">${s.vehicle || 'N/A'}</td><td class="py-3.5 text-slate-400">${s.zone || 'N/A'}</td><td class="py-3.5 text-slate-400 font-semibold">${s.slot || 'N/A'}</td><td class="py-3.5 text-slate-400">${s.bookingType || 'Fixed'}</td><td class="py-3.5 text-white font-semibold">৳${(s.cost || 0).toFixed(2)}</td><td class="py-3.5 text-right">${statusBadge}</td><td class="py-3.5 text-right">${actionHtml}</td></tr>`;
     });
+}
+function endAdminSession(bookingId) {
+    if (!bookingId && bookingId !== 0) return;
+    if (!confirm('End this parking session? This will free the slot and mark the session as completed.')) return;
+    try {
+        var allRaw = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+        var found = false;
+        Object.keys(allRaw).forEach(function(email) {
+            var userData = allRaw[email];
+            if (!userData || !userData.sessions) return;
+            userData.sessions.forEach(function(s) {
+                if (Number(s.id) === Number(bookingId) && s.status === 'Active') {
+                    s.status = 'Completed';
+                    s.paymentStatus = s.paymentStatus || 'Paid';
+                    s.endedAt = new Date().toISOString();
+                    found = true;
+                }
+            });
+            if (found && userData.zoneSlots) {
+                Object.keys(userData.zoneSlots).forEach(function(zoneId) {
+                    if (Array.isArray(userData.zoneSlots[zoneId])) {
+                        userData.zoneSlots[zoneId].forEach(function(slot) {
+                            if (slot && slot.sessionId === Number(bookingId)) {
+                                slot.occupied = false;
+                                slot.plate = null;
+                                slot.sessionId = null;
+                            }
+                        });
+                    }
+                });
+            }
+        });
+        if (found) {
+            localStorage.setItem('customerParkingData_by_user', JSON.stringify(allRaw));
+            triggerRefresh();
+            showToast('success', 'Session ended successfully.');
+        } else {
+            showToast('info', 'Session not found or already ended.');
+        }
+    } catch (e) {
+        console.error('Failed to end session:', e);
+        showToast('error', 'Failed to end session.');
+    }
 }
 
 // ---- Cash Verification ----
@@ -1576,13 +1826,15 @@ function getAllCustomerParkingData() {
         let allZoneSlots = {};
         let maxNextId = 1000;
         let maxNextHistId = 2000;
-        const seenSessionIds = new Set();
-        Object.values(allData).forEach(function(userData) {
+        const seenSessionKeys = new Set();
+        Object.keys(allData).forEach(function(email) {
+            const userData = allData[email];
             if (userData.sessions) {
                 userData.sessions.forEach(function(s) {
                     const sid = s.id;
-                    if (sid === undefined || sid === null || seenSessionIds.has(sid)) return;
-                    seenSessionIds.add(sid);
+                    const dedupKey = email + '::' + sid;
+                    if (sid === undefined || sid === null || seenSessionKeys.has(dedupKey)) return;
+                    seenSessionKeys.add(dedupKey);
                     allSessions.push(s);
                 });
             }

@@ -89,7 +89,7 @@
     <div id="zones-view" class="p-6 hidden"><h2 class="text-xl font-bold text-white mb-4">Parking Zones Management</h2><button onclick="openAddModal()" class="btn-primary mb-4"><i class="fa-solid fa-plus mr-1.5"></i> Add New Zone</button><div id="zones-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"></div></div>
 
     <!-- SESSIONS VIEW -->
-    <div id="sessions-view" class="p-6 hidden"><h2 class="text-xl font-bold text-white mb-4">Active Parking Sessions</h2><div class="glass-card overflow-hidden"><table class="data-table"><thead><tr><th>Vehicle</th><th>Zone</th><th>Slot</th><th>Type</th><th>Cost</th><th>Status</th></tr></thead><tbody id="sessions-table-body"></tbody></table></div></div>
+    <div id="sessions-view" class="p-6 hidden"><h2 class="text-xl font-bold text-white mb-4">Active Parking Sessions</h2><div class="glass-card overflow-hidden"><table class="data-table"><thead><tr><th>Vehicle</th><th>Zone</th><th>Slot</th><th>Type</th><th>Cost</th><th>Status</th><th class="text-right">Action</th></tr></thead><tbody id="sessions-table-body"></tbody></table></div></div>
 
     <!-- HISTORY VIEW -->
     <div id="history-view" class="p-6 hidden"><h2 class="text-xl font-bold text-white mb-4">Parking History</h2>
@@ -180,16 +180,32 @@
     <!-- ANOMALIES VIEW -->
     <div id="anomalies-view" class="p-6 hidden">
         <div class="flex items-center justify-between mb-6">
-            <div><h2 class="text-xl font-bold text-white">Anomaly Detection</h2><p class="text-xs text-slate-500">Sensor mismatches, invalid slots, or suspicious bookings</p></div>
+            <div><h2 class="text-xl font-bold text-white">Anomaly Detection</h2><p class="text-xs text-slate-500">Customer-based sensor mismatches, invalid slots, or suspicious bookings</p></div>
             <div class="flex items-center gap-2">
                 <button onclick="redetectAnomalies()" class="px-3.5 py-2 text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-300 border border-sp-accent/10 rounded-lg"><i class="fa-solid fa-rotate text-[10px] mr-1.5"></i> Rescan</button>
                 <button onclick="clearAnomalies()" class="px-3.5 py-2 text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-400 border border-sp-accent/10 rounded-lg">Clear</button>
             </div>
         </div>
+        <div class="glass-card p-4 mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div class="flex-1 w-full sm:w-auto">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Filter by Customer</label>
+                <select id="anomaly-customer-filter" onchange="applyAnomalyCustomerFilter()" class="text-xs bg-sp-primary/60 border border-sp-accent/10 rounded-lg px-3 py-2 text-slate-200 outline-none focus:border-sp-accent w-full">
+                    <option value="all">All Customers</option>
+                </select>
+            </div>
+            <div class="text-xs text-slate-500 pt-4 sm:pt-5" id="anomaly-filter-status">Showing all anomalies</div>
+        </div>
+        <div class="glass-card overflow-hidden mb-6">
+            <table class="data-table">
+                <thead><tr><th>Customer</th><th>Zone</th><th>Anomaly</th><th>Vehicles</th><th>Time</th><th class="text-right">Action</th></tr></thead>
+                <tbody id="anomalies-table-body"></tbody>
+            </table>
+        </div>
+        <div class="mb-4"><h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Active Customers Overview</h3></div>
         <div class="glass-card overflow-hidden">
             <table class="data-table">
-                <thead><tr><th>Zone</th><th>Anomaly</th><th>Vehicles</th><th>Time</th><th class="text-right">Action</th></tr></thead>
-                <tbody id="anomalies-table-body"></tbody>
+                <thead><tr><th>Customer</th><th>Vehicle</th><th>Zone</th><th>Slot</th><th>Type</th><th class="text-right">Action</th></tr></thead>
+                <tbody id="active-customers-table-body"></tbody>
             </table>
         </div>
     </div>

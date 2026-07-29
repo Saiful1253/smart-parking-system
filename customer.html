@@ -30,6 +30,7 @@
     </div></div>
 </header>
 <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <div id="customer-anomaly-alerts" class="hidden mb-8 space-y-3"></div>
     <div class="text-center py-20">
         <div class="w-20 h-20 rounded-full bg-sp-accent/10 flex items-center justify-center mx-auto mb-6"><i class="fa-solid fa-car text-sp-accent text-3xl"></i></div>
         <h1 class="text-3xl font-extrabold text-white mb-3">Customer Dashboard</h1>
@@ -42,6 +43,34 @@
 </main>
 
 <script src="script.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    renderCustomerAnomalies();
+});
+function renderCustomerAnomalies() {
+    var container = document.getElementById('customer-anomaly-alerts');
+    if (!container) return;
+    var anomalies = [];
+    try { anomalies = getCustomerAnomalies(); } catch (e) { anomalies = []; }
+    if (anomalies.length === 0) {
+        container.classList.add('hidden');
+        container.innerHTML = '';
+        return;
+    }
+    container.classList.remove('hidden');
+    var html = '';
+    anomalies.forEach(function(a) {
+        var icon = a.severity === 'critical' ? 'fa-circle-exclamation text-sp-red' : 'fa-triangle-exclamation text-sp-amber';
+        var bg = a.severity === 'critical' ? 'bg-sp-red/10 border-sp-red/20' : 'bg-sp-amber/10 border-sp-amber/20';
+        var textColor = a.severity === 'critical' ? 'text-sp-red' : 'text-sp-amber';
+        html += '<div class="glass-card p-4 flex items-start gap-3 ' + bg + ' border rounded-xl">' +
+            '<div class="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0"><i class="fa-solid ' + icon + '"></i></div>' +
+            '<div class="flex-1 min-w-0"><p class="text-xs font-bold ' + textColor + ' uppercase tracking-wider">' + a.type.replace(/_/g, ' ') + '</p>' +
+            '<p class="text-xs text-slate-400 mt-0.5">' + a.message + '</p></div></div>';
+    });
+    container.innerHTML = html;
+}
+</script>
 
 <!-- AI Chat Widget -->
 <div class="ai-chat-widget no-print">

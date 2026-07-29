@@ -587,6 +587,19 @@ function confirmBooking(e) {
     var z = zonesData[zoneId];
     if (!z) return;
     if (z.free <= 0) { showToast('error', 'Sorry, no slots available in ' + z.name + '.'); return; }
+
+    var vehicle = (document.getElementById('book-vehicle').value || '').trim().toUpperCase();
+    if (!vehicle) { showToast('error', 'Please enter a vehicle number.'); return; }
+
+    var saved = getUserData('customerParkingData');
+    var existing = (saved && saved.sessions) ? saved.sessions.find(function(s) {
+        return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected' && (s.vehicle || '').toUpperCase() === vehicle;
+    }) : null;
+    if (existing) {
+        showToast('error', 'You already have an active booking for vehicle ' + existing.vehicle + ' in ' + existing.zone + '. End it before booking again.');
+        return;
+    }
+
     var slots = zoneSlots[zoneId];
     if (!slots || slots.length !== z.spots) {
         zoneSlots[zoneId] = new Array(z.spots).fill(false);
@@ -610,6 +623,8 @@ function createMeterBooking() {
     if (!z || !pendingBooking) return;
     var formData = { name: document.getElementById('book-name').value.trim(), vehicle: document.getElementById('book-vehicle').value.trim(), vehicleType: document.getElementById('book-vehicle-type').value, entryTime: document.getElementById('book-time').value, date: document.getElementById('book-date').value, paymentMethod: document.getElementById('book-payment-meter').value };
     if (!formData.name || !formData.vehicle) { showToast('error', 'Please fill in all required fields.'); return; }
+    var vehicleClean = formData.vehicle.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    if (vehicleClean.length < 3 || !/[A-Z]/.test(vehicleClean) || !/[0-9]/.test(vehicleClean)) { showToast('error', 'Please enter a valid vehicle plate number (e.g. ABC-1234).'); return; }
     var slotIndex = pendingBooking.slotIndex;
     var meterCost = (currentMeterRate / 3600) * meterElapsedSeconds;
     var cost = meterCost > 0.01 ? meterCost : currentMeterRate * 0.01;
@@ -666,6 +681,8 @@ function confirmPaymentFromBooking() {
     if (saved) { sessions = saved.sessions || []; nextBookingId = saved.nextId || 1000; nextHistoryId = saved.nextHistId || 2000; zoneSlots = saved.zoneSlots || {}; }
     
     var booking = { id: nextBookingId++, name: document.getElementById('book-name').value.trim(), vehicle: document.getElementById('book-vehicle').value.trim(), vehicleType: document.getElementById('book-vehicle-type').value, zone: z.name, zoneId: zoneId, slot: document.getElementById('book-slot').value, slotIndex: slotIndex, date: document.getElementById('book-date').value, entryTime: document.getElementById('book-time').value, durationHours: parseInt(document.getElementById('book-duration').value) || 1, bookingType: bookingType, meterRate: z.rate, cost: cost, paymentMethod: document.getElementById('book-payment').value || document.getElementById('book-payment-meter').value, customerNumber: customerNumber, trxId: trxId, status: 'Active', createdAt: new Date().toISOString(), paid: true, paymentStatus: 'Pending' };
+    var vehicleClean = booking.vehicle.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    if (vehicleClean.length < 3 || !/[A-Z]/.test(vehicleClean) || !/[0-9]/.test(vehicleClean)) { showToast('error', 'Please enter a valid vehicle plate number (e.g. ABC-1234).'); return; }
     sessions.push(booking);
     savePaymentRecord({ id: 'PAY-' + String(Date.now()).slice(-8), bookingId: booking.id, customerName: booking.name, vehicle: booking.vehicle, zone: booking.zone, slot: booking.slot, amount: booking.cost, paymentMethod: booking.paymentMethod, customerNumber: customerNumber, trxId: trxId, status: 'Pending', createdAt: new Date().toISOString() });
     saveData();
