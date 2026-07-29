@@ -164,7 +164,7 @@ function renderSessions() {
     var container = document.getElementById('session-card-container');
     var subtitle = document.getElementById('my-sessions-subtitle');
     if (!container) return;
-    var active = sessions.filter(function(s) { return s.status === 'Active'; });
+    var active = sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; });
     subtitle.textContent = active.length + ' active parking session' + (active.length !== 1 ? 's' : '');
     Object.keys(liveTimers).forEach(function(id) { clearInterval(liveTimers[id]); delete liveTimers[id]; });
     container.innerHTML = '';
@@ -268,6 +268,10 @@ function closePaymentModal() {
     pendingPaymentSessionId = null; pendingPaymentMethod = null;
 }
 function confirmPayment() {
+    // Reload latest data from localStorage to pick up any admin changes (e.g. rejections)
+    var saved = getUserData('customerParkingData');
+    if (saved) { sessions = saved.sessions || []; nextBookingId = saved.nextId || 1000; zoneSlots = saved.zoneSlots || {}; }
+    
     var customerNumber = document.getElementById('pay-customer-number').value.trim();
     var trxId = document.getElementById('pay-trx-id').value.trim();
     if (pendingPaymentMethod !== 'Cash') {
@@ -280,6 +284,12 @@ function confirmPayment() {
     if (s.status !== 'Active') { showToast('error', 'Session is not active.'); closePaymentModal(); return; }
     s.payment = pendingPaymentMethod; s.customerNumber = customerNumber || '-'; s.trxId = trxId; s.paid = true; s.paymentStatus = 'Pending';
     savePaymentRecord({ id: 'PAY-' + String(Date.now()).slice(-8), bookingId: s.id, customerName: s.name || 'N/A', vehicle: s.vehicle || 'N/A', zone: s.zone, slot: s.slot, amount: s.cost, paymentMethod: pendingPaymentMethod, customerNumber: customerNumber || '-', trxId: trxId, status: 'Pending', createdAt: new Date().toISOString() });
+    
+    // Save payment changes before ending session to prevent overwriting admin updates
+    var savedHistory = getUserData('customerParkingData');
+    var currentHistory = savedHistory ? savedHistory.history : [];
+    setUserData('customerParkingData', { sessions: sessions, nextId: nextBookingId, zoneSlots: zoneSlots, history: currentHistory, nextHistId: 2000 });
+    
     closePaymentModal();
     endSession(pendingPaymentSessionId, true);
 }
@@ -289,6 +299,10 @@ var pendingPaymentSessionId = null;
 var pendingPaymentMethod = null;
 
 async function endSession(sessionId, skipConfirm) {
+    // Reload latest data from localStorage to pick up any admin changes (e.g. rejections)
+    var saved = getUserData('customerParkingData');
+    if (saved) { sessions = saved.sessions || []; nextBookingId = saved.nextId || 1000; zoneSlots = saved.zoneSlots || {}; }
+    
     var idx = sessions.findIndex(function(s) { return s.id == sessionId; });
     if (idx === -1) { showToast('error', 'Session not found for ending.'); return; }
     var s = sessions[idx];

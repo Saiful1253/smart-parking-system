@@ -27,6 +27,10 @@ let expandedAnomalies = false;
 let fullAnomalyList = [];
 let previousAnomalyCount = 0;
 
+function isAdminActiveSession(s) {
+    return s.status === 'Active' && s.paymentStatus !== 'Rejected' && (s.paid === true || s.paymentStatus);
+}
+
 async function loadZonesFromAPI() {
     loadZonesFromLocalStorage();
     try {
@@ -104,7 +108,7 @@ async function loadDashboardStats() {
         const token = localStorage.getItem('token_admin');
         const response = await fetch(`${API_BASE}/api/admin/dashboard-stats`, { method: 'GET', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
         const contentType = response.headers.get('content-type') || ''; const isJson = contentType.includes('application/json'); const data = isJson ? await response.json() : {};
-        if (response.ok) { updateSpottedVehiclesUI(data); updateZonesSpotsUI(data); }
+        if (response.ok) { updateSpottedVehiclesUI(data); updateZonesSpotsUI(data); if (data.activeSessions !== undefined && document.getElementById('active-sessions-count')) { document.getElementById('active-sessions-count').textContent = data.activeSessions; } }
         else { updateDashboardStatsFromLocal(); }
     } catch (error) { 
         updateDashboardStatsFromLocal(); 
@@ -138,6 +142,7 @@ async function refreshZones() {
     const refreshIcon = document.querySelector('header button i');
     if (refreshIcon) refreshIcon.classList.add('fa-spin');
     try {
+        migrateRejectedSessions();
         await loadZonesFromAPI();
         const allData = getAllCustomerParkingData();
         recalculateZoneOccupancy(allData.sessions);
@@ -148,9 +153,7 @@ async function refreshZones() {
         if (document.getElementById('history-table-body')) { syncHistoryFromAllCustomers(); renderHistoryTable(); }
         if (document.getElementById('sensor-log')) renderSensorLog();
         if (document.getElementById('active-sessions-count')) {
-            let count = 0;
-            if (allData.sessions) count = allData.sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; }).length;
-            document.getElementById('active-sessions-count').textContent = count;
+            document.getElementById('active-sessions-count').textContent = getSystemActiveSessionCount();
         }
         if (document.getElementById('stat-free')) {
             const zones = Object.values(zonesData);
@@ -164,6 +167,7 @@ async function refreshZones() {
 
 // Auto-refresh
 setInterval(async () => {
+    migrateRejectedSessions();
     if (document.getElementById('zones-grid')) {
         await loadZonesFromAPI();
         const allData = getAllCustomerParkingData();
@@ -173,9 +177,7 @@ setInterval(async () => {
         if (document.getElementById('sessions-table-body')) renderSessionsTable();
         if (document.getElementById('sensor-log')) renderSensorLog();
         if (document.getElementById('active-sessions-count')) {
-            let count = 0;
-            if (allData.sessions) count = allData.sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; }).length;
-            document.getElementById('active-sessions-count').textContent = count;
+            document.getElementById('active-sessions-count').textContent = getSystemActiveSessionCount();
         }
         if (document.getElementById('stat-free')) {
             const zones = Object.values(zonesData);
@@ -186,6 +188,7 @@ setInterval(async () => {
     }
 }, 5000);
 setInterval(async () => {
+    migrateRejectedSessions();
     await loadDashboardStats();
     await loadAnomalies();
     if (document.getElementById('bookingTrendChart')) loadBookingTrend(currentBookingTrendPeriod);
@@ -206,9 +209,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (document.getElementById('occupancyChart')) initOccupancyChart();
     if (document.getElementById('bookingTrendChart')) { initBookingTrendChart(); loadBookingTrend('week'); }
     if (document.getElementById('active-sessions-count')) {
-        let count = 0;
-        if (allData.sessions) count = allData.sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; }).length;
-        document.getElementById('active-sessions-count').textContent = count;
+        document.getElementById('active-sessions-count').textContent = getSystemActiveSessionCount();
     }
     if (document.getElementById('sessions-table-body')) renderSessionsTable();
     if (document.getElementById('history-table-body')) { syncHistoryFromAllCustomers(); renderHistoryTable(); }
@@ -223,9 +224,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (document.getElementById('history-table-body')) { syncHistoryFromAllCustomers(); renderHistoryTable(); }
     if (document.getElementById('sensor-log')) renderSensorLog();
     if (document.getElementById('active-sessions-count')) {
-        let count = 0;
-        if (allData.sessions) count = allData.sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; }).length;
-        document.getElementById('active-sessions-count').textContent = count;
+        document.getElementById('active-sessions-count').textContent = getSystemActiveSessionCount();
     }
     if (document.getElementById('zones-grid')) renderZonesGrid();
     updateChartFromZones();
@@ -398,7 +397,7 @@ function renderLocalBookingTrend(period) {
             const dateStr = d.toISOString().split('T')[0];
             const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
             labels.push(dayName);
-            values.push(sessions.filter(function(s) { return s.date === dateStr && s.status === 'Active'; }).length);
+            values.push(sessions.filter(function(s) { return s.date === dateStr && isAdminActiveSession(s); }).length);
         }
         bookingTrendChart.data.datasets[0].label = 'Bookings this week';
     } else if (period === 'month') {
@@ -408,7 +407,7 @@ function renderLocalBookingTrend(period) {
             const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
             const label = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
             labels.push(label);
-            values.push(sessions.filter(function(s) { return s.date >= weekStart.toISOString().split('T')[0] && s.date <= weekEnd.toISOString().split('T')[0] && s.status === 'Active'; }).length);
+            values.push(sessions.filter(function(s) { return s.date >= weekStart.toISOString().split('T')[0] && s.date <= weekEnd.toISOString().split('T')[0] && isAdminActiveSession(s); }).length);
         }
         bookingTrendChart.data.datasets[0].label = 'Bookings this month';
     } else {
@@ -416,7 +415,7 @@ function renderLocalBookingTrend(period) {
             const d = new Date(now); d.setMonth(d.getMonth() - i);
             const monthName = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
             labels.push(monthName);
-            values.push(sessions.filter(function(s) { const sm = s.date ? s.date.substring(0, 7) : ''; return sm === d.toISOString().substring(0, 7) && s.status === 'Active'; }).length);
+            values.push(sessions.filter(function(s) { const sm = s.date ? s.date.substring(0, 7) : ''; return sm === d.toISOString().substring(0, 7) && isAdminActiveSession(s); }).length);
         }
         bookingTrendChart.data.datasets[0].label = 'Bookings this year';
     }
@@ -434,6 +433,7 @@ async function triggerRefresh() {
     if (refreshIcon) refreshIcon.classList.add('fa-spin');
     showToast('info', 'Refreshing system data...');
     try {
+        migrateRejectedSessions();
         await loadZonesFromAPI(); await loadDashboardStats(); await loadAnomalies();
         const allData = getAllCustomerParkingData();
         recalculateZoneOccupancy(allData.sessions);
@@ -444,9 +444,7 @@ async function triggerRefresh() {
         if (document.getElementById('sensor-log')) renderSensorLog();
         if (document.getElementById('cash-table-body')) loadCashVerifications();
         if (document.getElementById('active-sessions-count')) {
-            let count = 0;
-            if (allData.sessions) count = allData.sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; }).length;
-            document.getElementById('active-sessions-count').textContent = count;
+            document.getElementById('active-sessions-count').textContent = getSystemActiveSessionCount();
         }
         if (document.getElementById('stat-free')) {
             const zones = Object.values(zonesData);
@@ -478,7 +476,11 @@ async function loadAnomalies() {
             const anomaliesContentType = anomaliesResponse.headers.get('content-type') || '';
             const anomaliesJson = anomaliesContentType.includes('application/json') ? await anomaliesResponse.json() : {};
             if (anomaliesResponse.ok && anomaliesJson.anomalies && anomaliesJson.anomalies.length > 0) {
-                anomalies = anomaliesJson.anomalies;
+                const allData = getAllCustomerParkingData();
+                const localPlates = new Set((allData.sessions || []).filter(isAdminActiveSession).map(s => (s.vehicle || '').toUpperCase()));
+                anomalies = anomaliesJson.anomalies.filter(function(a) {
+                    return (a.vehicles || []).some(function(v) { return localPlates.has((v.plate || '').toUpperCase()); });
+                });
             }
         } catch (e) { console.error('Failed to fetch anomalies:', e); }
 
@@ -501,7 +503,7 @@ function renderLocalAnomalies() {
     const allData = getAllCustomerParkingData();
     const sessions = allData.sessions || [];
     const anomalies = [];
-    const activeSessions = sessions.filter(function(s) { return s.status === 'Active'; });
+    const activeSessions = sessions.filter(isAdminActiveSession);
 
     // Detect zone overflow: more active sessions than zone capacity
     const zoneOccupancy = {};
@@ -522,7 +524,9 @@ function renderLocalAnomalies() {
                 type: 'overflow',
                 message: `${occupied - zone.spots} extra vehicle(s) detected in ${zone.name} (Plates: ${zoneOccupancy[zoneId].map(s => s.vehicle || 'N/A').join(', ')}) — capacity exceeded!`,
                 severity: 'critical',
-                vehicles: zoneOccupancy[zoneId].map(s => ({ plate: s.vehicle || 'N/A', spot: s.slot || 'N/A' }))
+                vehicles: zoneOccupancy[zoneId].map(function(s) {
+                    return { plate: s.vehicle || 'N/A', spot: s.slot || 'N/A', status: 'online' };
+                })
             });
         }
     });
@@ -539,14 +543,14 @@ function renderLocalAnomalies() {
                 type: 'invalid_slot',
                 message: `Invalid slot index ${spotIndex} for ${s.vehicle || 'vehicle'}`,
                 severity: 'warning',
-                vehicles: [{ plate: s.vehicle || 'N/A', spot: '?' }]
+                vehicles: [{ plate: s.vehicle || 'N/A', spot: '?', status: 'offline' }]
             });
         }
         if (s.vehicle && s.vehicle.length < 3) {
-            anomalies.push({ zone: s.zone || 'Unknown', type: 'short_plate', message: `Suspicious plate: ${s.vehicle} in ${s.zone}`, severity: 'warning', vehicles: [{ plate: s.vehicle, spot: s.slot || '?' }] });
+            anomalies.push({ zone: s.zone || 'Unknown', type: 'short_plate', message: `Suspicious plate: ${s.vehicle} in ${s.zone}`, severity: 'warning', vehicles: [{ plate: s.vehicle, spot: s.slot || '?', status: 'offline' }] });
         }
         if (s.cost > 1000) {
-            anomalies.push({ zone: s.zone || 'Unknown', type: 'high_cost', message: `High cost booking: ৳${s.cost.toFixed(2)} for ${s.vehicle}`, severity: 'warning', vehicles: [{ plate: s.vehicle, spot: s.slot || '?' }] });
+            anomalies.push({ zone: s.zone || 'Unknown', type: 'high_cost', message: `High cost booking: ৳${s.cost.toFixed(2)} for ${s.vehicle}`, severity: 'warning', vehicles: [{ plate: s.vehicle, spot: s.slot || '?', status: 'offline' }] });
         }
     });
     renderAnomalies(anomalies);
@@ -556,7 +560,7 @@ function getLocalAnomalies() {
     const allData = getAllCustomerParkingData();
     const sessions = allData.sessions || [];
     const anomalies = [];
-    const activeSessions = sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; });
+    const activeSessions = sessions.filter(isAdminActiveSession);
 
     // Detect zone overflow: more active sessions than zone capacity
     const zoneOccupancy = {};
@@ -577,7 +581,9 @@ function getLocalAnomalies() {
                 type: 'overflow',
                 message: `${occupied - zone.spots} extra vehicle(s) detected in ${zone.name} (Plates: ${zoneOccupancy[zoneId].map(s => s.vehicle || 'N/A').join(', ')}) — capacity exceeded!`,
                 severity: 'critical',
-                vehicles: zoneOccupancy[zoneId].map(s => ({ plate: s.vehicle || 'N/A', spot: s.slot || 'N/A' }))
+                vehicles: zoneOccupancy[zoneId].map(function(s) {
+                    return { plate: s.vehicle || 'N/A', spot: s.slot || 'N/A', status: 'online' };
+                })
             });
         }
     });
@@ -594,7 +600,7 @@ function getLocalAnomalies() {
                 type: 'invalid_slot',
                 message: `Invalid slot ${s.slot || spotIndex} in ${zone.name} for plate ${s.vehicle || 'N/A'} — slot does not exist.`,
                 severity: 'critical',
-                vehicles: [{ plate: s.vehicle || 'N/A', spot: s.slot || '?' }]
+                vehicles: [{ plate: s.vehicle || 'N/A', spot: s.slot || '?', status: 'offline' }]
             });
         }
     });
@@ -617,6 +623,13 @@ function getLocalAnomalies() {
         }
     });
 
+    const plateStatusMap = {};
+    activeSessions.forEach(function(s) {
+        var p = (s.vehicle || '').toUpperCase();
+        if (!p) return;
+        plateStatusMap[p] = 'online';
+    });
+
     Object.values(slotMap).forEach(function(entry) {
         if (entry.uniquePlates.length > 1) {
             const zone = zonesData[entry.zoneId] || Object.values(zonesData).find(function(z) { return z.id === entry.zoneId || z.name === (entry.zoneId.replace('Zone-', 'Zone ') + ' - Central'); });
@@ -626,7 +639,7 @@ function getLocalAnomalies() {
                 type: 'slot_conflict',
                 message: `Slot ${entry.slot || entry.slotIndex} in ${zone.name} occupied by ${entry.uniquePlates.length} vehicles (Plates: ${entry.uniquePlates.join(', ')}) — only one vehicle per slot allowed.`,
                 severity: 'critical',
-                vehicles: entry.uniquePlates.map(function(p) { return { plate: p, spot: entry.slot || '?' }; })
+                vehicles: entry.uniquePlates.map(function(p) { return { plate: p, spot: entry.slot || '?', status: plateStatusMap[(p || '').toUpperCase()] || 'offline' }; })
             });
         }
     });
@@ -648,7 +661,9 @@ function getLocalAnomalies() {
                 type: 'multiple_bookings',
                 message: `Vehicle ${plate} has ${userSessions.length} active bookings.`,
                 severity: 'critical',
-                vehicles: userSessions.map(s => ({ plate: s.vehicle || 'N/A', spot: s.slot || '?' }))
+                vehicles: userSessions.map(function(s) {
+                    return { plate: s.vehicle || 'N/A', spot: s.slot || '?', status: 'online' };
+                })
             });
         }
     }
@@ -670,7 +685,9 @@ function getLocalAnomalies() {
                 type: 'multiple_online_bookings',
                 message: `Customer ${userId} has 2 active online bookings.`,
                 severity: 'critical',
-                vehicles: userSessions.map(s => ({ plate: s.vehicle || 'N/A', spot: s.slot || '?' }))
+                vehicles: userSessions.map(function(s) {
+                    return { plate: s.vehicle || 'N/A', spot: s.slot || '?', status: 'online' };
+                })
             });
         }
     }
@@ -700,7 +717,7 @@ function renderAnomalies(anomalies) {
             toggleBtn.classList.add('hidden');
         }
     }
-    anomalyList.innerHTML = visibleAnomalies.map(anomaly => `<div class="bg-white/5 border border-sp-red/20 rounded-xl p-3.5"><div class="flex items-start gap-3"><span class="px-2.5 py-1 text-xs font-bold bg-sp-red/10 text-sp-red rounded-lg">${anomaly.zone}</span><div class="flex-1"><p class="text-xs text-slate-300 font-medium">${anomaly.message}</p>${anomaly.vehicles && anomaly.vehicles.length > 0 ? '<div class="mt-2 space-y-1">' + anomaly.vehicles.map(v => `<div class="flex items-center gap-2 text-[10px] font-mono bg-sp-primary/30 rounded-lg px-2 py-1 border border-sp-accent/10"><i class="fa-solid fa-car text-sp-red"></i><span class="font-bold text-white">${v.plate}</span><span class="text-slate-500">Spot: ${v.spot}</span></div>`).join('') + '</div>' : ''}</div></div></div>`).join('');
+    anomalyList.innerHTML = visibleAnomalies.map(anomaly => `<div class="bg-white/5 border border-sp-red/20 rounded-xl p-3.5"><div class="flex items-start gap-3"><span class="px-2.5 py-1 text-xs font-bold bg-sp-red/10 text-sp-red rounded-lg">${anomaly.zone}</span><div class="flex-1"><p class="text-xs text-slate-300 font-medium">${anomaly.message}</p>${anomaly.vehicles && anomaly.vehicles.length > 0 ? '<div class="mt-2 space-y-1">' + anomaly.vehicles.map(function(v) { var statusText = v.status === 'online' ? 'Online' : (v.status === 'offline' ? 'Offline' : ''); var statusColor = v.status === 'online' ? 'text-sp-emerald bg-sp-emerald/10 border-sp-emerald/20' : (v.status === 'offline' ? 'text-sp-red bg-sp-red/10 border-sp-red/20' : 'text-slate-400 bg-white/5 border-sp-accent/10'); return '<div class="flex items-center gap-2 text-[10px] font-mono bg-sp-primary/30 rounded-lg px-2 py-1 border border-sp-accent/10"><i class="fa-solid fa-car text-sp-red"></i><span class="font-bold text-white">' + v.plate + '</span><span class="text-slate-500">Spot: ' + v.spot + '</span>' + (statusText ? '<span class="ml-auto px-1.5 py-0.5 text-[9px] font-bold rounded border ' + statusColor + '">' + statusText + '</span>' : '') + '</div>'; }).join('') + '</div>' : ''}</div></div></div>`).join('');
     updateAnomalyBadge();
 }
 
@@ -722,7 +739,7 @@ function loadUnregisteredVehicles() {
     if (!tbody) return;
     const allData = getAllCustomerParkingData();
     const sessions = allData.sessions || [];
-    const activeSessions = sessions.filter(s => s.status === 'Active');
+    const activeSessions = sessions.filter(isAdminActiveSession);
     const registeredPlates = activeSessions.map(s => (s.vehicle || '').toUpperCase());
     const vehicles = unregisteredVehicles.filter(v => !registeredPlates.includes((v.plate || '').toUpperCase()));
     const allUsers = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
@@ -745,12 +762,11 @@ function loadUnregisteredVehicles() {
         return '<tr class="hover:bg-white/5 transition-colors"><td class="py-3.5 font-bold text-white">' + (v.plate || 'N/A') + '</td><td class="py-3.5 text-slate-400">' + (v.zone || 'N/A') + '</td><td class="py-3.5 text-slate-400 font-semibold">' + (v.spot || '?') + '</td><td class="py-3.5 text-slate-500">' + time + '</td><td class="py-3.5 text-slate-400"><span class="px-2 py-0.5 rounded-full bg-white/5 text-sp-accent font-semibold text-[10px] border border-sp-accent/10">' + (v.sensor || 'Unknown') + '</span></td><td class="py-3.5 text-right"><button onclick="registerUnregisteredVehicle(\'' + safePlate + '\')" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-sp-emerald/10 hover:bg-sp-emerald/20 text-sp-emerald rounded-lg transition-all border border-sp-emerald/20"><i class="fa-solid fa-user-plus text-[10px]"></i> Register</button></td></tr>';
     }).join('');
 }
-
 function getLocalAnomalyCount() {
     const allData = getAllCustomerParkingData();
     const sessions = allData.sessions || [];
-    let count = 0;
-    const activeSessions = sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; });
+    const activeSessions = sessions.filter(isAdminActiveSession);
+    const anomalousSessionIds = new Set();
 
     // Detect slot conflicts: multiple distinct vehicles assigned to the same slot
     const slotMap = {};
@@ -763,22 +779,41 @@ function getLocalAnomalyCount() {
         if (!zone) return;
         if (spotIndex < 0 || spotIndex >= zone.spots) return;
         const key = zoneId + ':' + spotIndex;
-        if (!slotMap[key]) slotMap[key] = { uniquePlates: [] };
+        if (!slotMap[key]) slotMap[key] = { uniquePlates: [], sessionIds: [] };
         if (!slotMap[key].uniquePlates.some(function(p) { return p.toUpperCase() === plate; })) {
             slotMap[key].uniquePlates.push(s.vehicle || 'N/A');
+            slotMap[key].sessionIds.push(s.id);
         }
     });
     Object.values(slotMap).forEach(function(entry) {
-        if (entry.uniquePlates.length > 1) count++;
+        if (entry.uniquePlates.length > 1) {
+            entry.sessionIds.forEach(function(id) { anomalousSessionIds.add(id); });
+        }
     });
 
     activeSessions.forEach(function(s) {
         const zone = zonesData[s.zoneId] || Object.values(zonesData).find(function(z) { return z.name === s.zone; });
         if (!zone) return;
         const spotIndex = s.slotIndex;
-        if (spotIndex === undefined || spotIndex < 0 || spotIndex >= zone.spots) count++;
-        if (s.vehicle && s.vehicle.length < 3) count++;
-        if (s.cost > 1000) count++;
+
+        if (spotIndex === undefined || spotIndex < 0 || spotIndex >= zone.spots) anomalousSessionIds.add(s.id);
+        if (s.vehicle && s.vehicle.length < 3) anomalousSessionIds.add(s.id);
+        if (s.cost > 1000) anomalousSessionIds.add(s.id);
+    });
+    return anomalousSessionIds.size;
+}
+
+function getSystemActiveSessionCount() {
+    const allData = getAllCustomerParkingData();
+    const sessions = allData.sessions || [];
+    const seen = new Set();
+    let count = 0;
+    sessions.forEach(function(s) {
+        if (!isAdminActiveSession(s)) return;
+        const sid = s.id;
+        if (sid !== undefined && sid !== null && seen.has(sid)) return;
+        seen.add(sid);
+        count++;
     });
     return count;
 }
@@ -804,9 +839,9 @@ function renderSensorLog() {
     if (!sensorLog) return;
     const allData = getAllCustomerParkingData();
     const sessions = allData.sessions || [];
-    const registeredPlates = sessions.filter(s => s.status === 'Active').map(s => (s.vehicle || '').toUpperCase());
+    const registeredPlates = sessions.filter(isAdminActiveSession).map(s => (s.vehicle || '').toUpperCase());
     const unregisteredPlates = unregisteredVehicles.map(v => (v.plate || '').toUpperCase());
-    const recent = sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected' && !unregisteredPlates.includes((s.vehicle || '').toUpperCase()); }).slice(0, 10);
+    const recent = sessions.filter(function(s) { return isAdminActiveSession(s) && !unregisteredPlates.includes((s.vehicle || '').toUpperCase()); }).slice(0, 10);
     if (recent.length === 0) {
         sensorLog.setAttribute('data-empty', 'true');
         sensorLog.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-center text-slate-500"><i class="fa-solid fa-satellite-dish text-2xl mb-2"></i><p class="text-xs font-medium">No recent sensor activity</p></div>';
@@ -1242,14 +1277,25 @@ function renderSessionsTable() {
     const tbody = document.getElementById('sessions-table-body');
     if (!tbody) return;
     const allData = getAllCustomerParkingData();
-    const sessions = allData.sessions ? allData.sessions.filter(s => s.status === 'Active') : [];
+    const sessions = allData.sessions || [];
     tbody.innerHTML = '';
     if (sessions.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-500"><i class="fa-solid fa-inbox text-2xl mb-2"></i><p class="text-xs font-medium">No active sessions</p></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-500"><i class="fa-solid fa-inbox text-2xl mb-2"></i><p class="text-xs font-medium">No sessions found</p></td></tr>`;
         return;
     }
     sessions.forEach(s => {
-        tbody.innerHTML += `<tr class="hover:bg-white/5 transition-colors"><td class="py-3.5 font-bold text-white">${s.vehicle || 'N/A'}</td><td class="py-3.5 text-slate-400">${s.zone || 'N/A'}</td><td class="py-3.5 text-slate-400 font-semibold">${s.slot || 'N/A'}</td><td class="py-3.5 text-slate-400">${s.bookingType || 'Fixed'}</td><td class="py-3.5 text-white font-semibold">৳${(s.cost || 0).toFixed(2)}</td><td class="py-3.5 text-right"><span class="badge-success">Active</span></td></tr>`;
+        var isActive = isAdminActiveSession(s);
+        var statusBadge = '';
+        if (isActive) {
+            statusBadge = '<span class="badge-success">Active</span>';
+        } else if (s.paymentStatus === 'Rejected' || s.status === 'Rejected') {
+            statusBadge = '<span class="badge-danger">Rejected / Offline</span>';
+        } else if (s.status === 'Completed') {
+            statusBadge = '<span class="badge-neutral">Completed</span>';
+        } else {
+            statusBadge = '<span class="badge-warning">Inactive</span>';
+        }
+        tbody.innerHTML += `<tr class="hover:bg-white/5 transition-colors"><td class="py-3.5 font-bold text-white">${s.vehicle || 'N/A'}</td><td class="py-3.5 text-slate-400">${s.zone || 'N/A'}</td><td class="py-3.5 text-slate-400 font-semibold">${s.slot || 'N/A'}</td><td class="py-3.5 text-slate-400">${s.bookingType || 'Fixed'}</td><td class="py-3.5 text-white font-semibold">৳${(s.cost || 0).toFixed(2)}</td><td class="py-3.5 text-right">${statusBadge}</td></tr>`;
     });
 }
 
@@ -1645,8 +1691,16 @@ function getAllCustomerParkingData() {
         let allZoneSlots = {};
         let maxNextId = 1000;
         let maxNextHistId = 2000;
+        const seenSessionIds = new Set();
         Object.values(allData).forEach(function(userData) {
-            if (userData.sessions) allSessions = allSessions.concat(userData.sessions);
+            if (userData.sessions) {
+                userData.sessions.forEach(function(s) {
+                    const sid = s.id;
+                    if (sid === undefined || sid === null || seenSessionIds.has(sid)) return;
+                    seenSessionIds.add(sid);
+                    allSessions.push(s);
+                });
+            }
             if (userData.history) allHistory = allHistory.concat(userData.history);
             if (userData.zoneSlots) Object.assign(allZoneSlots, userData.zoneSlots);
             if (userData.nextId && userData.nextId > maxNextId) maxNextId = userData.nextId;
@@ -1674,7 +1728,7 @@ function recalculateZoneOccupancy(allSessions, allZoneSlots) {
         if (!z.spotStatus) z.spotStatus = Array.from({length: z.spots || 0}, (_, i) => ({ id: (z.id || '').replace('Zone-','') + '-' + String(i+1).padStart(2,'0'), index: i, occupied: false, plate: null, sessionId: null }));
         else z.spotStatus.forEach(function(s) { s.occupied = false; s.plate = null; s.sessionId = null; });
     });
-    const activeSessions = allSessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; });
+    const activeSessions = allSessions.filter(isAdminActiveSession);
     activeSessions.forEach(function(s) {
         const zone = zonesData[s.zoneId] || Object.values(zonesData).find(function(z) { return z.name === s.zone; });
         if (zone) {

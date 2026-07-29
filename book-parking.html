@@ -406,7 +406,7 @@ function saveData() {
 function syncZoneOccupancy() {
     Object.values(zonesData).forEach(function(z) { z.occupied = 0; });
     sessions.forEach(function(s) {
-        if (s.status === 'Active') {
+        if (s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected') {
             var zone = Object.values(zonesData).find(function(z) { return z.name === s.zone; });
             if (zone) zone.occupied = (zone.occupied || 0) + 1;
         }
@@ -660,6 +660,11 @@ function confirmPaymentFromBooking() {
     if (bookingType === 'meter') { var meterCost = (currentMeterRate / 3600) * meterElapsedSeconds; cost = meterCost > 0.01 ? meterCost : currentMeterRate * 0.01; }
     else { cost = z.rate * (parseInt(document.getElementById('book-duration').value) || 1); }
     var slotIndex = pendingBooking ? pendingBooking.slotIndex : -1;
+    
+    // Reload latest data from localStorage to pick up any admin changes (e.g. rejections)
+    var saved = getUserData('customerParkingData');
+    if (saved) { sessions = saved.sessions || []; nextBookingId = saved.nextId || 1000; nextHistoryId = saved.nextHistId || 2000; zoneSlots = saved.zoneSlots || {}; }
+    
     var booking = { id: nextBookingId++, name: document.getElementById('book-name').value.trim(), vehicle: document.getElementById('book-vehicle').value.trim(), vehicleType: document.getElementById('book-vehicle-type').value, zone: z.name, zoneId: zoneId, slot: document.getElementById('book-slot').value, slotIndex: slotIndex, date: document.getElementById('book-date').value, entryTime: document.getElementById('book-time').value, durationHours: parseInt(document.getElementById('book-duration').value) || 1, bookingType: bookingType, meterRate: z.rate, cost: cost, paymentMethod: document.getElementById('book-payment').value || document.getElementById('book-payment-meter').value, customerNumber: customerNumber, trxId: trxId, status: 'Active', createdAt: new Date().toISOString(), paid: true, paymentStatus: 'Pending' };
     sessions.push(booking);
     savePaymentRecord({ id: 'PAY-' + String(Date.now()).slice(-8), bookingId: booking.id, customerName: booking.name, vehicle: booking.vehicle, zone: booking.zone, slot: booking.slot, amount: booking.cost, paymentMethod: booking.paymentMethod, customerNumber: customerNumber, trxId: trxId, status: 'Pending', createdAt: new Date().toISOString() });
