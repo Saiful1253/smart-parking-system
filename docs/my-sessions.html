@@ -186,6 +186,33 @@ function saveData(extraHistory) {
     setUserData('customerParkingData', { sessions: sessions, nextId: nextBookingId, zoneSlots: zoneSlots, history: currentHistory, nextHistId: 2000 });
 }
 
+async function updateBackendSession(sessionId, updates) {
+    const token = localStorage.getItem('token_customer');
+    if (!token) return;
+    try {
+        var saved = getUserData('customerParkingData');
+        if (!saved || !saved.sessions) return;
+        var s = saved.sessions.find(function(ss) { return ss.id == sessionId; });
+        if (!s) return;
+        var backendId = s.backendId;
+        if (!backendId) {
+            const response = await fetch(API_BASE + '/api/parking/my-sessions', { method: 'GET', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
+            if (response.ok) {
+                const sessions = await response.json();
+                const match = sessions.find(function(bs) { return bs.plateNumber === s.vehicle && bs.zone === s.zone && bs.status === 'Active'; });
+                if (match) {
+                    backendId = match._id;
+                    s.backendId = backendId;
+                    saveData();
+                }
+            }
+        }
+        if (backendId) {
+            await fetch(API_BASE + '/api/parking/' + backendId, { method: 'PUT', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' }, body: JSON.stringify(updates) });
+        }
+    } catch (e) {}
+}
+
 function renderSessions() {
     var container = document.getElementById('session-card-container');
     var subtitle = document.getElementById('my-sessions-subtitle');
@@ -376,6 +403,11 @@ async function endSession(sessionId, skipConfirm) {
     var hist = { id: 2000 + sessions.filter(function(ss){return ss.status==='Completed';}).length, bookingId: s.id, name: s.name || 'Customer', vehicle: s.vehicle || 'N/A', zone: s.zone || 'N/A', slot: s.slot || 'N/A', date: s.date || now.toISOString().split('T')[0], entryTime: entryTimeStr, exitTime: exitTimeStr, duration: durationLabel, cost: s.cost || 0, payment: s.payment || 'Cash', paymentStatus: s.paymentStatus || 'Paid', status: 'Completed' };
     saveData([hist]);
     renderSessions();
+    var backendUpdates = { status: 'Completed', endTime: new Date().toISOString() };
+    if (s.payment) backendUpdates.payment = s.payment;
+    if (s.paymentStatus) backendUpdates.paymentStatus = s.paymentStatus;
+    if (s.cost) backendUpdates.cost = s.cost;
+    updateBackendSession(sessionId, backendUpdates).catch(function() {});
     showToast('success', 'Session #' + s.id + ' ended. Paid via ' + s.payment + '. Total: ৳' + s.cost.toFixed(2));
 }
 

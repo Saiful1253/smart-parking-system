@@ -45,8 +45,9 @@ async function loadZonesFromAPI() {
         const token = localStorage.getItem('token_admin');
         const response = await fetch(`${API_BASE}/api/admin/zones`, { method: 'GET', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
         const contentType = response.headers.get('content-type') || ''; const isJson = contentType.includes('application/json'); const data = isJson ? await response.json() : {};
-        if (response.ok && Array.isArray(data) && data.length > 0) { const newZonesData = {}; const order = []; data.forEach(zone => { newZonesData[zone.id] = zone; order.push(zone.id); }); zonesData = newZonesData; ZONE_ORDER = order; }
+        if (response.ok && Array.isArray(data) && data.length > 0) { const newZonesData = {}; const order = []; data.forEach(zone => { newZonesData[zone.id] = zone; order.push(zone.id); }); zonesData = newZonesData; ZONE_ORDER = order; return true; }
     } catch (error) { console.error('Backend not available, using local zones data:', error); }
+    return false;
 }
 
 function loadZonesFromLocalStorage() {
@@ -116,12 +117,12 @@ async function loadDashboardStats() {
         const token = localStorage.getItem('token_admin');
         const response = await fetch(`${API_BASE}/api/admin/dashboard-stats`, { method: 'GET', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
         const contentType = response.headers.get('content-type') || ''; const isJson = contentType.includes('application/json'); const data = isJson ? await response.json() : {};
-        if (response.ok) { updateSpottedVehiclesUI(data); updateZonesSpotsUI(data); if (data.activeSessions !== undefined && document.getElementById('active-sessions-count')) { document.getElementById('active-sessions-count').textContent = data.activeSessions; } }
-        else { updateDashboardStatsFromLocal(); }
+        if (response.ok) { updateSpottedVehiclesUI(data); updateZonesSpotsUI(data); if (data.activeSessions !== undefined && document.getElementById('active-sessions-count')) { document.getElementById('active-sessions-count').textContent = data.activeSessions; } if (data.revenue !== undefined && document.getElementById('stat-revenue')) { document.getElementById('stat-revenue').textContent = 'BDT ' + parseFloat(data.revenue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } }
+        else { updateDashboardStatsFromLocal(); updateRevenueUI(); }
     } catch (error) { 
         updateDashboardStatsFromLocal(); 
+        updateRevenueUI();
     }
-    updateRevenueUI();
 }
 
 function updateSpottedVehiclesUI(stats) {
@@ -152,6 +153,7 @@ function updateDashboardStatsFromLocal() {
     const spotsEl = document.getElementById('stat-spots');
     const freeEl = document.getElementById('stat-free');
     const anomaliesEl = document.getElementById('stat-anomalies');
+    const activeSessionsEl = document.getElementById('active-sessions-count');
     if (zonesEl) zonesEl.textContent = totalZones;
     if (spotsEl) spotsEl.textContent = totalSpots;
     if (freeEl) freeEl.textContent = freeSpots;
@@ -159,6 +161,9 @@ function updateDashboardStatsFromLocal() {
         var computed = getLocalAnomalies();
         try { localStorage.setItem('smartpark_anomalies', JSON.stringify(computed)); } catch (e) {}
         anomaliesEl.textContent = computed.length;
+    }
+    if (activeSessionsEl) {
+        activeSessionsEl.textContent = getSystemActiveSessionCount();
     }
 }
 async function updateDashboardStats() { await loadDashboardStats(); }
@@ -168,18 +173,17 @@ async function refreshZones() {
     if (refreshIcon) refreshIcon.classList.add('fa-spin');
     try {
         migrateRejectedSessions();
-        await loadZonesFromAPI();
-        const allData = getAllCustomerParkingData();
-        recalculateZoneOccupancy(allData.sessions);
+        var zonesLoaded = await loadZonesFromAPI();
+        if (!zonesLoaded) {
+            const allData = getAllCustomerParkingData();
+            recalculateZoneOccupancy(allData.sessions);
+        }
         if (document.getElementById('zones-grid')) renderZonesGrid();
         updateChartFromZones();
         updateDashboardStats();
         if (document.getElementById('sessions-table-body')) renderSessionsTable();
         if (document.getElementById('history-table-body')) { syncHistoryFromAllCustomers(); renderHistoryTable(); }
         if (document.getElementById('sensor-log')) renderSensorLog();
-        if (document.getElementById('active-sessions-count')) {
-            document.getElementById('active-sessions-count').textContent = getSystemActiveSessionCount();
-        }
         if (document.getElementById('stat-free')) {
             const zones = Object.values(zonesData);
             const totalSpots = zones.reduce(function(sum, z) { return sum + (z.spots || 0); }, 0);
@@ -194,16 +198,15 @@ async function refreshZones() {
 setInterval(async () => {
     migrateRejectedSessions();
     if (document.getElementById('zones-grid')) {
-        await loadZonesFromAPI();
-        const allData = getAllCustomerParkingData();
-        recalculateZoneOccupancy(allData.sessions);
+        var zonesLoaded = await loadZonesFromAPI();
+        if (!zonesLoaded) {
+            const allData = getAllCustomerParkingData();
+            recalculateZoneOccupancy(allData.sessions);
+        }
         renderZonesGrid();
         updateChartFromZones();
         if (document.getElementById('sessions-table-body')) renderSessionsTable();
         if (document.getElementById('sensor-log')) renderSensorLog();
-        if (document.getElementById('active-sessions-count')) {
-            document.getElementById('active-sessions-count').textContent = getSystemActiveSessionCount();
-        }
         if (document.getElementById('stat-free')) {
             const zones = Object.values(zonesData);
             const totalSpots = zones.reduce(function(sum, z) { return sum + (z.spots || 0); }, 0);
@@ -252,9 +255,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (document.getElementById('sessions-table-body')) renderSessionsTable();
     if (document.getElementById('history-table-body')) { syncHistoryFromAllCustomers(); renderHistoryTable(); }
     if (document.getElementById('sensor-log')) renderSensorLog();
-    if (document.getElementById('active-sessions-count')) {
-        document.getElementById('active-sessions-count').textContent = getSystemActiveSessionCount();
-    }
     if (document.getElementById('zones-grid')) renderZonesGrid();
     updateChartFromZones();
 });
@@ -464,18 +464,17 @@ async function triggerRefresh() {
     showToast('info', 'Refreshing system data...');
     try {
         migrateRejectedSessions();
-        await loadZonesFromAPI(); await loadDashboardStats(); await loadAnomalies();
-        const allData = getAllCustomerParkingData();
-        recalculateZoneOccupancy(allData.sessions);
+        var zonesLoaded = await loadZonesFromAPI(); await loadDashboardStats(); await loadAnomalies();
+        if (!zonesLoaded) {
+            const allData = getAllCustomerParkingData();
+            recalculateZoneOccupancy(allData.sessions);
+        }
         if (document.getElementById('zones-grid')) { renderZonesGrid(); }
         updateChartFromZones();
         if (document.getElementById('sessions-table-body')) renderSessionsTable();
         if (document.getElementById('history-table-body')) { syncHistoryFromAllCustomers(); renderHistoryTable(); }
         if (document.getElementById('sensor-log')) renderSensorLog();
         if (document.getElementById('cash-table-body')) loadCashVerifications();
-        if (document.getElementById('active-sessions-count')) {
-            document.getElementById('active-sessions-count').textContent = getSystemActiveSessionCount();
-        }
         if (document.getElementById('stat-free')) {
             const zones = Object.values(zonesData);
             const totalSpots = zones.reduce(function(sum, z) { return sum + (z.spots || 0); }, 0);
@@ -1390,12 +1389,13 @@ function renderSessionsTable() {
         tbody.innerHTML += `<tr class="hover:bg-white/5 transition-colors"><td class="py-3.5 font-bold text-white">${s.vehicle || 'N/A'}</td><td class="py-3.5 text-slate-400">${s.zone || 'N/A'}</td><td class="py-3.5 text-slate-400 font-semibold">${s.slot || 'N/A'}</td><td class="py-3.5 text-slate-400">${s.bookingType || 'Fixed'}</td><td class="py-3.5 text-white font-semibold">৳${(s.cost || 0).toFixed(2)}</td><td class="py-3.5 text-right">${statusBadge}</td><td class="py-3.5 text-right">${actionHtml}</td></tr>`;
     });
 }
-function endAdminSession(bookingId) {
+async function endAdminSession(bookingId) {
     if (!bookingId && bookingId !== 0) return;
     if (!confirm('End this parking session? This will free the slot and mark the session as completed.')) return;
     try {
         var allRaw = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
         var found = false;
+        var localSession = null;
         Object.keys(allRaw).forEach(function(email) {
             var userData = allRaw[email];
             if (!userData || !userData.sessions) return;
@@ -1405,6 +1405,7 @@ function endAdminSession(bookingId) {
                     s.paymentStatus = s.paymentStatus || 'Paid';
                     s.endedAt = new Date().toISOString();
                     found = true;
+                    localSession = s;
                 }
             });
             if (found && userData.zoneSlots) {
@@ -1423,6 +1424,19 @@ function endAdminSession(bookingId) {
         });
         if (found) {
             localStorage.setItem('customerParkingData_by_user', JSON.stringify(allRaw));
+            var token = localStorage.getItem('token_admin');
+            if (token && localSession) {
+                try {
+                    const sessionsResponse = await fetch(API_BASE + '/api/admin/sessions', { method: 'GET', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
+                    if (sessionsResponse.ok) {
+                        const allSessions = await sessionsResponse.json();
+                        const match = allSessions.find(function(bs) { return bs.plateNumber === localSession.vehicle && bs.zone === localSession.zone && (bs.status === 'Active' || bs.status === 'Parked'); });
+                        if (match) {
+                            await fetch(API_BASE + '/api/parking/' + match._id, { method: 'PUT', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'Completed', endTime: new Date().toISOString(), paymentStatus: localSession.paymentStatus || 'Paid', payment: localSession.payment || 'Cash', cost: localSession.cost || 0 }) });
+                        }
+                    }
+                } catch (e) {}
+            }
             triggerRefresh();
             showToast('success', 'Session ended successfully.');
         } else {
