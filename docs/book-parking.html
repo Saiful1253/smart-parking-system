@@ -15,12 +15,34 @@
         tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter','Poppins','sans-serif'] }, colors: { sp: { primary:'#0B1426', secondary:'#111B33', card:'#152238', accent:'#3B82F6', emerald:'#10B981', purple:'#8B5CF6', cyan:'#06B6D4' } } } } }
     </script>
     <style>
-        #customer-map { height: 420px; border-radius: 1rem; z-index: 10; background: #111B33; }
-        #customer-map .leaflet-control-zoom a { background: #152238 !important; color: #94a3b8 !important; border-color: #334155 !important; border-radius: 8px !important; }
-        #customer-map .leaflet-control-zoom a:hover { background: #1A2B47 !important; color: white !important; }
-        .leaflet-popup-content-wrapper { background: #152238 !important; color: #f8fafc !important; border: 1px solid rgba(59,130,246,0.15) !important; border-radius: 14px !important; box-shadow: 0 10px 40px rgba(0,0,0,0.35) !important; }
-        .leaflet-popup-tip { background: #152238 !important; }
+        #customer-map { height: 420px; border-radius: 1rem; z-index: 10; background: #f1f5f9; }
+        #customer-map .leaflet-control-zoom a { background: #ffffff !important; color: #1f2937 !important; border-color: #e5e7eb !important; border-radius: 8px !important; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        #customer-map .leaflet-control-zoom a:hover { background: #f8fafc !important; color: #111827 !important; }
+        .leaflet-popup-content-wrapper { background: #ffffff !important; color: #0f172a !important; border: 1px solid #e2e8f0 !important; border-radius: 14px !important; box-shadow: 0 10px 30px rgba(0,0,0,0.12) !important; }
+        .leaflet-popup-tip { background: #ffffff !important; }
         .leaflet-control-attribution { display: none !important; }
+        .zone-marker { position: relative; z-index: 2; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.18); font-size: 12px; color: white; font-weight: 700; font-family: 'Poppins', sans-serif; transition: all 0.3s ease; cursor: pointer; }
+        .zone-marker:hover { transform: scale(1.15); box-shadow: 0 6px 18px rgba(0,0,0,0.25); }
+        .zone-marker.active { background: #3B82F6; }
+        .zone-marker.maintenance { background: #F59E0B; }
+        .zone-marker.closed { background: #EF4444; }
+        .zone-marker-pulse { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%; height: 100%; border-radius: 50%; animation: markerPulse 2s ease-out infinite; pointer-events: none; }
+        .zone-marker-pulse.active { background: rgba(59,130,246,0.35); }
+        .zone-marker-pulse.maintenance { background: rgba(245,158,11,0.35); }
+        .zone-marker-pulse.closed { background: rgba(239,68,68,0.35); }
+        @keyframes markerPulse { 0% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; } 100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; } }
+        .map-popup { font-family: 'Poppins', sans-serif; min-width: 220px; background: #ffffff; padding: 6px; }
+        .map-popup h4 { font-size: 15px; font-weight: 700; margin: 0 0 4px; color: #0f172a; }
+        .map-popup .location { font-size: 11px; color: #475569; margin: 0 0 8px; }
+        .map-popup .stats { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
+        .map-popup .stats span { display: flex; align-items: center; gap: 4px; }
+        .map-popup .stats .free { color: #10B981; font-weight: 700; }
+        .map-popup .stats .occupied { color: #EF4444; font-weight: 700; }
+        .map-popup .rate { font-size: 12px; color: #475569; margin: 0 0 10px; }
+        .map-popup .rate strong { color: #2563EB; }
+        .map-popup .book-btn { width: 100%; padding: 10px; background: #2563EB; color: white; border: none; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: 'Poppins', sans-serif; transition: all 0.2s; box-shadow: 0 4px 12px rgba(37,99,235,0.25); }
+        .map-popup .book-btn:hover { background: #1d4ed8; transform: translateY(-1px); }
+        .map-popup .unavailable-btn { width: 100%; padding: 10px; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: not-allowed; }
         .booking-type-btn { flex:1; padding: 10px 16px; font-size: 12px; font-weight: 700; border-radius: 12px; cursor: pointer; transition: all 0.3s; border: 2px solid transparent; text-align: center; }
         .booking-type-btn.active-fixed { background: var(--sp-accent-blue); color: white; border-color: var(--sp-accent-blue); box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
         .booking-type-btn.active-meter { background: var(--sp-accent-emerald); color: white; border-color: var(--sp-accent-emerald); box-shadow: 0 4px 12px rgba(16,185,129,0.3); }
@@ -365,10 +387,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     setTimeout(initMap, 100);
     setTimeout(getAISuggestions, 2000);
-    window.addEventListener('resize', function() { if (map) setTimeout(function() { map.invalidateSize(); }, 100); });
+    window.addEventListener('resize', function() { if (map) setTimeout(function() { map.invalidateSize(); refreshMapMarkers(); }, 200); });
 });
 
-function refreshData() { renderZones(); if (map) map.invalidateSize(); showToast('info', 'Data refreshed!'); }
+function refreshData() { renderZones(); if (map) { refreshMapMarkers(); map.invalidateSize(); } showToast('info', 'Data refreshed!'); }
 
 function initZoneSlots() {
     Object.keys(zonesData).forEach(function(key) {
@@ -424,42 +446,67 @@ function initMap() {
     var zones = Object.values(zonesData);
     var clat = zones.length > 0 ? zones.reduce(function(s,z) { return s+z.lat; }, 0) / zones.length : 23.81000;
     var clng = zones.length > 0 ? zones.reduce(function(s,z) { return s+z.lng; }, 0) / zones.length : 90.40000;
-    map = L.map('customer-map', { scrollWheelZoom: true }).setView([clat, clng], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-    setTimeout(function() { var l = document.getElementById('map-loading'); if(l) l.style.display='none'; }, 2500);
+    map = L.map('customer-map', { scrollWheelZoom: true, zoomControl: true }).setView([clat, clng], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19
+    }).addTo(map);
     addMarkers();
+    setTimeout(function() { var l = document.getElementById('map-loading'); if(l) l.style.display='none'; }, 1500);
     setTimeout(function() { map.invalidateSize(); }, 300);
+    // Auto-refresh map markers every 10 seconds
+    if (window._mapRefreshInterval) clearInterval(window._mapRefreshInterval);
+    window._mapRefreshInterval = setInterval(function() {
+        if (document.getElementById('customer-map') && typeof addMarkers === 'function') {
+            refreshMapMarkers();
+        }
+    }, 10000);
 }
 
+function refreshMapMarkers() { addMarkers(); }
 function addMarkers() {
     if (!map) return;
     markers.forEach(function(m) { map.removeLayer(m); });
     markers = [];
+    addMarkersContent();
+}
+
+function addMarkersContent() {
+    if (!map) return;
     Object.values(zonesData).forEach(function(z) {
-        var color = z.status === 'Active' ? '#3B82F6' : (z.status === 'Maintenance' ? '#F59E0B' : '#EF4444');
+        var statusClass = z.status === 'Active' ? 'active' : (z.status === 'Maintenance' ? 'maintenance' : 'closed');
         var icon = L.divIcon({
-            html: '<div style="background:' + color + ';width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid #152238;box-shadow:0 2px 8px rgba(0,0,0,0.3);font-size:11px;color:white;font-weight:bold;font-family:Poppins,sans-serif;">' + z.name.replace('Zone ','') + '</div>',
-            iconSize: [30,30], iconAnchor: [15,15], className: ''
+            html: '<div style="position:relative;display:flex;align-items:center;justify-content:center;">' +
+                  '<div class="zone-marker-pulse ' + statusClass + '"></div>' +
+                  '<div class="zone-marker ' + statusClass + '">' + z.name.replace('Zone ','') + '</div></div>',
+            iconSize: [36,36], iconAnchor: [18,18], className: ''
         });
         var m = L.marker([z.lat, z.lng], { icon: icon });
-        var popupHtml = '<div style="font-family:Poppins,sans-serif;min-width:200px;background:#152238;padding:4px;">' +
-            '<h4 style="font-size:15px;font-weight:700;margin:0 0 4px;color:#f8fafc;">' + z.name + '</h4>' +
-            '<p style="font-size:11px;color:#94a3b8;margin:0 0 8px;">' + z.location + '</p>' +
-            '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">' +
+        var isActive = z.status === 'Active';
+        var popupHtml = '<div class="map-popup">' +
+            '<h4>' + z.name + '</h4>' +
+            '<p class="location"><i class="fa-solid fa-location-dot" style="margin-right:4px;"></i>' + z.location + '</p>' +
+            '<div class="stats">' +
             '<span>Total: <strong>' + z.spots + '</strong></span>' +
-            '<span>Free: <strong style="color:#10B981;">' + z.free + '</strong></span>' +
-            '<span>Occupied: <strong style="color:#EF4444;">' + z.occupied + '</strong></span></div>' +
-            '<p style="font-size:12px;color:#94a3b8;margin:0 0 8px;">Fee: <strong style="color:#3B82F6;">৳' + z.rate.toFixed(2) + '/hr</strong></p>' +
-            '<button onclick="openBookingModal(\'' + z.id + '\')" style="width:100%;padding:8px;background:#3B82F6;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Poppins,sans-serif;">Book Now</button></div>';
+            '<span class="free">Free: ' + (z.free !== undefined ? z.free : z.spots) + '</span>' +
+            '<span class="occupied">Occupied: ' + (z.occupied !== undefined ? z.occupied : 0) + '</span>' +
+            '</div>' +
+            '<p class="rate">Fee: <strong>৳' + z.rate.toFixed(2) + '/hr</strong></p>' +
+            (isActive ? '<button class="book-btn" onclick="openBookingModal(\'' + z.id + '\')">Book Now</button>' : '<button class="unavailable-btn">Zone Unavailable</button>') +
+            '</div>';
         m.bindPopup(popupHtml, { maxWidth: 280, className: '' });
         m.on('click', function() { map.setView([z.lat, z.lng], 16, { animate: true }); });
+        m.on('mouseover', function() { this.getElement().style.zIndex = 1000; });
+        m.on('mouseout', function() { this.getElement().style.zIndex = ''; });
         markers.push(m);
+        m.addTo(map);
     });
 }
 
 function retryMap() {
     document.getElementById('map-error').style.display = 'none';
     document.getElementById('map-loading').style.display = 'flex';
+    if (map) { map.remove(); map = null; }
     setTimeout(initMap, 500);
 }
 
