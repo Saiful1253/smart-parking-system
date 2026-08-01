@@ -789,3 +789,15 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   right: 6px;
   animation: pulseGlow 2s infinite;
 }
+
+/* ---- Google Sign-In ---- */
+#google-login-button,
+#google-signup-button {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+#google-login-button > div,
+#google-signup-button > div {
+  margin: 0 auto;
+}

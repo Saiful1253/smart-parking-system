@@ -13,6 +13,27 @@ const API_BASE = (() => {
 document.addEventListener('DOMContentLoaded', () => {
     const rememberedEmail = localStorage.getItem('rememberedEmail');
     if (rememberedEmail) { const emailInput = document.getElementById('login-email'); if (emailInput) { emailInput.value = rememberedEmail; document.getElementById('remember-me').checked = true; } }
+
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+        const clientId = (window.env && window.env.GOOGLE_CLIENT_ID) || '';
+        if (clientId) {
+            google.accounts.id.initialize({
+                client_id: clientId,
+                callback: handleGoogleCredentialResponse,
+                auto_select: false,
+                cancel_on_tap_outside: true
+            });
+            const loginContainer = document.getElementById('google-login-button');
+            if (loginContainer) {
+                google.accounts.id.renderButton(loginContainer, { theme: 'outline', size: 'large', width: loginContainer.offsetWidth || 300 });
+            }
+            const signupContainer = document.getElementById('google-signup-button');
+            if (signupContainer) {
+                google.accounts.id.renderButton(signupContainer, { theme: 'outline', size: 'large', width: signupContainer.offsetWidth || 300 });
+            }
+            window.__googleSignInInitialized = true;
+        }
+    }
 });
 
 function getRoleTokenKey(role) { return role === 'admin' ? 'token_admin' : 'token_customer'; }
@@ -330,6 +351,7 @@ function setRole(role) {
     const adminKeyInput = document.getElementById('login-admin-key');
     const submitBtn = document.getElementById('login-submit-btn');
     const submitText = document.getElementById('login-submit-text');
+    const googleLoginContainer = document.getElementById('google-login-container');
     if (!customerBtn || !submitBtn) return;
     if (role === 'customer') {
         currentRole = 'customer';
@@ -340,6 +362,7 @@ function setRole(role) {
         adminKeyInput.removeAttribute('required'); adminKeyInput.value = '';
         submitBtn.className = "btn-primary w-full py-3.5 flex items-center justify-center gap-2 group";
         submitText.innerHTML = '<i class="fa-solid fa-right-to-bracket group-hover:translate-x-1 transition-transform"></i> Secure Sign In';
+        if (googleLoginContainer) { googleLoginContainer.classList.remove('hidden'); }
     } else {
         currentRole = 'admin';
         adminBtn.className = "flex items-center justify-center gap-2 py-2.5 text-xs font-semibold rounded-lg transition-all duration-300 bg-gradient-to-r from-sp-purple to-sp-accent text-white shadow-md";
@@ -351,6 +374,7 @@ function setRole(role) {
         submitBtn.style.background = 'linear-gradient(135deg, #8B5CF6, #3B82F6)';
         submitBtn.style.boxShadow = '0 4px 14px rgba(139,92,246,0.35)';
         submitText.innerHTML = '<i class="fa-solid fa-shield-halved group-hover:scale-110 transition-transform"></i> Secure Admin Sign In';
+        if (googleLoginContainer) { googleLoginContainer.classList.add('hidden'); }
     }
 }
 
@@ -359,16 +383,24 @@ function switchTab(tab) {
     const registerTab = document.getElementById('tab-register');
     const loginForm = document.getElementById('login-form');
     const registerForm = document.getElementById('register-form');
+    const googleLoginContainer = document.getElementById('google-login-container');
+    const googleSignupContainer = document.getElementById('google-signup-container');
     if (tab === 'login') {
         loginTab.className = "flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 bg-gradient-to-r from-sp-accent to-sp-accent text-white shadow-lg";
         registerTab.className = "flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 text-slate-400 hover:text-slate-200";
         registerForm.classList.add('opacity-0', 'translate-x-8');
         setTimeout(() => { registerForm.classList.add('hidden'); loginForm.classList.remove('hidden'); setTimeout(() => { loginForm.classList.remove('opacity-0', '-translate-x-8'); }, 50); }, 300);
+        if (googleLoginContainer && currentRole === 'customer') { googleLoginContainer.classList.remove('hidden'); }
+        else if (googleLoginContainer) { googleLoginContainer.classList.add('hidden'); }
+        if (googleSignupContainer) { googleSignupContainer.classList.add('hidden'); }
     } else {
         registerTab.className = "flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 bg-gradient-to-r from-sp-emerald to-sp-cyan text-white shadow-lg";
         loginTab.className = "flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 text-slate-400 hover:text-slate-200";
         loginForm.classList.add('opacity-0', '-translate-x-8');
         setTimeout(() => { loginForm.classList.add('hidden'); registerForm.classList.remove('hidden'); setTimeout(() => { registerForm.classList.remove('opacity-0', 'translate-x-8'); }, 50); }, 300);
+        if (googleLoginContainer) { googleLoginContainer.classList.add('hidden'); }
+        if (googleSignupContainer && currentRole === 'customer') { googleSignupContainer.classList.remove('hidden'); }
+        else if (googleSignupContainer) { googleSignupContainer.classList.add('hidden'); }
     }
 }
 
@@ -498,27 +530,115 @@ function handleForgotPassword(event) {
     closeModal('forgot-modal'); showToast('success', `Password reset link sent to ${email}`); event.target.reset();
 }
 
-function socialLogin(provider) { showToast('info', `Connecting with ${provider}...`); setTimeout(() => { showToast('success', `Successfully authenticated with ${provider}!`); }, 1200); }
+function socialLogin(provider) {
+    if (provider === 'Google') {
+        if (!(window.env && window.env.GOOGLE_CLIENT_ID)) {
+            showToast('error', 'Google Sign-In is not configured. Set GOOGLE_CLIENT_ID in env.js.');
+            return;
+        }
+        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+            if (!window.__googleSignInInitialized) {
+                google.accounts.id.initialize({
+                    client_id: window.env.GOOGLE_CLIENT_ID,
+                    callback: handleGoogleCredentialResponse,
+                    auto_select: false,
+                    cancel_on_tap_outside: true
+                });
+                const loginContainer = document.getElementById('google-login-button');
+                if (loginContainer) {
+                    google.accounts.id.renderButton(loginContainer, { theme: 'outline', size: 'large', width: loginContainer.offsetWidth || 300 });
+                }
+                const signupContainer = document.getElementById('google-signup-button');
+                if (signupContainer) {
+                    google.accounts.id.renderButton(signupContainer, { theme: 'outline', size: 'large', width: signupContainer.offsetWidth || 300 });
+                }
+                window.__googleSignInInitialized = true;
+            }
+            google.accounts.id.prompt();
+        } else {
+            showToast('error', 'Google Sign-In is loading. Please try again in a moment.');
+        }
+        return;
+    }
+    showToast('info', `Connecting with ${provider}...`);
+    setTimeout(() => { showToast('success', `Successfully authenticated with ${provider}!`); }, 1200);
+}
+
+function triggerGoogleLogin() {
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+        if (!(window.env && window.env.GOOGLE_CLIENT_ID)) {
+            showToast('error', 'Google Sign-In is not configured. Set GOOGLE_CLIENT_ID in env.js.');
+            return;
+        }
+        if (!window.__googleSignInInitialized) {
+            google.accounts.id.initialize({
+                client_id: window.env.GOOGLE_CLIENT_ID,
+                callback: handleGoogleCredentialResponse,
+                auto_select: false,
+                cancel_on_tap_outside: true
+            });
+            const loginContainer = document.getElementById('google-login-button');
+            if (loginContainer) {
+                google.accounts.id.renderButton(loginContainer, { theme: 'outline', size: 'large', width: loginContainer.offsetWidth || 300 });
+            }
+            const signupContainer = document.getElementById('google-signup-button');
+            if (signupContainer) {
+                google.accounts.id.renderButton(signupContainer, { theme: 'outline', size: 'large', width: signupContainer.offsetWidth || 300 });
+            }
+            window.__googleSignInInitialized = true;
+        }
+        google.accounts.id.prompt();
+    } else {
+        showToast('error', 'Google Sign-In is not loaded. Please refresh the page.');
+    }
+}
+
+function verifyGoogleSignIn() {
+    const results = [];
+    if (!(window.env && window.env.GOOGLE_CLIENT_ID)) results.push('FAIL: GOOGLE_CLIENT_ID is not set in env.js');
+    else results.push('PASS: GOOGLE_CLIENT_ID is configured');
+    if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) results.push('FAIL: Google Identity Services library is not loaded');
+    else results.push('PASS: Google Identity Services library is loaded');
+    const hasButton = !!document.getElementById('google-login-container');
+    results.push(hasButton ? 'PASS: Google login container exists' : 'FAIL: Google login container missing');
+    console.log('Google Sign-In Verification:\n' + results.join('\n'));
+    return results;
+}
+
+function runGoogleVerification() {
+    const results = verifyGoogleSignIn();
+    results.forEach(function(r) {
+        const type = r.startsWith('PASS') ? 'success' : 'error';
+        showToast(type, r);
+    });
+}
 
 function handleGoogleCredentialResponse(response) {
-    const credential = response.credential;
-    if (!credential) { showToast('error', 'Google authentication failed: no credential received.'); return; }
-    fetch(`${API_BASE}/api/auth/google`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credential })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.token) {
-            setStoredAuth('customer', data.token, { email: data.email, role: 'customer', name: data.name });
-            showToast('success', 'Google login successful! Redirecting...');
-            setTimeout(() => { window.location.href = 'book-parking.html'; }, 1500);
-        } else {
-            showToast('error', data.msg || 'Google authentication failed');
+    if (!response || !response.credential) {
+        showToast('error', 'Google authentication failed: no credential received.');
+        return;
+    }
+    try {
+        const base64Url = response.credential.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(window.atob(base64));
+        const email = payload.email;
+        const name = payload.name || email.split('@')[0];
+        if (!email) { showToast('error', 'Google authentication failed: no email found.'); return; }
+        const users = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
+        const emailLower = email.toLowerCase();
+        let user = users.find(function(u) { return (u.email || '').toLowerCase() === emailLower; });
+        if (!user) {
+            user = { email: emailLower, password: 'google-oauth', role: 'customer', name: name };
+            users.push(user);
+            localStorage.setItem('smartParkUsers', JSON.stringify(users));
         }
-    })
-    .catch(() => showToast('error', 'Google authentication failed'));
+        setStoredAuth('customer', 'static-token', { email: emailLower, role: 'customer', name: name });
+        showToast('success', 'Google login successful! Redirecting...');
+        setTimeout(() => { window.location.href = 'book-parking.html'; }, 1500);
+    } catch (e) {
+        showToast('error', 'Failed to process Google authentication.');
+    }
 }
 
 function showToast(type, message) {

@@ -251,20 +251,16 @@
                     </span>
                 </button>
 
-                <!-- Divider -->
-                <div class="relative my-6">
-                    <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-sp-accent/10"></div></div>
-                    <div class="relative flex justify-center text-xs uppercase"><span class="bg-sp-card/80 px-3 text-slate-500 font-medium">Or continue with</span></div>
+                <div id="google-login-container" class="grid grid-cols-1 gap-3">
+                    <div id="google-login-button"></div>
+                    <button type="button" onclick="runGoogleVerification()" class="text-[10px] text-slate-500 hover:text-sp-accent transition-colors py-1">
+                        <i class="fa-solid fa-flask text-[8px] mr-1"></i> Verify Google Sign-In Config
+                    </button>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3">
-                    <button type="button" onclick="socialLogin('Google')" class="btn-secondary py-2.5 text-xs">
-                        <i class="fa-brands fa-google text-red-500 text-sm"></i> Google
-                    </button>
-                    <button type="button" onclick="socialLogin('Apple')" class="btn-secondary py-2.5 text-xs">
-                        <i class="fa-brands fa-apple text-white text-sm"></i> Apple
-                    </button>
-                </div>
+
+
+
             </form>
 
             <!-- REGISTER FORM -->
@@ -320,6 +316,10 @@
                         Create Free Account
                     </span>
                 </button>
+
+                <div id="google-signup-container" class="grid grid-cols-1 gap-3">
+                    <div id="google-signup-button"></div>
+                </div>
             </form>
         </div>
     </div>
@@ -437,7 +437,9 @@
     </button>
 </div>
 
-<script src="js/script.js"></script>
+    <script src="js/env.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="js/script.js"></script>
 </body>
 </html>
 
