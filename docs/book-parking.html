@@ -438,7 +438,7 @@ function addMarkers() {
     Object.values(zonesData).forEach(function(z) {
         var color = z.status === 'Active' ? '#3B82F6' : (z.status === 'Maintenance' ? '#F59E0B' : '#EF4444');
         var icon = L.divIcon({
-            html: '<div style="background:' + color + ';width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid #152238;box-shadow:0 2px 8px rgba(0,0,0,0.4);font-size:11px;color:white;font-weight:bold;font-family:Poppins,sans-serif;">' + z.name.replace('Zone ','') + '</div>',
+            html: '<div style="background:' + color + ';width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid #152238;box-shadow:0 2px 8px rgba(0,0,0,0.3);font-size:11px;color:white;font-weight:bold;font-family:Poppins,sans-serif;">' + z.name.replace('Zone ','') + '</div>',
             iconSize: [30,30], iconAnchor: [15,15], className: ''
         });
         var m = L.marker([z.lat, z.lng], { icon: icon });
