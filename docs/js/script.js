@@ -14,9 +14,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const rememberedEmail = localStorage.getItem('rememberedEmail');
     if (rememberedEmail) { const emailInput = document.getElementById('login-email'); if (emailInput) { emailInput.value = rememberedEmail; document.getElementById('remember-me').checked = true; } }
 
-    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-        const clientId = (window.env && window.env.GOOGLE_CLIENT_ID) || '';
-        if (clientId) {
+    const clientId = (window.env && window.env.GOOGLE_CLIENT_ID) || '';
+    if (!clientId) return;
+
+    const tryInitGoogle = () => {
+        if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) return false;
+        if (!window.__googleSignInInitialized) {
             google.accounts.id.initialize({
                 client_id: clientId,
                 callback: handleGoogleCredentialResponse,
@@ -33,6 +36,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             window.__googleSignInInitialized = true;
         }
+        return true;
+    };
+
+    if (!tryInitGoogle()) {
+        let attempts = 0;
+        const maxAttempts = 50;
+        const interval = setInterval(() => {
+            attempts++;
+            if (tryInitGoogle() || attempts >= maxAttempts) {
+                clearInterval(interval);
+            }
+        }, 100);
     }
 });
 
