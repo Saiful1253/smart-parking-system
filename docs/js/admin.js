@@ -427,7 +427,7 @@ function renderLocalBookingTrend(period) {
             const dateStr = d.toISOString().split('T')[0];
             const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
             labels.push(dayName);
-            values.push(sessions.filter(function(s) { return s.date === dateStr && isAdminActiveSession(s); }).length);
+            values.push(sessions.filter(function(s) { return s.date === dateStr; }).length);
         }
         bookingTrendChart.data.datasets[0].label = 'Bookings this week';
     } else if (period === 'month') {
@@ -437,7 +437,7 @@ function renderLocalBookingTrend(period) {
             const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
             const label = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
             labels.push(label);
-            values.push(sessions.filter(function(s) { return s.date >= weekStart.toISOString().split('T')[0] && s.date <= weekEnd.toISOString().split('T')[0] && isAdminActiveSession(s); }).length);
+            values.push(sessions.filter(function(s) { return s.date >= weekStart.toISOString().split('T')[0] && s.date <= weekEnd.toISOString().split('T')[0]; }).length);
         }
         bookingTrendChart.data.datasets[0].label = 'Bookings this month';
     } else {
@@ -445,7 +445,7 @@ function renderLocalBookingTrend(period) {
             const d = new Date(now); d.setMonth(d.getMonth() - i);
             const monthName = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
             labels.push(monthName);
-            values.push(sessions.filter(function(s) { const sm = s.date ? s.date.substring(0, 7) : ''; return sm === d.toISOString().substring(0, 7) && isAdminActiveSession(s); }).length);
+            values.push(sessions.filter(function(s) { var sm = s.date ? s.date.substring(0, 7) : ''; return sm === d.toISOString().substring(0, 7); }).length);
         }
         bookingTrendChart.data.datasets[0].label = 'Bookings this year';
     }
