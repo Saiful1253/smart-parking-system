@@ -500,6 +500,27 @@ function handleForgotPassword(event) {
 
 function socialLogin(provider) { showToast('info', `Connecting with ${provider}...`); setTimeout(() => { showToast('success', `Successfully authenticated with ${provider}!`); }, 1200); }
 
+function handleGoogleCredentialResponse(response) {
+    const credential = response.credential;
+    if (!credential) { showToast('error', 'Google authentication failed: no credential received.'); return; }
+    fetch(`${API_BASE}/api/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.token) {
+            setStoredAuth('customer', data.token, { email: data.email, role: 'customer', name: data.name });
+            showToast('success', 'Google login successful! Redirecting...');
+            setTimeout(() => { window.location.href = 'book-parking.html'; }, 1500);
+        } else {
+            showToast('error', data.msg || 'Google authentication failed');
+        }
+    })
+    .catch(() => showToast('error', 'Google authentication failed'));
+}
+
 function showToast(type, message) {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
