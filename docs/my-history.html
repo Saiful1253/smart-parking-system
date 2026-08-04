@@ -216,29 +216,39 @@ async function loadData() {
 
 function getHistoryFromLocalStorage() {
     var saved = getUserData('customerParkingData');
+    var combined = [];
+    var seen = new Set();
+    function addRecord(record) {
+        var key = String(record.bookingId || record.id || '');
+        if (!seen.has(key)) { seen.add(key); combined.push(record); }
+    }
+    function mapSessionToHistory(s) {
+        return {
+            id: s.id || 0,
+            bookingId: s.id,
+            name: s.name || 'Customer',
+            vehicle: s.vehicle || 'N/A',
+            zone: s.zone || 'N/A',
+            slot: s.slot || 'N/A',
+            date: s.date || '',
+            entryTime: s.entryTime || '00:00',
+            exitTime: s.exitTime || '00:00',
+            duration: s.durationHours ? s.durationHours + 'h' : (s.duration || '1h'),
+            cost: s.cost || 0,
+            payment: s.payment || s.paymentMethod || 'Cash',
+            paymentStatus: s.paymentStatus || 'Paid',
+            customerNumber: s.customerNumber || '-',
+            trxId: s.trxId || '-',
+            status: 'Completed'
+        };
+    }
     if (saved) {
-        if (saved.history && saved.history.length > 0) return saved.history;
-        if (saved.sessions && saved.sessions.length > 0) {
-            return saved.sessions.filter(function(s) { return s.status === 'Completed'; }).map(function(s) {
-                return {
-                    id: s.id || 0,
-                    bookingId: s.id,
-                    name: s.name || 'Customer',
-                    vehicle: s.vehicle || 'N/A',
-                    zone: s.zone || 'N/A',
-                    slot: s.slot || 'N/A',
-                    date: s.date || '',
-                    entryTime: s.entryTime || '00:00',
-                    exitTime: s.exitTime || '00:00',
-                    duration: s.durationHours ? s.durationHours + 'h' : (s.duration || '1h'),
-                    cost: s.cost || 0,
-                    payment: s.payment || 'Cash',
-                    paymentStatus: s.paymentStatus || 'Paid',
-                    status: 'Completed'
-                };
-            });
+        if (saved.history && Array.isArray(saved.history)) { saved.history.forEach(function(h) { addRecord(h); }); }
+        if (saved.sessions && Array.isArray(saved.sessions)) {
+            saved.sessions.filter(function(s) { return s.status === 'Completed'; }).forEach(function(s) { addRecord(mapSessionToHistory(s)); });
         }
     }
+    if (combined.length > 0) return combined;
     try {
         var raw = localStorage.getItem('customerParkingData_by_user');
         if (raw) {
@@ -246,27 +256,17 @@ function getHistoryFromLocalStorage() {
             var u = getLoggedInUser();
             var ek = (u ? u.email : null);
             if (ek && parsed[ek]) {
-                if (parsed[ek].history && parsed[ek].history.length > 0) return parsed[ek].history;
-                if (parsed[ek].sessions && parsed[ek].sessions.length > 0) {
-                    return parsed[ek].sessions.filter(function(s) { return s.status === 'Completed'; }).map(function(s) {
-                        return {
-                            id: s.id || 0,
-                            bookingId: s.id,
-                            name: s.name || 'Customer',
-                            vehicle: s.vehicle || 'N/A',
-                            zone: s.zone || 'N/A',
-                            slot: s.slot || 'N/A',
-                            date: s.date || '',
-                            entryTime: s.entryTime || '00:00',
-                            exitTime: s.exitTime || '00:00',
-                            duration: s.durationHours ? s.durationHours + 'h' : (s.duration || '1h'),
-                            cost: s.cost || 0,
-                            payment: s.payment || 'Cash',
-                            paymentStatus: s.paymentStatus || 'Paid',
-                            status: 'Completed'
-                        };
-                    });
+                var directCombined = [];
+                var directSeen = new Set();
+                function addDirect(record) {
+                    var key = String(record.bookingId || record.id || '');
+                    if (!directSeen.has(key)) { directSeen.add(key); directCombined.push(record); }
                 }
+                if (parsed[ek].history && Array.isArray(parsed[ek].history)) { parsed[ek].history.forEach(function(h) { addDirect(h); }); }
+                if (parsed[ek].sessions && Array.isArray(parsed[ek].sessions)) {
+                    parsed[ek].sessions.filter(function(s) { return s.status === 'Completed'; }).forEach(function(s) { addDirect(mapSessionToHistory(s)); });
+                }
+                if (directCombined.length > 0) return directCombined;
             }
         }
     } catch (e2) { console.error('history load failed:', e2); }
@@ -352,6 +352,8 @@ function renderCards() {
                         '<span><i class="fa-regular fa-clock mr-1.5 text-sp-emerald"></i>In: ' + entryFormatted + '</span>' +
                         '<span><i class="fa-regular fa-clock mr-1.5 text-sp-accent-red"></i>Out: ' + exitFormatted + '</span>' +
                         '<span><i class="fa-solid fa-car mr-1.5 text-slate-600"></i>' + safe(h.vehicle) + '</span>' +
+                        (h.customerNumber && h.customerNumber !== '-' ? '<span><i class="fa-solid fa-phone mr-1.5 text-slate-600"></i>' + escHtml(h.customerNumber) + '</span>' : '') +
+                        (h.trxId && h.trxId !== '-' ? '<span><i class="fa-solid fa-hashtag mr-1.5 text-slate-600"></i>' + escHtml(h.trxId) + '</span>' : '') +
                     '</div>' +
                     '<div class="flex items-center gap-3 mt-3">' +
                         '<span class="text-base font-extrabold text-white">BDT ' + (h.cost || 0).toFixed(2) + '</span>' +
@@ -392,6 +394,8 @@ function viewDetails(id) {
             '<div class="bg-sp-secondary/50 rounded-xl p-3.5"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Date</p><p class="text-sm font-semibold text-slate-300 mt-0.5">' + (record.date || '') + '</p></div>' +
             '<div class="bg-sp-secondary/50 rounded-xl p-3.5"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Entry</p><p class="text-sm font-semibold text-slate-300 mt-0.5">' + escHtml(record.entryTime) + '</p></div>' +
             '<div class="bg-sp-secondary/50 rounded-xl p-3.5"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Exit</p><p class="text-sm font-semibold text-slate-300 mt-0.5">' + escHtml(record.exitTime) + '</p></div>' +
+            '<div class="bg-sp-secondary/50 rounded-xl p-3.5"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Phone</p><p class="text-sm font-semibold text-slate-300 mt-0.5">' + escHtml(record.customerNumber || '-') + '</p></div>' +
+            '<div class="bg-sp-secondary/50 rounded-xl p-3.5"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Trx ID</p><p class="text-sm font-semibold text-slate-300 mt-0.5">' + escHtml(record.trxId || '-') + '</p></div>' +
             '<div class="bg-sp-secondary/50 rounded-xl p-3.5"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Payment</p><p class="text-sm font-semibold text-slate-300 mt-0.5">' + escHtml(record.payment) + '</p></div>' +
         '</div>' +
         '<div class="flex items-center justify-between bg-sp-accent/10 border border-sp-accent/20 rounded-xl p-4 mt-2">' +
@@ -438,6 +442,8 @@ function printReceiptFor(r) {
     docText += '<div class="rw"><span class="l">Duration</span><span class="v">' + escHtml(r.duration) + '</span></div>';
     docText += '<div class="rw"><span class="l">Entry</span><span class="v">' + escHtml(r.entryTime) + '</span></div>';
     docText += '<div class="rw"><span class="l">Exit</span><span class="v">' + escHtml(r.exitTime) + '</span></div>';
+    docText += '<div class="rw"><span class="l">Phone</span><span class="v">' + escHtml(r.customerNumber || '-') + '</span></div>';
+    docText += '<div class="rw"><span class="l">Trx ID</span><span class="v">' + escHtml(r.trxId || '-') + '</span></div>';
     docText += '<div class="rw"><span class="l">Payment</span><span class="v">' + escHtml(r.payment) + '</span></div>';
     docText += '<div class="rw"><span class="l">Status</span><span class="v">' + ps + '</span></div>';
     docText += '<div class="t"><span class="l">Total Paid</span><span class="v">BDT ' + (r.cost || 0).toFixed(2) + '</span></div>';
@@ -462,6 +468,9 @@ function exportPDF() {
         rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">' + escHtml(h.exitTime) + '</td>';
         rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">' + escHtml(h.duration) + '</td>';
         rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);text-align:right;color:#f8fafc;">BDT ' + (h.cost || 0).toFixed(2) + '</td>';
+        rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">' + escHtml(h.payment || '-') + '</td>';
+        rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">' + escHtml(h.customerNumber || '-') + '</td>';
+        rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);color:#94a3b8;">' + escHtml(h.trxId || '-') + '</td>';
         rows += '<td style="padding:8px;border-bottom:1px solid rgba(59,130,246,0.1);"><span class="badge-' + (h.paymentStatus === 'Cancelled' ? 'cancelled' : (h.paymentStatus === 'Pending' ? 'pending' : 'paid')) + '">' + (h.paymentStatus || 'Paid') + '</span></td></tr>';
     }
     var totalRev = historyData.reduce(function(s, h) { return s + (h.cost || 0); }, 0);
@@ -472,20 +481,19 @@ function exportPDF() {
     pdfDoc += 'td{font-size:12px;color:#cbd5e1;}<' + '/style><' + '/head><body>';
     pdfDoc += '<h2 style="color:#f8fafc;">SmartPark - Parking History Report</h2>';
     pdfDoc += '<p style="color:#94a3b8;">Generated: ' + new Date().toLocaleString() + ' | Records: ' + historyData.length + '</p>';
-    pdfDoc += '<table><thead><tr><th>Booking ID</th><th>Zone</th><th>Slot</th><th>Date</th><th>Entry</th><th>Exit</th><th>Duration</th><th style="text-align:right;">Cost</th><th>Status</th></tr></thead><tbody>';
+    pdfDoc += '<table><thead><tr><th>Booking ID</th><th>Zone</th><th>Slot</th><th>Date</th><th>Entry</th><th>Exit</th><th>Duration</th><th style="text-align:right;">Cost</th><th>Payment</th><th>Phone</th><th>Trx ID</th><th>Status</th></tr></thead><tbody>';
     pdfDoc += rows;
     pdfDoc += '</tbody></table>';
     pdfDoc += '<p style="margin-top:16px;font-size:14px;font-weight:700;color:#3B82F6;">Total Revenue: BDT ' + totalRev.toFixed(2) + '</p>';
     pdfDoc += '<button onclick="window.print()" style="margin-top:20px;padding:10px 24px;background:#3B82F6;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Print / Save PDF</button>';
     pdfDoc += '<' + '/body><' + '/html>';
-    w.document.write(pdfDoc);
-    w.document.close();
+    w.document.write(pdfDoc); w.document.close();
     showToast('success', 'Report opened with ' + historyData.length + ' records.');
 }
 
 function exportCSV() {
     if (historyData.length === 0) { showToast('info', 'No records to export.'); return; }
-    var csv = 'Booking ID,Zone,Slot,Date,Entry Time,Exit Time,Duration,Cost,Payment Status\n';
+    var csv = 'Booking ID,Zone,Slot,Date,Entry Time,Exit Time,Duration,Cost,Payment,Phone,Trx ID,Payment Status\n';
     for (var i = 0; i < historyData.length; i++) {
         var h = historyData[i];
         csv += '"#' + (h.bookingId || '') + '",';
@@ -496,6 +504,9 @@ function exportCSV() {
         csv += '"' + (h.exitTime || '') + '",';
         csv += '"' + (h.duration || '') + '",';
         csv += '"BDT ' + (h.cost || 0).toFixed(2) + '",';
+        csv += '"' + (h.payment || '') + '",';
+        csv += '"' + (h.customerNumber || '') + '",';
+        csv += '"' + (h.trxId || '') + '",';
         csv += '"' + (h.paymentStatus || 'Paid') + '"\n';
     }
     var blob = new Blob([csv], { type: 'text/csv' });

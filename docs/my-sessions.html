@@ -207,27 +207,7 @@ async function loadData() {
             sessions = merged;
             if (saved && saved.history) history = saved.history;
         }
-    } catch(e) {}
-    // Fallback: if customer has no sessions, load all sessions from system for testing/visibility
-    if ((!sessions || sessions.length === 0)) {
-        try {
-            var allRaw = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
-            var allSessions = [];
-            Object.keys(allRaw).forEach(function(email) {
-                var userData = allRaw[email];
-                if (userData && userData.sessions) {
-                    userData.sessions.forEach(function(s) {
-                        if ((s.status === 'Active' || s.status === 'Expired') && (s.paymentStatus || '') !== 'Rejected') {
-                            allSessions.push(s);
-                        }
-                    });
-                }
-            });
-            if (allSessions.length > 0) {
-                sessions = allSessions;
-            }
-        } catch(e) {}
-    }
+    } catch(e) {    }
 }
 function saveData(extraHistory) {
     var saved = getUserData('customerParkingData');
@@ -457,7 +437,7 @@ async function endSession(sessionId, skipConfirm) {
     var now = new Date();
     var exitTimeStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
     var entryTimeStr = s.entryTime || '00:00';
-    var hist = { id: 2000 + sessions.filter(function(ss){return ss.status==='Completed';}).length, bookingId: s.id, name: s.name || 'Customer', vehicle: s.vehicle || 'N/A', zone: s.zone || 'N/A', slot: s.slot || 'N/A', date: s.date || now.toISOString().split('T')[0], entryTime: entryTimeStr, exitTime: exitTimeStr, duration: durationLabel, cost: s.cost || 0, payment: s.payment || 'Cash', paymentStatus: s.paymentStatus || 'Paid', status: 'Completed' };
+    var hist = { id: 2000 + sessions.filter(function(ss){return ss.status==='Completed';}).length, bookingId: s.id, name: s.name || 'Customer', vehicle: s.vehicle || 'N/A', zone: s.zone || 'N/A', slot: s.slot || 'N/A', date: s.date || now.toISOString().split('T')[0], entryTime: entryTimeStr, exitTime: exitTimeStr, duration: durationLabel, cost: s.cost || 0, payment: s.payment || s.paymentMethod || 'Cash', paymentStatus: s.paymentStatus || 'Paid', customerNumber: s.customerNumber || '-', trxId: s.trxId || '-', status: 'Completed' };
     saveData([hist]);
     renderSessions();
     var backendUpdates = { status: 'Completed', endTime: new Date().toISOString() };
