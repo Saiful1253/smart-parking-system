@@ -146,9 +146,10 @@
         <!-- Status Filter -->
         <div class="flex flex-wrap items-center gap-2 mb-5">
             <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mr-1">Status:</span>
-            <span class="filter-chip active" onclick="setFilter('all', this)">All</span>
-            <span class="filter-chip inactive" onclick="setFilter('Paid', this)">Paid</span>
-            <span class="filter-chip inactive" onclick="setFilter('Pending', this)">Pending</span>
+        <span class="filter-chip active" onclick="setFilter('all', this)">All</span>
+        <span class="filter-chip inactive" onclick="setFilter('Paid', this)">Paid</span>
+        <span class="filter-chip inactive" onclick="setFilter('Verified', this)">Verified</span>
+        <span class="filter-chip inactive" onclick="setFilter('Pending', this)">Pending</span>
         </div>
 
         <p class="text-xs text-slate-500 mb-4" id="records-count">Showing 0 of 0 records</p>
@@ -307,7 +308,7 @@ function renderCards() {
     document.getElementById('history-subtitle').textContent = total + ' total booking' + (total !== 1 ? 's' : '');
     document.getElementById('records-count').textContent = 'Showing ' + filtered.length + ' of ' + total + ' records';
     document.getElementById('stat-total').textContent = total;
-    var completedCount = historyData.filter(function(h) { var ps = h.paymentStatus || 'Paid'; return ps === 'Paid' || ps === 'Completed'; }).length;
+    var completedCount = historyData.filter(function(h) { var ps = h.paymentStatus || 'Paid'; return ps === 'Paid' || ps === 'Completed' || ps === 'Verified'; }).length;
     document.getElementById('stat-completed').textContent = completedCount;
     var cancelledCount = historyData.filter(function(h) { return (h.paymentStatus || '') === 'Cancelled'; }).length;
     document.getElementById('stat-cancelled').textContent = cancelledCount;
