@@ -28,6 +28,10 @@ function isAdminActiveSession(s) {
     var paymentStatus = String(s.paymentStatus || '').trim();
     return (status === 'Active' || status === 'Expired') && paymentStatus !== 'Rejected';
 }
+function formatTime(totalSeconds) {
+    var h = Math.floor(totalSeconds / 3600), m = Math.floor((totalSeconds % 3600) / 60), s = totalSeconds % 60;
+    return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
 function isValidVehiclePlate(vehicle) {
     if (!vehicle || typeof vehicle !== 'string') return false;
     var v = vehicle.trim();
@@ -330,6 +334,7 @@ function switchAdminTab(tabId, element) {
 
 let occupancyChart;
 let bookingTrendChart;
+let liveAdminTimers = {};
 let currentBookingTrendPeriod = 'week';
 function initOccupancyChart() {
     const ctx = document.getElementById('occupancyChart').getContext('2d');
@@ -1392,11 +1397,12 @@ function exportHistoryCSV() {
 function renderSessionsTable() {
     const tbody = document.getElementById('sessions-table-body');
     if (!tbody) return;
+    Object.keys(liveAdminTimers).forEach(function(id) { clearInterval(liveAdminTimers[id]); delete liveAdminTimers[id]; });
     const allData = getAllCustomerParkingData();
     const sessions = (allData.sessions || []).filter(isAdminActiveSession);
     tbody.innerHTML = '';
     if (sessions.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-500"><i class="fa-solid fa-inbox text-2xl mb-2"></i><p class="text-xs font-medium">No active sessions found</p></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-500"><i class="fa-solid fa-inbox text-2xl mb-2"></i><p class="text-xs font-medium">No active sessions found</p></td></tr>`;
         return;
     }
     sessions.forEach(s => {
@@ -1408,7 +1414,49 @@ function renderSessionsTable() {
             statusBadge = '<span class="badge-success">Active</span>';
             actionHtml = '<button class="px-2 py-1 text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-colors" onclick="endAdminSession(' + s.id + ')">End</button>';
         }
-        tbody.innerHTML += `<tr class="hover:bg-white/5 transition-colors"><td class="py-3.5 font-bold text-white">${s.vehicle || 'N/A'}</td><td class="py-3.5 text-slate-400">${s.zone || 'N/A'}</td><td class="py-3.5 text-slate-400 font-semibold">${s.slot || 'N/A'}</td><td class="py-3.5 text-slate-400">${s.bookingType || 'Fixed'}</td><td class="py-3.5 text-white font-semibold">৳${(s.cost || 0).toFixed(2)}</td><td class="py-3.5 text-right">${statusBadge}</td><td class="py-3.5 text-right">${actionHtml}</td></tr>`;
+        var timerCellId = 'timer-' + s.id;
+        var createdAt = s.createdAt ? new Date(s.createdAt).getTime() : Date.now();
+        var isFixed = (s.bookingType || 'Fixed') !== 'meter';
+        var fixedDurationSecs = isFixed ? ((s.durationHours || 1) * 3600) : null;
+        var elapsedSecs = Math.floor((Date.now() - createdAt) / 1000);
+        if (isFixed && elapsedSecs > fixedDurationSecs) elapsedSecs = fixedDurationSecs;
+        var initialTimerHtml, initialTimerClass;
+        if (isFixed && s.status === 'Active' && elapsedSecs >= fixedDurationSecs) {
+            initialTimerHtml = '<span class="text-sp-amber font-bold">EXPIRED</span>';
+            initialTimerClass = 'py-3.5 font-mono text-xs text-sp-amber';
+        } else if (s.status === 'Expired') {
+            initialTimerHtml = '<span class="text-sp-amber font-bold">EXPIRED</span>';
+            initialTimerClass = 'py-3.5 font-mono text-xs text-sp-amber';
+        } else if (isFixed) {
+            var remainingSecs = Math.max(0, fixedDurationSecs - elapsedSecs);
+            initialTimerHtml = formatTime(remainingSecs);
+            initialTimerClass = 'py-3.5 font-mono text-xs ' + (remainingSecs < 300 ? 'text-sp-amber' : 'text-white font-semibold');
+        } else {
+            initialTimerHtml = formatTime(elapsedSecs);
+            initialTimerClass = 'py-3.5 font-mono text-xs text-white font-semibold';
+        }
+        tbody.innerHTML += `<tr class="hover:bg-white/5 transition-colors"><td class="py-3.5 font-bold text-white">${s.vehicle || 'N/A'}</td><td class="py-3.5 text-slate-400">${s.zone || 'N/A'}</td><td class="py-3.5 text-slate-400 font-semibold">${s.slot || 'N/A'}</td><td class="py-3.5 text-slate-400">${s.bookingType || 'Fixed'}</td><td class="py-3.5 text-white font-semibold">৳${(s.cost || 0).toFixed(2)}</td><td class="${initialTimerClass}" id="${timerCellId}">${initialTimerHtml}</td><td class="py-3.5 text-right">${statusBadge}</td><td class="py-3.5 text-right">${actionHtml}</td></tr>`;
+        liveAdminTimers[s.id] = setInterval(function() {
+            var el = document.getElementById(timerCellId);
+            if (!el) return;
+            var now = Date.now();
+            var secs = Math.floor((now - createdAt) / 1000);
+            if (isFixed && secs > fixedDurationSecs) secs = fixedDurationSecs;
+            if (isFixed && s.status === 'Active' && secs >= fixedDurationSecs) {
+                el.innerHTML = '<span class="text-sp-amber font-bold">EXPIRED</span>';
+                el.className = 'py-3.5 font-mono text-xs text-sp-amber';
+            } else if (s.status === 'Expired') {
+                el.innerHTML = '<span class="text-sp-amber font-bold">EXPIRED</span>';
+                el.className = 'py-3.5 font-mono text-xs text-sp-amber';
+            } else if (isFixed) {
+                var rem = Math.max(0, fixedDurationSecs - secs);
+                el.innerHTML = formatTime(rem);
+                el.className = 'py-3.5 font-mono text-xs ' + (rem < 300 ? 'text-sp-amber' : 'text-white font-semibold');
+            } else {
+                el.innerHTML = formatTime(secs);
+                el.className = 'py-3.5 font-mono text-xs text-white font-semibold';
+            }
+        }, 1000);
     });
 }
 async function endAdminSession(bookingId) {
@@ -2191,5 +2239,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (document.getElementById('cash-table-body')) loadCashVerifications();
             triggerRefresh();
         }
+    });
+    window.addEventListener('beforeunload', function() {
+        Object.keys(liveAdminTimers).forEach(function(id) { clearInterval(liveAdminTimers[id]); });
     });
 });
