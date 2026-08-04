@@ -15,6 +15,6 @@ backend/
 dist/
 build/
 
-# Local data files
-data/
+# Sensitive local data files
+data/users.json
 
