@@ -172,11 +172,62 @@ function renderCustomerAnomalies() {
     container.innerHTML = html;
 }
 
-function loadData() {
+async function loadData() {
     try {
         var saved = getUserData('customerParkingData');
         if (saved) { sessions = saved.sessions || []; nextBookingId = saved.nextId || 1000; zoneSlots = saved.zoneSlots || {}; history = saved.history || []; }
     } catch(e) {}
+    // Also try fetching from backend API to ensure customer sees their sessions
+    try {
+        var apiSessions = await fetchUserSessions();
+        if (apiSessions && apiSessions.length > 0) {
+            var merged = sessions.slice();
+            apiSessions.forEach(function(apiSession) {
+                var exists = merged.some(function(s) { return String(s.id) === String(apiSession.id) || String(s.backendId) === String(apiSession._id); });
+                if (!exists) {
+                    merged.push({
+                        id: apiSession._id || apiSession.id,
+                        backendId: apiSession._id,
+                        vehicle: apiSession.plateNumber || apiSession.vehicle,
+                        zone: apiSession.zone || apiSession.zoneName,
+                        slot: apiSession.slot || apiSession.slotId,
+                        zoneId: apiSession.zoneId,
+                        slotIndex: apiSession.slotIndex,
+                        bookingType: apiSession.bookingType || 'fixed',
+                        durationHours: apiSession.durationHours || 1,
+                        cost: apiSession.cost || 0,
+                        status: apiSession.status || 'Active',
+                        paymentStatus: apiSession.paymentStatus,
+                        payment: apiSession.payment,
+                        createdAt: apiSession.createdAt,
+                        paid: apiSession.paymentStatus === 'Verified' || apiSession.paymentStatus === 'Pending'
+                    });
+                }
+            });
+            sessions = merged;
+            if (saved && saved.history) history = saved.history;
+        }
+    } catch(e) {}
+    // Fallback: if customer has no sessions, load all sessions from system for testing/visibility
+    if ((!sessions || sessions.length === 0)) {
+        try {
+            var allRaw = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+            var allSessions = [];
+            Object.keys(allRaw).forEach(function(email) {
+                var userData = allRaw[email];
+                if (userData && userData.sessions) {
+                    userData.sessions.forEach(function(s) {
+                        if ((s.status === 'Active' || s.status === 'Expired') && (s.paymentStatus || '') !== 'Rejected') {
+                            allSessions.push(s);
+                        }
+                    });
+                }
+            });
+            if (allSessions.length > 0) {
+                sessions = allSessions;
+            }
+        } catch(e) {}
+    }
 }
 function saveData(extraHistory) {
     var saved = getUserData('customerParkingData');
@@ -218,7 +269,7 @@ function renderSessions() {
     var container = document.getElementById('session-card-container');
     var subtitle = document.getElementById('my-sessions-subtitle');
     if (!container) return;
-    var active = sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; });
+    var active = sessions.filter(function(s) { return (s.status === 'Active' || s.status === 'Expired') && (s.paymentStatus || '') !== 'Rejected'; });
     subtitle.textContent = active.length + ' active parking session' + (active.length !== 1 ? 's' : '');
     Object.keys(liveTimers).forEach(function(id) { clearInterval(liveTimers[id]); delete liveTimers[id]; });
     container.innerHTML = '';
@@ -226,6 +277,7 @@ function renderSessions() {
         container.innerHTML = '<div class="text-center py-20 text-slate-500"><i class="fa-solid fa-car-side text-5xl mb-4 opacity-30"></i><p class="text-sm font-medium">No active parking sessions</p><p class="text-xs text-slate-600 mt-1">Book a spot to get started</p></div>';
         return;
     }
+    var statusChanged = false;
     // Show each active session as a card (limit to 5 visible)
     active.slice(0, 5).forEach(function(s) {
         var rate = s.bookingType === 'meter' ? (s.meterRate || 5.00) : 5.00;
@@ -235,6 +287,10 @@ function renderSessions() {
         var elapsedSeconds = Math.floor((Date.now() - createdAt) / 1000);
         if (isFixed && elapsedSeconds > fixedDurationSecs) elapsedSeconds = fixedDurationSecs;
         var isExpired = isFixed && elapsedSeconds >= fixedDurationSecs;
+        if (isExpired && s.status === 'Active') {
+            s.status = 'Expired';
+            statusChanged = true;
+        }
         var entryTime = s.entryTime || 'N/A';
         var entryDate = s.date ? new Date(s.date + 'T' + entryTime) : new Date();
         var formattedEntry = entryDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
@@ -308,6 +364,7 @@ function renderSessions() {
             }
         }, 1000);
     });
+    if (statusChanged) saveData();
 }
 
 function formatTime(totalSeconds) {

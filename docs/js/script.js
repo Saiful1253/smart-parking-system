@@ -68,7 +68,7 @@ async function fetchUserSessions() {
         else { showToast('error', data.msg || 'Failed to fetch sessions.'); return []; }
     } catch (error) {
         var saved = getUserData('customerParkingData');
-        return saved && saved.sessions ? saved.sessions.filter(function(s) { return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected'; }) : [];
+        return saved && saved.sessions ? saved.sessions.filter(function(s) { return (s.status === 'Active' || s.status === 'Expired') && (s.paymentStatus || '') !== 'Rejected'; }) : [];
     }
 }
 
@@ -153,7 +153,7 @@ function getCustomerAnomalies() {
 
     var saved = getUserData('customerParkingData');
     var userSessions = (saved && saved.sessions) ? saved.sessions.filter(function(s) {
-        return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected';
+        return (s.status === 'Active' || s.status === 'Expired') && (s.paymentStatus || '') !== 'Rejected';
     }) : [];
 
     if (userSessions.length === 0) return anomalies;
@@ -169,7 +169,7 @@ function getCustomerAnomalies() {
     } catch (e) { allSessions = userSessions; }
 
     var activeAll = allSessions.filter(function(s) {
-        return s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected';
+        return (s.status === 'Active' || s.status === 'Expired') && (s.paymentStatus || '') !== 'Rejected';
     });
 
     if (userSessions.length > 1) {

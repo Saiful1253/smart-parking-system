@@ -36,6 +36,7 @@
             <a href="#" onclick="switchAdminTab('map', this); return false;" class="admin-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300"><i class="fa-solid fa-map-location-dot text-lg"></i><span>Live Map</span></a>
             <a href="#" onclick="switchAdminTab('customer', this); return false;" class="admin-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300"><i class="fa-solid fa-user-plus text-lg"></i><span>Customers</span></a>
             <a href="#" onclick="switchAdminTab('cash', this); return false;" class="admin-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300"><i class="fa-solid fa-money-bill-transfer text-lg"></i><span>Payment Verify</span></a>
+            <a href="#" onclick="switchAdminTab('revenue', this); return false;" class="admin-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300"><i class="fa-solid fa-chart-line text-lg"></i><span>Revenue History</span></a>
             <a href="#" onclick="switchAdminTab('anomalies', this); return false;" class="admin-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300 relative"><i class="fa-solid fa-triangle-exclamation text-lg"></i><span>Anomalies</span><span id="anomaly-nav-badge" class="hidden absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-sp-red text-white rounded-full border border-sp-secondary leading-none flex items-center justify-center">0</span></a>
             <a href="#" onclick="switchAdminTab('settings', this); return false;" class="admin-nav-item flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300"><i class="fa-solid fa-sliders text-lg"></i><span>Settings</span></a>
         </nav>
@@ -65,7 +66,7 @@
             <div class="stat-card p-5 flex items-center justify-between"><div class="space-y-1 relative z-10"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Zones</p><h4 class="text-3xl font-extrabold text-white" id="stat-zones">0</h4></div><div class="w-12 h-12 rounded-full bg-sp-accent/10 text-sp-accent flex items-center justify-center text-xl relative z-10"><i class="fa-solid fa-location-dot"></i></div></div>
             <div class="stat-card p-5 flex items-center justify-between"><div class="space-y-1 relative z-10"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Spots</p><h4 class="text-3xl font-extrabold text-white" id="stat-spots">0</h4></div><div class="w-12 h-12 rounded-full bg-sp-emerald/10 text-sp-emerald flex items-center justify-center text-xl relative z-10"><i class="fa-solid fa-square-p"></i></div></div>
             <div class="stat-card p-5 flex items-center justify-between"><div class="space-y-1 relative z-10"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Active Sessions</p><h4 class="text-3xl font-extrabold text-white" id="active-sessions-count">0</h4></div><div class="w-12 h-12 rounded-full bg-sp-cyan/10 text-sp-cyan flex items-center justify-center text-xl relative z-10"><i class="fa-solid fa-car-side"></i></div></div>
-            <div class="stat-card p-5 flex items-center justify-between">            <div class="space-y-1 relative z-10"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Today's Revenue</p><h4 class="text-3xl font-extrabold text-white" id="stat-revenue">BDT 0</h4><p class="text-[10px] text-sp-emerald font-semibold flex items-center gap-1" id="revenue-subtitle"><i class="fa-solid fa-circle-check text-[8px]"></i> Based on verified payments</p></div><div class="w-12 h-12 rounded-full bg-sp-emerald/10 text-sp-emerald flex items-center justify-center text-xl relative z-10"><i class="fa-solid fa-taka-sign"></i></div></div>
+            <div class="stat-card p-5 flex items-center justify-between">            <div class="space-y-1 relative z-10"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Revenue</p><h4 class="text-3xl font-extrabold text-white" id="stat-revenue">BDT 0</h4><p class="text-[10px] text-sp-emerald font-semibold flex items-center gap-1" id="revenue-subtitle"><i class="fa-solid fa-circle-check text-[8px]"></i> Based on verified payments</p></div><div class="w-12 h-12 rounded-full bg-sp-emerald/10 text-sp-emerald flex items-center justify-center text-xl relative z-10"><i class="fa-solid fa-taka-sign"></i></div></div>
             <div class="stat-card p-5 flex items-center justify-between"><div class="space-y-1 relative z-10"><p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Free Spots</p><h4 class="text-3xl font-extrabold text-white" id="stat-free">0</h4></div><div class="w-12 h-12 rounded-full bg-sp-cyan/10 text-sp-cyan flex items-center justify-center text-xl relative z-10"><i class="fa-solid fa-square-p"></i></div></div>
         </div>
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -146,6 +147,50 @@
                     <button onclick="deleteAllCashPayments()" class="px-3.5 py-2 text-xs font-bold bg-sp-red/10 hover:bg-sp-red/20 text-sp-red border border-sp-red/20 rounded-lg transition-all"><i class="fa-solid fa-trash-can mr-1.5"></i> Delete All</button>
                     <button onclick="exportCashPDF()" class="px-3.5 py-2 text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-300 border border-sp-accent/10 rounded-lg"><i class="fa-solid fa-file-pdf mr-1.5"></i> PDF</button>
                     <button onclick="exportCashReport()" class="px-3.5 py-2 text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-300 border border-sp-accent/10 rounded-lg"><i class="fa-solid fa-file-csv mr-1.5"></i> CSV</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- REVENUE HISTORY VIEW -->
+    <div id="revenue-view" class="p-6 hidden">
+        <h2 class="text-xl font-bold text-white mb-4">Revenue History</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="glass-card p-4 flex items-center justify-between"><div><p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Revenue</p><h4 class="text-2xl font-extrabold text-white" id="rev-total">৳0</h4></div><div class="w-10 h-10 rounded-full bg-sp-emerald/10 text-sp-emerald flex items-center justify-center text-lg"><i class="fa-solid fa-taka-sign"></i></div></div>
+            <div class="glass-card p-4 flex items-center justify-between"><div><p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">This Month</p><h4 class="text-2xl font-extrabold text-sp-accent" id="rev-month">৳0</h4></div><div class="w-10 h-10 rounded-full bg-sp-accent/10 text-sp-accent flex items-center justify-center text-lg"><i class="fa-solid fa-calendar"></i></div></div>
+            <div class="glass-card p-4 flex items-center justify-between"><div><p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Avg / Transaction</p><h4 class="text-2xl font-extrabold text-white" id="rev-avg">৳0</h4></div><div class="w-10 h-10 rounded-full bg-sp-cyan/10 text-sp-cyan flex items-center justify-center text-lg"><i class="fa-solid fa-chart-simple"></i></div></div>
+            <div class="glass-card p-4 flex items-center justify-between"><div><p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Transactions</p><h4 class="text-2xl font-extrabold text-white" id="rev-count">0</h4></div><div class="w-10 h-10 rounded-full bg-sp-amber/10 text-sp-amber flex items-center justify-center text-lg"><i class="fa-solid fa-receipt"></i></div></div>
+        </div>
+        <div class="glass-card p-6 mb-6">
+            <div class="flex items-center justify-between mb-6">
+                <div><h3 class="text-base font-bold text-white">Revenue Trend</h3><p class="text-xs text-slate-500">Payment volume over time</p></div>
+                <div class="flex items-center gap-2">
+                    <button onclick="setRevenuePeriod('daily')" class="revenue-trend-btn text-xs font-semibold px-3.5 py-1.5 rounded-lg border border-sp-accent/10 bg-sp-accent/10 text-sp-accent transition-all">Daily</button>
+                    <button onclick="setRevenuePeriod('weekly')" class="revenue-trend-btn text-xs font-semibold px-3.5 py-1.5 rounded-lg border border-sp-accent/10 bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all">Weekly</button>
+                    <button onclick="setRevenuePeriod('monthly')" class="revenue-trend-btn text-xs font-semibold px-3.5 py-1.5 rounded-lg border border-sp-accent/10 bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all">Monthly</button>
+                </div>
+            </div>
+            <div class="h-80 relative"><canvas id="revenueTrendChart"></canvas></div>
+        </div>
+        <div class="glass-card overflow-hidden">
+            <div class="flex items-center justify-between p-5 border-b border-sp-accent/10">
+                <div><h3 class="text-base font-bold text-white">Revenue by Date</h3><p class="text-xs text-slate-500">Daily breakdown of all payments</p></div>
+                <button onclick="exportRevenueCSV()" class="px-3.5 py-2 text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-300 border border-sp-accent/10 rounded-lg"><i class="fa-solid fa-file-csv mr-1.5"></i> CSV</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="data-table">
+                    <thead><tr><th>Date</th><th>Transactions</th><th>Total Amount</th><th>Avg Amount</th><th>Verified</th><th>Pending</th></thead>
+                    <tbody id="revenue-table-body"></tbody>
+                </table>
+            </div>
+            <div class="flex items-center justify-between p-4 border-t border-sp-accent/10">
+                <div class="flex items-center gap-2"><span class="text-xs text-slate-500">Page</span><span id="revenue-page-info" class="text-xs font-bold text-white">Page 1 of 1</span></div>
+                <span class="text-xs text-slate-500" id="revenue-empty-msg">No revenue records found</span>
+                <div class="flex items-center gap-2">
+                    <button id="rev-btn-first" onclick="goToRevenuePage(1)" class="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 text-slate-400 border border-sp-accent/10 rounded-lg transition-all disabled:opacity-40">First</button>
+                    <button id="rev-btn-prev" onclick="goToRevenuePage(currentRevenuePage-1)" class="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 text-slate-400 border border-sp-accent/10 rounded-lg transition-all disabled:opacity-40">Prev</button>
+                    <button id="rev-btn-next" onclick="goToRevenuePage(currentRevenuePage+1)" class="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 text-slate-400 border border-sp-accent/10 rounded-lg transition-all disabled:opacity-40">Next</button>
+                    <button id="rev-btn-last" onclick="goToRevenuePage(totalRevenuePages)" class="px-3 py-1.5 text-xs bg-white/5 hover:bg-white/10 text-slate-400 border border-sp-accent/10 rounded-lg transition-all disabled:opacity-40">Last</button>
                 </div>
             </div>
         </div>

@@ -26,7 +26,7 @@ const API_BASE = (() => {
 function isAdminActiveSession(s) {
     var status = String(s.status || '').trim();
     var paymentStatus = String(s.paymentStatus || '').trim();
-    return status === 'Active' && paymentStatus !== 'Rejected';
+    return (status === 'Active' || status === 'Expired') && paymentStatus !== 'Rejected';
 }
 function isValidVehiclePlate(vehicle) {
     if (!vehicle || typeof vehicle !== 'string') return false;
@@ -85,16 +85,14 @@ function initDemoZones() {
     localStorage.setItem('smartParkZones_local', JSON.stringify(demoZones));
 }
 
-function calculateTodaysRevenue() {
+function calculateTotalRevenue() {
     try {
         const allPayments = JSON.parse(localStorage.getItem('smartParkPayments_by_user')) || {};
         let total = 0;
-        const today = new Date().toISOString().split('T')[0];
         Object.values(allPayments).forEach(function(userPayments) {
             if (Array.isArray(userPayments)) {
                 userPayments.forEach(function(p) {
-                    const paymentDate = (p.createdAt || '').split('T')[0];
-                    if (paymentDate === today && (p.status === 'Pending' || p.status === 'Paid' || p.status === 'Verified')) {
+                    if (p.status === 'Pending' || p.status === 'Paid' || p.status === 'Verified') {
                         total += parseFloat(p.amount || 0);
                     }
                 });
@@ -107,7 +105,7 @@ function calculateTodaysRevenue() {
 function updateRevenueUI() {
     const revenueEl = document.getElementById('stat-revenue');
     if (revenueEl) {
-        const revenue = calculateTodaysRevenue();
+        const revenue = calculateTotalRevenue();
         revenueEl.textContent = 'BDT ' + revenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 }
@@ -311,7 +309,7 @@ document.addEventListener('click', (e) => { const sidebar = document.getElementB
 function switchAdminTab(tabId, element) {
     const navItems = document.querySelectorAll('.admin-nav-item'); navItems.forEach(item => { item.className = "admin-nav-item relative flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300"; });
     if (element) { element.className = "admin-nav-item active relative flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl bg-sp-accent/10 text-sp-accent transition-all duration-300"; }
-    const views = ['dashboard-view', 'zones-view', 'sessions-view', 'history-view', 'map-view', 'customer-view', 'cash-view', 'anomalies-view', 'settings-view'];
+    const views = ['dashboard-view', 'zones-view', 'sessions-view', 'history-view', 'map-view', 'customer-view', 'cash-view', 'revenue-view', 'anomalies-view', 'settings-view'];
     views.forEach(view => { const el = document.getElementById(view); if (el) el.classList.add('hidden'); });
     const activeView = document.getElementById(`${tabId}-view`);
     if (activeView) {
@@ -319,12 +317,13 @@ function switchAdminTab(tabId, element) {
         if (tabId === 'map') setTimeout(() => initAdminMap(), 100);
         if (tabId === 'customer') { loadUnregisteredVehicles(); updateCustomerPageAnomalyCount(); }
         if (tabId === 'cash') loadCashVerifications();
+        if (tabId === 'revenue') loadRevenueHistory();
         if (tabId === 'history') { syncHistoryFromAllCustomers(); renderHistoryTable(); }
         if (tabId === 'dashboard') {}
         if (tabId === 'anomalies') { loadAnomalies(); populateAnomalyCustomerFilter(); renderActiveCustomersTable(); }
     }
     const pageTitle = document.getElementById('page-title'); const pageSubtitle = document.getElementById('page-subtitle');
-    const titles = { dashboard: { title: 'Dashboard', subtitle: 'AI-powered parking management overview' }, zones: { title: 'Parking Zones', subtitle: 'Configure and monitor parking zones and rates' }, sessions: { title: 'Active Sessions', subtitle: 'Real-time list of vehicles currently parked' }, history: { title: 'Parking History', subtitle: 'Historical log of completed sessions and payments' }, map: { title: 'Live Parking Map', subtitle: 'Visual representation of parking lot occupancy' }, customer: { title: 'Customer Management', subtitle: 'Registered customers and unregistered vehicle registration' }, cash: { title: 'Payment Verification', subtitle: 'Verify manual cash payments' }, anomalies: { title: 'Anomaly Detection', subtitle: 'Sensor mismatches, invalid slots, or suspicious bookings' }, settings: { title: 'System Settings', subtitle: 'Configure system parameters and accounts' } };
+    const titles = { dashboard: { title: 'Dashboard', subtitle: 'AI-powered parking management overview' }, zones: { title: 'Parking Zones', subtitle: 'Configure and monitor parking zones and rates' }, sessions: { title: 'Active Sessions', subtitle: 'Real-time list of vehicles currently parked' }, history: { title: 'Parking History', subtitle: 'Historical log of completed sessions and payments' }, map: { title: 'Live Parking Map', subtitle: 'Visual representation of parking lot occupancy' }, customer: { title: 'Customer Management', subtitle: 'Registered customers and unregistered vehicle registration' }, cash: { title: 'Payment Verification', subtitle: 'Verify manual cash payments' }, revenue: { title: 'Revenue History', subtitle: 'Historical revenue analytics and trends' }, anomalies: { title: 'Anomaly Detection', subtitle: 'Sensor mismatches, invalid slots, or suspicious bookings' }, settings: { title: 'System Settings', subtitle: 'Configure system parameters and accounts' } };
     if (titles[tabId]) { pageTitle.textContent = titles[tabId].title; pageSubtitle.textContent = titles[tabId].subtitle; }
     if (window.innerWidth < 768) document.getElementById('sidebar').classList.add('-translate-x-full');
 }
@@ -702,6 +701,20 @@ function getLocalAnomalies() {
         }
     }
 
+    // Detect expired sessions pending verification
+    activeSessions.forEach(function(s) {
+        if (s.status === 'Expired') {
+            anomalies.push({
+                zone: s.zone || 'Unknown',
+                type: 'expired_session',
+                message: `Session for vehicle ${s.vehicle || 'N/A'} in ${s.zone || 'Unknown'} has expired and is pending admin verification.`,
+                severity: 'warning',
+                vehicles: [{ plate: s.vehicle || 'N/A', spot: s.slot || '?', status: 'offline' }],
+                customers: getCustomersForPlates([s.vehicle || 'N/A'])
+            });
+        }
+    });
+
     // Detect duplicate sessions: same vehicle with multiple sessions (active + completed)
     const vehicleSessionMap = {};
     sessions.forEach(function(s) {
@@ -807,7 +820,9 @@ function renderActiveCustomersTable() {
         if (!plate) return;
         var info = plateToCustomer[plate] || { name: 'Unknown', email: '' };
         var customerName = info.name || 'Unknown';
-        var actionHtml = '<button class="px-2 py-1 text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-colors" onclick="endAdminSession(' + s.id + ')">End</button>';
+        var actionHtml = s.status === 'Expired'
+            ? '<button class="px-2 py-1 text-[10px] font-bold bg-sp-emerald/10 text-sp-emerald border border-sp-emerald/20 rounded-lg hover:bg-sp-emerald/20 transition-colors" onclick="verifyExpiredSession(' + s.id + ')">Verify</button>'
+            : '<button class="px-2 py-1 text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-colors" onclick="endAdminSession(' + s.id + ')">End</button>';
         rows.push('<tr class="hover:bg-white/5 transition-colors"><td class="py-3.5 text-slate-300 text-xs font-medium">' + customerName + '</td><td class="py-3.5 text-slate-400 font-bold">' + (s.vehicle || 'N/A') + '</td><td class="py-3.5 text-slate-400">' + (s.zone || 'N/A') + '</td><td class="py-3.5 text-slate-400 font-semibold">' + (s.slot || 'N/A') + '</td><td class="py-3.5 text-slate-400">' + (s.bookingType || 'Fixed') + '</td><td class="py-3.5 text-right">' + actionHtml + '</td></tr>');
     });
     tbody.innerHTML = rows.join('');
@@ -956,9 +971,10 @@ function renderSensorLog() {
         const slot = s.slot || '?';
         const sensorType = (plate || '').length % 3 === 0 ? 'Plate Reader' : ((plate || '').length % 3 === 1 ? 'Ultrasonic' : 'Camera');
         const isRejected = (s.paymentStatus || '') === 'Rejected';
-        const statusColor = isRejected ? 'text-sp-red' : 'text-sp-emerald';
-        const statusBg = isRejected ? 'bg-sp-red' : 'bg-sp-emerald';
-        const statusText = isRejected ? 'Inactive' : 'Active';
+        const isExpired = s.status === 'Expired';
+        const statusColor = isRejected ? 'text-sp-red' : (isExpired ? 'text-sp-amber' : 'text-sp-emerald');
+        const statusBg = isRejected ? 'bg-sp-red' : (isExpired ? 'bg-sp-amber' : 'bg-sp-emerald');
+        const statusText = isRejected ? 'Inactive' : (isExpired ? 'Offline' : 'Active');
         const sensorIcon = sensorType === 'Plate Reader' ? 'fa-camera' : (sensorType === 'Ultrasonic' ? 'fa-wave-square' : 'fa-video');
         html += '<div class="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-sp-accent/10 hover:bg-white/10 transition-all"><div class="w-8 h-8 rounded-lg bg-sp-accent/10 text-sp-accent flex items-center justify-center flex-shrink-0"><i class="fa-solid ' + sensorIcon + ' text-xs"></i></div><div class="flex-1 min-w-0"><div class="flex items-center justify-between mb-1"><span class="text-[10px] font-bold text-sp-accent uppercase tracking-wider">' + sensorType + '</span><span class="text-[10px] text-slate-500">' + time + '</span></div><p class="text-xs text-slate-300 font-medium truncate">' + plate + ' detected at ' + zone + ' - Slot ' + slot + '</p><div class="flex items-center gap-2 mt-1"><span class="inline-flex items-center gap-1 text-[10px] font-semibold ' + statusColor + '"><span class="w-1 h-1 rounded-full ' + statusBg + '"></span> ' + statusText + '</span></div></div></div>';
     });
@@ -1384,8 +1400,14 @@ function renderSessionsTable() {
         return;
     }
     sessions.forEach(s => {
-        var statusBadge = '<span class="badge-success">Active</span>';
-        var actionHtml = '<button class="px-2 py-1 text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-colors" onclick="endAdminSession(' + s.id + ')">End</button>';
+        var statusBadge, actionHtml;
+        if (s.status === 'Expired') {
+            statusBadge = '<span class="px-2.5 py-1 text-[10px] font-bold rounded-full bg-sp-amber/10 text-sp-amber border border-sp-amber/20">Offline</span>';
+            actionHtml = '<button class="px-2 py-1 text-[10px] font-bold bg-sp-emerald/10 text-sp-emerald border border-sp-emerald/20 rounded-lg hover:bg-sp-emerald/20 transition-colors" onclick="verifyExpiredSession(' + s.id + ')">Verify</button>';
+        } else {
+            statusBadge = '<span class="badge-success">Active</span>';
+            actionHtml = '<button class="px-2 py-1 text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-colors" onclick="endAdminSession(' + s.id + ')">End</button>';
+        }
         tbody.innerHTML += `<tr class="hover:bg-white/5 transition-colors"><td class="py-3.5 font-bold text-white">${s.vehicle || 'N/A'}</td><td class="py-3.5 text-slate-400">${s.zone || 'N/A'}</td><td class="py-3.5 text-slate-400 font-semibold">${s.slot || 'N/A'}</td><td class="py-3.5 text-slate-400">${s.bookingType || 'Fixed'}</td><td class="py-3.5 text-white font-semibold">৳${(s.cost || 0).toFixed(2)}</td><td class="py-3.5 text-right">${statusBadge}</td><td class="py-3.5 text-right">${actionHtml}</td></tr>`;
     });
 }
@@ -1445,6 +1467,64 @@ async function endAdminSession(bookingId) {
     } catch (e) {
         console.error('Failed to end session:', e);
         showToast('error', 'Failed to end session.');
+    }
+}
+async function verifyExpiredSession(bookingId) {
+    if (!bookingId && bookingId !== 0) return;
+    if (!confirm('Verify this expired session? This will mark it as completed and free the slot.')) return;
+    try {
+        var allRaw = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+        var found = false;
+        var localSession = null;
+        Object.keys(allRaw).forEach(function(email) {
+            var userData = allRaw[email];
+            if (!userData || !userData.sessions) return;
+            userData.sessions.forEach(function(s) {
+                if (Number(s.id) === Number(bookingId) && s.status === 'Expired') {
+                    s.status = 'Completed';
+                    s.paymentStatus = s.paymentStatus || 'Paid';
+                    s.endedAt = new Date().toISOString();
+                    found = true;
+                    localSession = s;
+                }
+            });
+            if (found && userData.zoneSlots) {
+                Object.keys(userData.zoneSlots).forEach(function(zoneId) {
+                    if (Array.isArray(userData.zoneSlots[zoneId])) {
+                        userData.zoneSlots[zoneId].forEach(function(slot) {
+                            if (slot && slot.sessionId === Number(bookingId)) {
+                                slot.occupied = false;
+                                slot.plate = null;
+                                slot.sessionId = null;
+                            }
+                        });
+                    }
+                });
+            }
+        });
+        if (found) {
+            localStorage.setItem('customerParkingData_by_user', JSON.stringify(allRaw));
+            var token = localStorage.getItem('token_admin');
+            if (token && localSession) {
+                try {
+                    const sessionsResponse = await fetch(API_BASE + '/api/admin/sessions', { method: 'GET', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
+                    if (sessionsResponse.ok) {
+                        const allSessions = await sessionsResponse.json();
+                        const match = allSessions.find(function(bs) { return bs.plateNumber === localSession.vehicle && bs.zone === localSession.zone && (bs.status === 'Active' || bs.status === 'Parked' || bs.status === 'Expired'); });
+                        if (match) {
+                            await fetch(API_BASE + '/api/parking/' + match._id, { method: 'PUT', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'Completed', endTime: new Date().toISOString(), paymentStatus: localSession.paymentStatus || 'Paid', payment: localSession.payment || 'Cash', cost: localSession.cost || 0 }) });
+                        }
+                    }
+                } catch (e) {}
+            }
+            triggerRefresh();
+            showToast('success', 'Expired session verified and completed successfully.');
+        } else {
+            showToast('info', 'Session not found or already verified.');
+        }
+    } catch (e) {
+        console.error('Failed to verify expired session:', e);
+        showToast('error', 'Failed to verify expired session.');
     }
 }
 
@@ -1690,6 +1770,173 @@ function deleteAllCashPayments() {
     loadCashVerifications();
 }
 
+let revenueTrendChart;
+let currentRevenuePeriod = 'daily';
+let revenueData = [];
+let revenueFilteredData = [];
+let currentRevenuePage = 1;
+let revenueRecordsPerPage = 25;
+let totalRevenuePages = 1;
+
+function loadRevenueHistory() {
+    currentRevenuePage = 1;
+    const payments = getAllPayments();
+    const validPayments = payments.filter(function(p) { return p.status === 'Pending' || p.status === 'Paid' || p.status === 'Verified'; });
+    const totalRevenue = validPayments.reduce(function(sum, p) { return sum + parseFloat(p.amount || 0); }, 0);
+    const totalCount = validPayments.length;
+    const avgAmount = totalCount > 0 ? totalRevenue / totalCount : 0;
+    const now = new Date();
+    const currentMonth = now.toISOString().substring(0, 7);
+    const monthPayments = validPayments.filter(function(p) { return (p.createdAt || '').startsWith(currentMonth); });
+    const monthRevenue = monthPayments.reduce(function(sum, p) { return sum + parseFloat(p.amount || 0); }, 0);
+    const totalRevenueEl = document.getElementById('rev-total');
+    const monthRevenueEl = document.getElementById('rev-month');
+    const avgAmountEl = document.getElementById('rev-avg');
+    const totalCountEl = document.getElementById('rev-count');
+    if (totalRevenueEl) totalRevenueEl.textContent = '৳' + totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (monthRevenueEl) monthRevenueEl.textContent = '৳' + monthRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (avgAmountEl) avgAmountEl.textContent = '৳' + avgAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (totalCountEl) totalCountEl.textContent = totalCount;
+    const grouped = {};
+    validPayments.forEach(function(p) {
+        const dateStr = (p.createdAt || '').split('T')[0];
+        if (!dateStr) return;
+        if (!grouped[dateStr]) grouped[dateStr] = { date: dateStr, total: 0, count: 0, verified: 0, pending: 0, amounts: [] };
+        grouped[dateStr].total += parseFloat(p.amount || 0);
+        grouped[dateStr].count++;
+        grouped[dateStr].amounts.push(parseFloat(p.amount || 0));
+        if (p.status === 'Verified') grouped[dateStr].verified++;
+        if (p.status === 'Pending') grouped[dateStr].pending++;
+    });
+    revenueData = Object.values(grouped).sort(function(a, b) { return a.date.localeCompare(b.date); });
+    setRevenuePeriod(currentRevenuePeriod);
+    renderRevenueTable(revenueData);
+}
+
+function setRevenuePeriod(period) {
+    currentRevenuePeriod = period;
+    const buttons = document.querySelectorAll('.revenue-trend-btn');
+    buttons.forEach(function(btn) {
+        const btnPeriod = btn.getAttribute('onclick').replace("setRevenuePeriod('", '').replace("')", '');
+        if (btnPeriod === period) {
+            btn.className = 'revenue-trend-btn text-xs font-semibold px-3.5 py-1.5 rounded-lg border border-sp-accent/10 bg-sp-accent/10 text-sp-accent transition-all';
+        } else {
+            btn.className = 'revenue-trend-btn text-xs font-semibold px-3.5 py-1.5 rounded-lg border border-sp-accent/10 bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all';
+        }
+    });
+    if (!revenueTrendChart) initRevenueTrendChart();
+    if (!revenueTrendChart) return;
+    const labels = [];
+    const values = [];
+    if (period === 'daily') {
+        revenueData.forEach(function(d) { labels.push(d.date); values.push(d.total); });
+    } else if (period === 'weekly') {
+        const weeks = {};
+        revenueData.forEach(function(d) {
+            const date = new Date(d.date);
+            const day = date.getDay();
+            const weekStart = new Date(date);
+            weekStart.setDate(date.getDate() - day);
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekStart.getDate() + 6);
+            const key = weekStart.toISOString().split('T')[0];
+            if (!weeks[key]) weeks[key] = { label: weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' - ' + weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), total: 0 };
+            weeks[key].total += d.total;
+        });
+        Object.keys(weeks).sort().forEach(function(k) { labels.push(weeks[k].label); values.push(weeks[k].total); });
+    } else {
+        const months = {};
+        revenueData.forEach(function(d) {
+            const monthKey = d.date.substring(0, 7);
+            if (!months[monthKey]) months[monthKey] = { label: new Date(monthKey + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }), total: 0 };
+            months[monthKey].total += d.total;
+        });
+        Object.keys(months).sort().forEach(function(k) { labels.push(months[k].label); values.push(months[k].total); });
+    }
+    revenueTrendChart.data.labels = labels.length > 0 ? labels : ['No data'];
+    revenueTrendChart.data.datasets[0].data = values.length > 0 ? values : [0];
+    revenueTrendChart.update();
+}
+
+function initRevenueTrendChart() {
+    const ctx = document.getElementById('revenueTrendChart');
+    if (!ctx) return;
+    revenueTrendChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: ['No data'], datasets: [{ label: 'Revenue (BDT)', data: [0], backgroundColor: 'rgba(16, 185, 129, 0.7)', borderColor: '#10B981', borderWidth: 1.5, borderRadius: 8, borderSkipped: false, barThickness: 36 }] },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return 'BDT ' + context.raw.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } } } },
+            scales: {
+                y: { beginAtZero: true, grid: { color: 'rgba(59,130,246,0.05)' }, ticks: { callback: function(value) { return '৳' + value; }, font: { family: 'Poppins', size: 10 }, color: '#94a3b8' } },
+                x: { grid: { display: false }, ticks: { font: { family: 'Poppins', size: 11, weight: '600' }, color: '#94a3b8' } }
+            }
+        }
+    });
+}
+
+function renderRevenueTable(data) {
+    const tbody = document.getElementById('revenue-table-body');
+    const emptyMsg = document.getElementById('revenue-empty-msg');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    totalRevenuePages = Math.ceil(data.length / revenueRecordsPerPage) || 1;
+    if (currentRevenuePage > totalRevenuePages) currentRevenuePage = totalRevenuePages;
+    if (currentRevenuePage < 1) currentRevenuePage = 1;
+    const start = (currentRevenuePage - 1) * revenueRecordsPerPage;
+    const end = Math.min(start + revenueRecordsPerPage, data.length);
+    const pageData = data.slice(start, end);
+    if (pageData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-500"><i class="fa-solid fa-inbox text-2xl mb-2"></i><p class="text-xs font-medium">No revenue records found</p></td></tr>';
+        if (emptyMsg) emptyMsg.classList.remove('hidden');
+        updateRevenuePaginationUI(data.length);
+        return;
+    }
+    if (emptyMsg) emptyMsg.classList.add('hidden');
+    pageData.forEach(function(d) {
+        const avg = d.count > 0 ? d.total / d.count : 0;
+        tbody.innerHTML += '<tr class="hover:bg-white/5 transition-all border-b border-sp-accent/5 last:border-0"><td class="py-3.5 pl-5 text-sm font-bold text-white">' + d.date + '</td><td class="py-3.5 text-sm text-slate-400 font-medium">' + d.count + '</td><td class="py-3.5 text-sm text-white font-bold">৳' + d.total.toFixed(2) + '</td><td class="py-3.5 text-sm text-slate-400">৳' + avg.toFixed(2) + '</td><td class="py-3.5 text-sm text-sp-emerald font-semibold">' + d.verified + '</td><td class="py-3.5 text-sm text-sp-amber font-semibold">' + d.pending + '</td></tr>';
+    });
+    updateRevenuePaginationUI(data.length);
+}
+
+function updateRevenuePaginationUI(totalRecordCount) {
+    const pageInfo = document.getElementById('revenue-page-info');
+    const btnFirst = document.getElementById('rev-btn-first');
+    const btnPrev = document.getElementById('rev-btn-prev');
+    const btnNext = document.getElementById('rev-btn-next');
+    const btnLast = document.getElementById('rev-btn-last');
+    if (pageInfo) pageInfo.textContent = 'Page ' + currentRevenuePage + ' of ' + totalRevenuePages;
+    if (btnFirst) btnFirst.disabled = currentRevenuePage <= 1;
+    if (btnPrev) btnPrev.disabled = currentRevenuePage <= 1;
+    if (btnNext) btnNext.disabled = currentRevenuePage >= totalRevenuePages || totalRecordCount === 0;
+    if (btnLast) btnLast.disabled = currentRevenuePage >= totalRevenuePages || totalRecordCount === 0;
+}
+
+function goToRevenuePage(page) {
+    if (page < 1 || page > totalRevenuePages) return;
+    currentRevenuePage = page;
+    renderRevenueTable(revenueFilteredData.length > 0 ? revenueFilteredData : revenueData);
+}
+
+function exportRevenueCSV() {
+    const data = revenueFilteredData.length > 0 ? revenueFilteredData : revenueData;
+    if (data.length === 0) { showToast('info', 'No revenue records to export.'); return; }
+    let csv = 'Date,Transactions,Total Amount,Avg Amount,Verified,Pending\n';
+    data.forEach(function(d) {
+        const avg = d.count > 0 ? d.total / d.count : 0;
+        csv += '"' + d.date + '",' + d.count + ',' + d.total.toFixed(2) + ',' + avg.toFixed(2) + ',' + d.verified + ',' + d.pending + '\n';
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'revenue_history_' + new Date().toISOString().split('T')[0] + '.csv');
+    link.click();
+    URL.revokeObjectURL(url);
+    showToast('success', 'Revenue history exported as CSV!');
+}
+
 function showToast(type, message) {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -1785,12 +2032,10 @@ function getAIResponse(msg) {
         const allPayments = JSON.parse(localStorage.getItem('smartParkPayments_by_user')) || {};
         let total = 0;
         let count = 0;
-        const today = new Date().toISOString().split('T')[0];
         Object.values(allPayments).forEach(function(userPayments) {
             if (Array.isArray(userPayments)) {
                 userPayments.forEach(function(p) {
-                    const paymentDate = (p.createdAt || '').split('T')[0];
-                    if (paymentDate === today && (p.status === 'Pending' || p.status === 'Paid' || p.status === 'Verified')) {
+                    if (p.status === 'Pending' || p.status === 'Paid' || p.status === 'Verified') {
                         total += parseFloat(p.amount || 0);
                         count++;
                     }
@@ -1799,7 +2044,7 @@ function getAIResponse(msg) {
         });
         var revenueEl = document.getElementById('stat-revenue');
         if (revenueEl) { revenueEl.textContent = 'BDT ' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-        return '📊 Today\'s revenue: BDT ' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' (' + count + ' payment' + (count !== 1 ? 's' : '') + '). Revenue updates automatically as customers pay.';
+        return '📊 Total revenue: BDT ' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' (' + count + ' payment' + (count !== 1 ? 's' : '') + '). Revenue updates automatically as customers pay.';
     }
     if (lower.includes('hello') || lower.includes('hi') || lower.includes('hey')) return 'Hello! 👋 I\'m your SmartPark AI assistant. I can help you analyze parking patterns, optimize zone management, and answer questions. What would you like to know?';
     if (lower.includes('thank')) return 'You\'re welcome! 😊 Feel free to ask if you need anything else.';
