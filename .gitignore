@@ -15,3 +15,6 @@ backend/
 dist/
 build/
 
+# Local data files
+data/
+
