@@ -1779,7 +1779,7 @@ function getAIResponse(msg) {
         return 'To end a session, go to "Active Sessions" and use the manage options.';
     }
     if (lower.includes('payment') || lower.includes('pay') || lower.includes('bKash') || lower.includes('nagad')) {
-        return '💳 We accept bKash, Nagad, Rocket, Visa Card, and Cash. Admin receives payment at 01841156753. Always keep your TrxID safe for verification.';
+        return '💳 We accept bKash, Nagad, Rocket, Visa Card, and Cash. Contact admin for payment details. Always keep your TrxID safe for verification.';
     }
     if (lower.includes('revenue') || lower.includes('earning') || lower.includes('income') || lower.includes('today revenue') || lower.includes('revenue insights')) {
         const allPayments = JSON.parse(localStorage.getItem('smartParkPayments_by_user')) || {};

@@ -4,7 +4,6 @@
 .env.development.local
 .env.test.local
 .env.production.local
-env.js
 
 # Dependencies
 node_modules/

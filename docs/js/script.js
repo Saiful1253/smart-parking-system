@@ -498,9 +498,6 @@ async function handleLogin(event) {
             setTimeout(() => { submitBtn.disabled = false; submitBtn.innerHTML = originalContent; window.location.href = currentRole === 'admin' ? 'admin.html' : 'book-parking.html'; }, 1500);
         } else { throw new Error(data.msg || 'Login failed'); }
     } catch (err) {
-        var adminKeyInput = document.getElementById('login-admin-key');
-        var enteredAdminKey = adminKeyInput ? adminKeyInput.value.trim() : '';
-        if (currentRole === 'admin') { if (enteredAdminKey !== 'SmartParkAdmin2024') { showToast('error', 'Invalid admin security key.'); submitBtn.disabled = false; submitBtn.innerHTML = originalContent; return; } }
         var users = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
         var emailLower = (email || '').toString().trim().toLowerCase();
         var passwordTrim = (password || '').toString().trim();
@@ -744,7 +741,7 @@ function getAIResponse(msg) {
         return 'To end a session, go to "My Sessions" and click the "End Session" button. Make sure to complete payment first if using metered booking.';
     }
     if (lower.includes('payment') || lower.includes('pay') || lower.includes('bKash') || lower.includes('nagad')) {
-        return '💳 We accept bKash, Nagad, Rocket, Visa Card, and Cash. Admin receives payment at 01841156753. Always keep your TrxID safe for verification.';
+        return '💳 We accept bKash, Nagad, Rocket, Visa Card, and Cash. Contact admin for payment details. Always keep your TrxID safe for verification.';
     }
     if (lower.includes('revenue') || lower.includes('earning') || lower.includes('income') || lower.includes('today revenue') || lower.includes('revenue insights')) {
         const allPayments = JSON.parse(localStorage.getItem('smartParkPayments_by_user')) || {};

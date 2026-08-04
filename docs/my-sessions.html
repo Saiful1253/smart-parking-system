@@ -96,7 +96,7 @@
                 <div class="flex items-center gap-3">
                     <div class="w-12 h-12 rounded-full bg-sp-accent/10 flex items-center justify-center text-sp-accent text-xl"><i class="fa-solid fa-building-columns"></i></div>
                     <div>
-                        <p class="text-lg font-extrabold text-white" id="pay-admin-number">01841156753</p>
+                        <p class="text-lg font-extrabold text-white" id="pay-admin-number">Contact Admin</p>
                         <p class="text-xs text-slate-500">Admin <span id="pay-method-label">bKash</span> Account</p>
                     </div>
                 </div>
@@ -324,7 +324,6 @@ function openPaymentModal(sessionId, method) {
     document.getElementById('pay-modal-title').textContent = 'Pay with ' + method;
     document.getElementById('pay-method-label').textContent = method;
     document.getElementById('pay-cust-method-label').textContent = method;
-    document.getElementById('pay-admin-number').textContent = '01841156753';
     document.getElementById('pay-amount').textContent = '৳' + s.cost.toFixed(2);
     document.getElementById('pay-customer-number').value = '';
     document.getElementById('pay-trx-id').value = '';
