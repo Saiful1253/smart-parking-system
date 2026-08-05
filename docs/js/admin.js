@@ -313,7 +313,7 @@ document.addEventListener('click', (e) => { const sidebar = document.getElementB
 function switchAdminTab(tabId, element) {
     const navItems = document.querySelectorAll('.admin-nav-item'); navItems.forEach(item => { item.className = "admin-nav-item relative flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300"; });
     if (element) { element.className = "admin-nav-item active relative flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl bg-sp-accent/10 text-sp-accent transition-all duration-300"; }
-    const views = ['dashboard-view', 'zones-view', 'sessions-view', 'history-view', 'map-view', 'customer-view', 'cash-view', 'revenue-view', 'anomalies-view', 'settings-view'];
+    const views = ['dashboard-view', 'zones-view', 'sessions-view', 'history-view', 'map-view', 'lpr-camera-view', 'customer-view', 'cash-view', 'revenue-view', 'anomalies-view', 'settings-view'];
     views.forEach(view => { const el = document.getElementById(view); if (el) el.classList.add('hidden'); });
     const activeView = document.getElementById(`${tabId}-view`);
     if (activeView) {
@@ -325,9 +325,10 @@ function switchAdminTab(tabId, element) {
         if (tabId === 'history') { syncHistoryFromAllCustomers(); renderHistoryTable(); }
         if (tabId === 'dashboard') {}
         if (tabId === 'anomalies') { loadAnomalies(); populateAnomalyCustomerFilter(); renderActiveCustomersTable(); }
+        if (tabId === 'lpr-camera') { populateLprZoneSelect(); }
     }
     const pageTitle = document.getElementById('page-title'); const pageSubtitle = document.getElementById('page-subtitle');
-    const titles = { dashboard: { title: 'Dashboard', subtitle: 'AI-powered parking management overview' }, zones: { title: 'Parking Zones', subtitle: 'Configure and monitor parking zones and rates' }, sessions: { title: 'Active Sessions', subtitle: 'Real-time list of vehicles currently parked' }, history: { title: 'Parking History', subtitle: 'Historical log of completed sessions and payments' }, map: { title: 'Live Parking Map', subtitle: 'Visual representation of parking lot occupancy' }, customer: { title: 'Customer Management', subtitle: 'Registered customers and unregistered vehicle registration' }, cash: { title: 'Payment Verification', subtitle: 'Verify manual cash payments' }, revenue: { title: 'Revenue History', subtitle: 'Historical revenue analytics and trends' }, anomalies: { title: 'Anomaly Detection', subtitle: 'Sensor mismatches, invalid slots, or suspicious bookings' }, settings: { title: 'System Settings', subtitle: 'Configure system parameters and accounts' } };
+    const titles = { dashboard: { title: 'Dashboard', subtitle: 'AI-powered parking management overview' }, zones: { title: 'Parking Zones', subtitle: 'Configure and monitor parking zones and rates' }, sessions: { title: 'Active Sessions', subtitle: 'Real-time list of vehicles currently parked' }, history: { title: 'Parking History', subtitle: 'Historical log of completed sessions and payments' }, map: { title: 'Live Parking Map', subtitle: 'Visual representation of parking lot occupancy' }, 'lpr-camera': { title: 'AI Camera — License Plate Recognition', subtitle: 'Live camera feed with automatic plate detection and vehicle identification' }, customer: { title: 'Customer Management', subtitle: 'Registered customers and unregistered vehicle registration' }, cash: { title: 'Payment Verification', subtitle: 'Verify manual cash payments' }, revenue: { title: 'Revenue History', subtitle: 'Historical revenue analytics and trends' }, anomalies: { title: 'Anomaly Detection', subtitle: 'Sensor mismatches, invalid slots, or suspicious bookings' }, settings: { title: 'System Settings', subtitle: 'Configure system parameters and accounts' } };
     if (titles[tabId]) { pageTitle.textContent = titles[tabId].title; pageSubtitle.textContent = titles[tabId].subtitle; }
     if (window.innerWidth < 768) document.getElementById('sidebar').classList.add('-translate-x-full');
 }
@@ -2217,6 +2218,239 @@ function initAdminMap() {
         L.marker([z.lat, z.lng], { icon: icon }).addTo(adminMap);
     });
     setTimeout(function() { adminMap.invalidateSize(); }, 200);
+}
+
+// ---- AI Camera / LPR Integration ----
+let lprStream = null;
+let lprLatestPlate = null;
+let ccCameraMode = false;
+async function startLprCamera() {
+    try {
+        const video = document.getElementById('lpr-video');
+        const ccImg = document.getElementById('lpr-cc-image');
+        if (!video) return;
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'environment' } });
+        lprStream = stream;
+        video.srcObject = stream;
+        ccCameraMode = false;
+        if (ccImg) ccImg.classList.add('hidden');
+        document.getElementById('lpr-overlay').style.display = 'none';
+        document.getElementById('btn-start-camera').classList.add('hidden');
+        document.getElementById('btn-stop-camera').classList.remove('hidden');
+        document.getElementById('btn-capture').classList.remove('hidden');
+        document.getElementById('btn-capture').disabled = false;
+        showToast('success', 'Camera started. Position a license plate in view and click Capture.');
+    } catch (err) {
+        console.error('Camera error:', err);
+        showToast('error', 'Camera access denied or unavailable. Use HTTPS or localhost.');
+    }
+}
+function stopLprCamera() {
+    if (lprStream) {
+        lprStream.getTracks().forEach(t => t.stop());
+        lprStream = null;
+    }
+    const video = document.getElementById('lpr-video');
+    if (video) video.srcObject = null;
+    const ccImg = document.getElementById('lpr-cc-image');
+    if (ccImg) { ccImg.src = ''; ccImg.classList.add('hidden'); }
+    document.getElementById('lpr-overlay').style.display = 'flex';
+    document.getElementById('btn-start-camera').classList.remove('hidden');
+    document.getElementById('btn-stop-camera').classList.add('hidden');
+    document.getElementById('btn-capture').classList.add('hidden');
+    document.getElementById('btn-capture').disabled = true;
+    ccCameraMode = false;
+}
+function connectCcCamera() {
+    const urlInput = document.getElementById('cc-camera-url');
+    const streamUrl = urlInput ? urlInput.value.trim() : '';
+    if (!streamUrl) { showToast('info', 'Enter your CC camera stream URL first.'); return; }
+    const video = document.getElementById('lpr-video');
+    const ccImg = document.getElementById('lpr-cc-image');
+    if (!video || !ccImg) return;
+    if (lprStream) stopLprCamera();
+    video.srcObject = null;
+    video.classList.add('hidden');
+    ccImg.src = streamUrl;
+    ccImg.classList.remove('hidden');
+    ccCameraMode = true;
+    document.getElementById('lpr-overlay').style.display = 'none';
+    document.getElementById('btn-start-camera').classList.add('hidden');
+    document.getElementById('btn-stop-camera').classList.remove('hidden');
+    document.getElementById('btn-capture').classList.remove('hidden');
+    document.getElementById('btn-capture').disabled = false;
+    showToast('success', 'CC camera connected. Click Capture & Recognize to scan plate.');
+}
+async function captureAndRecognize() {
+    const video = document.getElementById('lpr-video');
+    const canvas = document.getElementById('lpr-canvas');
+    if (!video || !canvas) return;
+    if (ccCameraMode) {
+        showToast('info', 'Capturing frame from CC camera stream...');
+        try {
+            const token = localStorage.getItem('token_admin');
+            const streamUrl = video.currentSrc || video.src || (document.getElementById('cc-camera-url')?.value || '');
+            if (!streamUrl) { showToast('error', 'No CC camera stream URL set.'); return; }
+            const response = await fetch(`${API_BASE}/api/lpr/capture-from-stream`, { method: 'POST', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' }, body: JSON.stringify({ streamUrl: streamUrl, regions: 'us,eu,bd' }) });
+            const contentType = response.headers.get('content-type') || '';
+            const isJson = contentType.includes('application/json');
+            const data = isJson ? await response.json() : {};
+            if (data && data.demo) {
+                lprLatestPlate = data.plate;
+                showLprResult(data);
+                addLprHistoryEntry(data);
+                showToast('success', `Demo plate: ${data.plate} — configure LPR_API_KEY for real recognition`);
+                document.getElementById('btn-auto-book').classList.remove('hidden');
+            } else if (data && data.success && data.plate) {
+                lprLatestPlate = data.plate;
+                showLprResult(data);
+                addLprHistoryEntry(data);
+                showToast('success', `Plate recognized: ${data.plate} (${Math.round((data.confidence || 0) * 100)}% confidence)`);
+                document.getElementById('btn-auto-book').classList.remove('hidden');
+            } else {
+                showToast('warning', data.message || 'No plate detected from CC camera. Try again.');
+            }
+        } catch (err) {
+            console.error('LPR stream error:', err);
+            showToast('error', 'CC camera recognition failed. Check stream URL and network.');
+        }
+        return;
+    }
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = canvas.toDataURL('image/jpeg', 0.9);
+    showToast('info', 'Recognizing plate...');
+    try {
+        const token = localStorage.getItem('token_admin');
+        const response = await fetch(`${API_BASE}/api/lpr/recognize`, { method: 'POST', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' }, body: JSON.stringify({ image: imageData, regions: 'us,eu,bd' }) });
+        const contentType = response.headers.get('content-type') || '';
+        const isJson = contentType.includes('application/json');
+        const data = isJson ? await response.json() : {};
+        if (data && data.success && data.plate) {
+            lprLatestPlate = data.plate;
+            showLprResult(data);
+            addLprHistoryEntry(data);
+            showToast('success', `Plate recognized: ${data.plate} (${Math.round((data.confidence || 0) * 100)}% confidence)`);
+            document.getElementById('btn-auto-book').classList.remove('hidden');
+        } else if (data && data.demo) {
+            lprLatestPlate = data.plate;
+            showLprResult(data);
+            addLprHistoryEntry(data);
+            showToast('success', `Demo plate: ${data.plate} — configure LPR_API_KEY for real recognition`);
+            document.getElementById('btn-auto-book').classList.remove('hidden');
+        } else {
+            showToast('warning', data.message || 'No plate detected. Try again with a clearer view.');
+        }
+    } catch (err) {
+        console.error('LPR error:', err);
+        showToast('error', 'Recognition failed. Check backend connection.');
+    }
+}
+function showLprResult(data) {
+    const empty = document.getElementById('lpr-result-empty');
+    const box = document.getElementById('lpr-result-box');
+    if (empty) empty.classList.add('hidden');
+    if (box) {
+        box.classList.remove('hidden');
+        document.getElementById('lpr-plate-display').textContent = data.plate || '---';
+        const conf = Math.round((data.confidence || 0) * 100);
+        const badge = document.getElementById('lpr-confidence-badge');
+        badge.textContent = conf + '%';
+        badge.className = 'px-2 py-0.5 rounded-full font-bold text-[10px] border ';
+        if (conf >= 85) badge.className += 'bg-sp-emerald/10 text-sp-emerald border-sp-emerald/20';
+        else if (conf >= 60) badge.className += 'bg-sp-amber/10 text-sp-amber border-sp-amber/20';
+        else badge.className += 'bg-sp-red/10 text-sp-red border-sp-red/20';
+        document.getElementById('lpr-region').textContent = data.region || '-';
+        document.getElementById('lpr-vehicle-type').textContent = data.vehicle_type || '-';
+        document.getElementById('lpr-candidates-count').textContent = data.candidates ? data.candidates.length + ' candidate(s)' : '-';
+        document.getElementById('lpr-time').textContent = new Date().toLocaleTimeString();
+        document.getElementById('lpr-confidence-bar').style.width = conf + '%';
+    }
+}
+function addLprHistoryEntry(data) {
+    const container = document.getElementById('lpr-history');
+    if (!container) return;
+    const placeholder = container.querySelector('.text-center');
+    if (placeholder) placeholder.remove();
+    const conf = Math.round((data.confidence || 0) * 100);
+    const entry = document.createElement('div');
+    entry.className = 'flex items-center justify-between p-2.5 rounded-lg bg-white/5 border border-sp-accent/10';
+    entry.innerHTML = `<div class="flex items-center gap-3"><span class="text-xs font-bold text-white font-mono tracking-wider">${data.plate || '---'}</span><span class="text-[10px] text-slate-500">${new Date().toLocaleTimeString()}</span></div><span class="text-[10px] font-bold ${conf >= 85 ? 'text-sp-emerald' : conf >= 60 ? 'text-sp-amber' : 'text-sp-red'}">${conf}%</span>`;
+    container.insertBefore(entry, container.firstChild);
+    while (container.children.length > 20) container.removeChild(container.lastChild);
+}
+async function populateLprZoneSelect() {
+    if (!Object.keys(zonesData).length) await loadZonesFromAPI();
+    const select = document.getElementById('lpr-zone-select');
+    if (!select) return;
+    select.innerHTML = '<option value="">Select zone...</option>';
+    Object.values(zonesData).forEach(function(z) {
+        if (z.status === 'Active') {
+            const option = document.createElement('option');
+            option.value = z.id;
+            option.textContent = z.name + ' (৳' + z.rate + '/hr, ' + (z.free !== undefined ? z.free : z.spots) + ' free)';
+            select.appendChild(option);
+        }
+    });
+}
+async function autoBookFromLpr() {
+    if (!lprLatestPlate) { showToast('info', 'No plate recognized. Capture a plate first.'); return; }
+    const zoneId = document.getElementById('lpr-zone-select')?.value;
+    if (!zoneId) { showToast('info', 'Please select a zone first.'); return; }
+    const zone = zonesData[zoneId];
+    if (!zone) return;
+    const freeSlot = zone.spotStatus.find(s => !s.occupied);
+    if (!freeSlot) { showToast('error', 'No free spots in this zone.'); return; }
+    const token = localStorage.getItem('token_admin');
+    const sessionData = { plateNumber: lprLatestPlate, zone: zoneId, spot: freeSlot.id, slotIndex: freeSlot.index, status: 'Active', paymentStatus: 'Pending', payment: 'Cash', cost: 0, startTime: new Date().toISOString(), sensorDetected: true, sensorVerified: true, sensorType: 'AI Camera LPR', bookingType: 'meter', vehicleType: 'Car' };
+    try {
+        const response = await fetch(`${API_BASE}/api/parking`, { method: 'POST', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' }, body: JSON.stringify(sessionData) });
+        const data = await response.json();
+        if (response.ok) {
+            showToast('success', `Auto-booked ${freeSlot.id} for plate ${lprLatestPlate} in ${zone.name}`);
+            freeSlot.occupied = true;
+            freeSlot.plate = lprLatestPlate;
+            freeSlot.sessionId = data._id;
+            zone.occupied = (zone.occupied || 0) + 1;
+            zone.free = Math.max(0, (zone.free || 0) - 1);
+            renderZonesGrid();
+            populateLprZoneSelect();
+        } else {
+            showToast('error', data.msg || 'Auto-book failed. Trying local fallback...');
+            fallbackLocalBooking(sessionData, freeSlot, zone);
+        }
+    } catch (err) {
+        console.error('Auto-book error:', err);
+        fallbackLocalBooking(sessionData, freeSlot, zone);
+    }
+}
+function fallbackLocalBooking(sessionData, freeSlot, zone) {
+    try {
+        const allRaw = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+        const email = localStorage.getItem('loggedInUser_admin');
+        let userData = allRaw[email] || { sessions: [], history: [], zoneSlots: {}, nextId: 1000, nextHistId: 2000 };
+        const newSession = { id: userData.nextId, ...sessionData, createdAt: new Date().toISOString() };
+        userData.sessions.push(newSession);
+        userData.nextId++;
+        userData.zoneSlots = userData.zoneSlots || {};
+        if (!userData.zoneSlots[zone.id]) userData.zoneSlots[zone.id] = Array.from({ length: zone.spots }, (_, i) => ({ id: zone.id.replace('Zone-', '') + '-' + String(i + 1).padStart(2, '0'), index: i, occupied: false }));
+        const slot = userData.zoneSlots[zone.id][freeSlot.index];
+        if (slot) { slot.occupied = true; slot.sessionId = newSession.id; }
+        allRaw[email] = userData;
+        localStorage.setItem('customerParkingData_by_user', JSON.stringify(allRaw));
+        freeSlot.occupied = true;
+        freeSlot.plate = lprLatestPlate;
+        freeSlot.sessionId = newSession.id;
+        zone.occupied = (zone.occupied || 0) + 1;
+        zone.free = Math.max(0, (zone.free || 0) - 1);
+        renderZonesGrid();
+        populateLprZoneSelect();
+        showToast('success', `Local fallback: booked ${freeSlot.id} for ${lprLatestPlate}`);
+    } catch (e) {
+        showToast('error', 'Local fallback failed: ' + e.message);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
