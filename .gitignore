@@ -15,6 +15,12 @@ backend/
 dist/
 build/
 
+# Test/generated local files
+test-output.html
+test-server.js
+test-settings.js
+test-results/
+
 # Sensitive local data files
 data/users.json
 
