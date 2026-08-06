@@ -4,7 +4,14 @@
   "description": "SmartPark - Next-Gen Parking Solutions",
   "main": "index.html",
   "scripts": {
-    "dev": "npx serve ."
+    "dev": "npx serve .",
+    "build:css": "tailwindcss -i ./tailwind-input.css -o ./docs/css/tailwind.css --minify",
+    "build": "npm run build:css"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17",
+    "postcss": "^8.5.3",
+    "autoprefixer": "^10.4.21"
   },
   "repository": {
     "type": "git",

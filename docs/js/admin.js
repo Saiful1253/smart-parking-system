@@ -1,6 +1,9 @@
 // SmartPark - Admin Dashboard JavaScript v2.0
 
 const API_BASE = (() => {
+    if (window.SmartParkConfig && window.SmartParkConfig.API_BASE) {
+        return window.SmartParkConfig.API_BASE;
+    }
     const urlParams = new URLSearchParams(window.location.search);
     const apiParam = urlParams.get('api');
     if (apiParam) return apiParam.replace(/\/$/, '');
@@ -19,9 +22,29 @@ const API_BASE = (() => {
         if (typeof token === 'string' && token.startsWith('static-')) {
             const loggedInUserStr = localStorage.getItem('loggedInUser_admin');
             if (loggedInUserStr) { const userObj = JSON.parse(loggedInUserStr); if (userObj.role !== 'admin') { localStorage.removeItem('token_admin'); localStorage.removeItem('loggedInUser_admin'); window.location.href = 'index.html'; return; } }
+        } else {
+            const base64Url = token.split('.')[1]; const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const decoded = JSON.parse(window.atob(base64));
+            if (decoded && decoded.exp && Date.now() >= decoded.exp * 1000) {
+                localStorage.removeItem('token_admin'); localStorage.removeItem('loggedInUser_admin'); window.location.href = 'index.html'; return;
+            }
         }
     } catch (error) { localStorage.removeItem('token_admin'); localStorage.removeItem('loggedInUser_admin'); window.location.href = 'index.html'; }
 })();
+
+function getAdminToken() {
+    const token = localStorage.getItem('token_admin');
+    if (!token) return null;
+    if (token.startsWith('static-')) return token;
+    try {
+        const base64Url = token.split('.')[1]; const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const decoded = JSON.parse(window.atob(base64));
+        if (decoded && decoded.exp && Date.now() >= decoded.exp * 1000) {
+            localStorage.removeItem('token_admin'); localStorage.removeItem('loggedInUser_admin'); return null;
+        }
+        return token;
+    } catch (e) { return token; }
+}
 
 
 function isAdminActiveSession(s) {
@@ -51,9 +74,11 @@ let unregisteredVehicles = [];
 async function loadZonesFromAPI() {
     loadZonesFromLocalStorage();
     try {
-        const token = localStorage.getItem('token_admin');
+        const token = getAdminToken();
+        if (!token) return false;
         const response = await fetch(`${API_BASE}/api/admin/zones`, { method: 'GET', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
         const contentType = response.headers.get('content-type') || ''; const isJson = contentType.includes('application/json'); const data = isJson ? await response.json() : {};
+        if (response.status === 401) { localStorage.removeItem('token_admin'); localStorage.removeItem('loggedInUser_admin'); return false; }
         if (response.ok && Array.isArray(data) && data.length > 0) { const newZonesData = {}; const order = []; data.forEach(zone => { newZonesData[zone.id] = zone; order.push(zone.id); }); zonesData = newZonesData; ZONE_ORDER = order; return true; }
     } catch (error) { console.error('Backend not available, using local zones data:', error); }
     return false;
@@ -107,9 +132,11 @@ function updateRevenueUI() {
 
 async function loadDashboardStats() {
     try {
-        const token = localStorage.getItem('token_admin');
+        const token = getAdminToken();
+        if (!token) { updateDashboardStatsFromLocal(); updateRevenueUI(); return; }
         const response = await fetch(`${API_BASE}/api/admin/dashboard-stats`, { method: 'GET', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
         const contentType = response.headers.get('content-type') || ''; const isJson = contentType.includes('application/json'); const data = isJson ? await response.json() : {};
+        if (response.status === 401) { localStorage.removeItem('token_admin'); localStorage.removeItem('loggedInUser_admin'); updateDashboardStatsFromLocal(); updateRevenueUI(); return; }
         if (response.ok) { updateSpottedVehiclesUI(data); updateZonesSpotsUI(data); if (data.activeSessions !== undefined && document.getElementById('active-sessions-count')) { document.getElementById('active-sessions-count').textContent = data.activeSessions; } if (data.revenue !== undefined && document.getElementById('stat-revenue')) { document.getElementById('stat-revenue').textContent = 'BDT ' + parseFloat(data.revenue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } }
         else { updateDashboardStatsFromLocal(); updateRevenueUI(); }
     } catch (error) { 
@@ -411,9 +438,11 @@ async function loadBookingTrend(period) {
     if (!bookingTrendChart) initBookingTrendChart();
     if (!bookingTrendChart) return;
     try {
-        const token = localStorage.getItem('token_admin');
+        const token = getAdminToken();
+        if (!token) { renderLocalBookingTrend(currentBookingTrendPeriod); return; }
         const response = await fetch(`${API_BASE}/api/admin/booking-trend?period=${currentBookingTrendPeriod}`, { method: 'GET', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
         const contentType = response.headers.get('content-type') || ''; const isJson = contentType.includes('application/json'); const data = isJson ? await response.json() : {};
+        if (response.status === 401) { localStorage.removeItem('token_admin'); localStorage.removeItem('loggedInUser_admin'); renderLocalBookingTrend(currentBookingTrendPeriod); return; }
         if (response.ok && data.labels && data.values) {
             bookingTrendChart.data.labels = data.labels;
             bookingTrendChart.data.datasets[0].data = data.values;
@@ -509,10 +538,12 @@ async function triggerRefresh() {
 
 async function loadAnomalies() {
     try {
-        const token = localStorage.getItem('token_admin');
+        const token = getAdminToken();
+        if (!token) { unregisteredVehicles = []; renderAnomalies(getLocalAnomalies()); populateAnomalyCustomerFilter(); renderActiveCustomersTable(); updateCustomerPageAnomalyCount(); return; }
         const dashboardResponse = await fetch(`${API_BASE}/api/admin/dashboard-stats`, { method: 'GET', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
         const dashboardContentType = dashboardResponse.headers.get('content-type') || '';
         const dashboardJson = dashboardContentType.includes('application/json') ? await dashboardResponse.json() : {};
+        if (dashboardResponse.status === 401) { localStorage.removeItem('token_admin'); localStorage.removeItem('loggedInUser_admin'); unregisteredVehicles = []; renderAnomalies(getLocalAnomalies()); populateAnomalyCustomerFilter(); renderActiveCustomersTable(); updateCustomerPageAnomalyCount(); return; }
         if (dashboardResponse.ok && dashboardJson.spottedVehiclesList && dashboardJson.spottedVehiclesList.length > 0) {
             unregisteredVehicles = dashboardJson.spottedVehiclesList.map(v => ({ ...v, detectedAt: v.detectedAt || new Date().toISOString(), sensor: v.sensor || 'Plate Reader' }));
         } else {
@@ -524,6 +555,7 @@ async function loadAnomalies() {
             const anomaliesResponse = await fetch(`${API_BASE}/api/admin/anomalies`, { method: 'GET', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
             const anomaliesContentType = anomaliesResponse.headers.get('content-type') || '';
             const anomaliesJson = anomaliesContentType.includes('application/json') ? await anomaliesResponse.json() : {};
+            if (anomaliesResponse.status === 401) { localStorage.removeItem('token_admin'); localStorage.removeItem('loggedInUser_admin'); throw new Error('Unauthorized'); }
             if (anomaliesResponse.ok && anomaliesJson.anomalies && anomaliesJson.anomalies.length > 0) {
                 anomalies = anomaliesJson.anomalies;
             }

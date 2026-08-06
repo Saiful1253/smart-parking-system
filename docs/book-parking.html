@@ -1,18 +1,15 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartPark — Find & Book Parking</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>SmartPark â€” Find & Book Parking</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/tailwind.css">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter','Poppins','sans-serif'] }, colors: { sp: { primary:'#0B1426', secondary:'#111B33', card:'#152238', accent:'#3B82F6', emerald:'#10B981', purple:'#8B5CF6', cyan:'#06B6D4' } } } } }
-    </script>
     <style>
         #customer-map { height: 420px; border-radius: 1rem; z-index: 10; background: #f1f5f9; }
         #customer-map .leaflet-control-zoom a { background: #ffffff !important; color: #1f2937 !important; border-color: #e5e7eb !important; border-radius: 8px !important; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
@@ -60,18 +57,7 @@
 <body class="font-sans bg-sp-primary text-slate-100 min-h-screen">
 
 <!-- Auth Guard -->
-<script>
-(function() {
-    const token = localStorage.getItem('token_customer');
-    if (!token) { window.location.href = 'index.html'; return; }
-    try {
-        if (token.startsWith('static-')) {
-            const u = JSON.parse(localStorage.getItem('loggedInUser_customer') || '{}');
-            if (u.role !== 'customer' && u.role !== 'user') { window.location.href = 'index.html'; }
-        }
-    } catch(e) { window.location.href = 'index.html'; }
-})();
-</script>
+<script>(function() { if (!window.SmartParkConfig || !window.SmartParkConfig.validateCustomerToken()) { window.location.href = 'index.html'; return; } })();</script>
 
 <!-- ===================== TOP NAVBAR ===================== -->
 <header class="bg-sp-secondary/90 backdrop-blur-xl border-b border-sp-accent/10 sticky top-0 z-30">
@@ -270,7 +256,7 @@
             <!-- Fixed Cost -->
             <div id="fixed-cost-display" class="bg-sp-accent/10 border border-sp-accent/20 rounded-xl p-3 flex items-center justify-between">
                 <span class="text-xs font-semibold text-sp-accent">Estimated Total:</span>
-                <span class="text-xl font-extrabold text-white" id="estimated-cost">৳0.00</span>
+                <span class="text-xl font-extrabold text-white" id="estimated-cost">à§³0.00</span>
             </div>
 
             <!-- Meter -->
@@ -282,9 +268,9 @@
                     </div>
                     <div class="text-center mb-3">
                         <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Running Cost</p>
-                        <p class="text-3xl font-black text-sp-emerald font-mono" id="meter-amount">৳0.00</p>
+                        <p class="text-3xl font-black text-sp-emerald font-mono" id="meter-amount">à§³0.00</p>
                     </div>
-                    <div class="flex justify-between text-[10px] text-slate-400 font-semibold"><span id="meter-rate-label">Rate: ৳0.00/hr</span><span id="meter-per-sec">৳0.0000/sec</span></div>
+                    <div class="flex justify-between text-[10px] text-slate-400 font-semibold"><span id="meter-rate-label">Rate: à§³0.00/hr</span><span id="meter-per-sec">à§³0.0000/sec</span></div>
                     <div class="mt-2 pt-2 border-t border-sp-emerald/20 flex justify-between text-[10px] text-slate-500">
                         <span id="meter-elapsed">Elapsed: 0s</span>
                         <span id="meter-pay-note">Pay on exit</span>
@@ -332,7 +318,7 @@
             </div>
             <div class="bg-sp-emerald/10 border border-sp-emerald/20 rounded-2xl p-4 text-center">
                 <p class="text-xs font-bold text-sp-emerald uppercase tracking-wider mb-1">Amount to Pay</p>
-                <p class="text-4xl font-extrabold text-sp-emerald" id="pay-amount-modal">৳0.00</p>
+                <p class="text-4xl font-extrabold text-sp-emerald" id="pay-amount-modal">à§³0.00</p>
             </div>
             <div class="bg-sp-secondary border border-sp-accent/10 rounded-2xl p-4">
                 <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Your Payment Details</p>
@@ -358,7 +344,7 @@
 <!-- TOAST -->
 <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
 
-<script src="js/env.js"></script>
+<script src="js/config.js"></script>`n    `<script src="js/env.js"></script>
 <script src="js/totp.js"></script>
 <script src="js/firebase-auth.js"></script>
 <script src="js/script.js"></script>
@@ -493,7 +479,7 @@ function addMarkersContent() {
             '<span class="free">Free: ' + (z.free !== undefined ? z.free : z.spots) + '</span>' +
             '<span class="occupied">Occupied: ' + (z.occupied !== undefined ? z.occupied : 0) + '</span>' +
             '</div>' +
-            '<p class="rate">Fee: <strong>৳' + z.rate.toFixed(2) + '/hr</strong></p>' +
+            '<p class="rate">Fee: <strong>à§³' + z.rate.toFixed(2) + '/hr</strong></p>' +
             (isActive ? '<button class="book-btn" onclick="openBookingModal(\'' + z.id + '\')">Book Now</button>' : '<button class="unavailable-btn">Zone Unavailable</button>') +
             '</div>';
         m.bindPopup(popupHtml, { maxWidth: 280, className: '' });
@@ -543,7 +529,7 @@ function renderZones() {
             '<p class="text-[10px] text-slate-500 mb-3 flex items-center gap-1"><i class="fa-solid fa-location-dot text-slate-600"></i> ' + z.location + '</p>' +
             '<div class="space-y-1 mb-3"><div class="flex justify-between text-[11px] font-semibold"><span class="text-slate-500">Occupancy</span><span class="text-white">' + z.occupied + ' / ' + z.spots + '</span></div>' +
             '<div class="w-full bg-sp-primary/50 rounded-full h-2"><div class="' + barColor + ' h-2 rounded-full transition-all duration-500" style="width:' + pct + '%"></div></div></div>' +
-            '<div class="flex items-center justify-between text-xs mb-3"><span class="font-bold text-white">৳' + z.rate.toFixed(2) + '<span class="font-normal text-slate-500">/hr</span></span><span class="font-semibold text-sp-emerald">' + z.free + ' Slots Free</span></div></div>' +
+            '<div class="flex items-center justify-between text-xs mb-3"><span class="font-bold text-white">à§³' + z.rate.toFixed(2) + '<span class="font-normal text-slate-500">/hr</span></span><span class="font-semibold text-sp-emerald">' + z.free + ' Slots Free</span></div></div>' +
             '<button onclick="' + btnOnClick + '" class="w-full py-2.5 text-xs font-bold rounded-xl transition-all duration-300 ' + btnClass + '">' + btnText + '</button></div>';
         grid.insertAdjacentHTML('beforeend', cardHtml);
     });
@@ -586,18 +572,18 @@ function startMeter() {
     if (!z) return;
     currentMeterRate = z.rate;
     var perSec = currentMeterRate / 3600;
-    document.getElementById('meter-rate-label').textContent = 'Rate: ৳' + currentMeterRate.toFixed(2) + '/hr';
-    document.getElementById('meter-per-sec').textContent = '৳' + perSec.toFixed(6) + '/sec';
+    document.getElementById('meter-rate-label').textContent = 'Rate: à§³' + currentMeterRate.toFixed(2) + '/hr';
+    document.getElementById('meter-per-sec').textContent = 'à§³' + perSec.toFixed(6) + '/sec';
     meterElapsedSeconds = 0;
     meterStartTime = Date.now();
     updateMeterDisplay();
     if (meterInterval) clearInterval(meterInterval);
     meterInterval = setInterval(function() { meterElapsedSeconds = Math.floor((Date.now() - meterStartTime) / 1000); updateMeterDisplay(); }, 1000);
 }
-function stopMeter() { if (meterInterval) { clearInterval(meterInterval); meterInterval = null; } meterElapsedSeconds = 0; meterStartTime = null; document.getElementById('meter-amount').textContent = '৳0.00'; document.getElementById('meter-elapsed').textContent = 'Elapsed: 0s'; }
+function stopMeter() { if (meterInterval) { clearInterval(meterInterval); meterInterval = null; } meterElapsedSeconds = 0; meterStartTime = null; document.getElementById('meter-amount').textContent = 'à§³0.00'; document.getElementById('meter-elapsed').textContent = 'Elapsed: 0s'; }
 function updateMeterDisplay() {
     var cost = (currentMeterRate / 3600) * meterElapsedSeconds;
-    document.getElementById('meter-amount').textContent = '৳' + cost.toFixed(2);
+    document.getElementById('meter-amount').textContent = 'à§³' + cost.toFixed(2);
     var hrs = Math.floor(meterElapsedSeconds / 3600), mins = Math.floor((meterElapsedSeconds % 3600) / 60), secs = meterElapsedSeconds % 60;
     var elapsedStr = (hrs > 0 ? hrs + 'h ' : '') + (mins > 0 ? mins + 'm ' : '') + secs + 's';
     document.getElementById('meter-elapsed').textContent = 'Elapsed: ' + elapsedStr;
@@ -627,7 +613,7 @@ function updateEstimatedCost() {
     var zoneId = document.getElementById('book-zone-id').value;
     var z = zonesData[zoneId];
     var hrs = parseInt(document.getElementById('book-duration').value) || 1;
-    if (z) document.getElementById('estimated-cost').textContent = '৳' + (z.rate * hrs).toFixed(2);
+    if (z) document.getElementById('estimated-cost').textContent = 'à§³' + (z.rate * hrs).toFixed(2);
 }
 
 function confirmBooking(e) {
@@ -683,7 +669,7 @@ function createMeterBooking() {
     syncZoneOccupancy(sessions);
     renderZones();
     closeBookingModal();
-    showToast('success', 'Metered booking created! ৳' + cost.toFixed(2) + ' initial charge.');
+    showToast('success', 'Metered booking created! à§³' + cost.toFixed(2) + ' initial charge.');
 }
 
 function openPaymentModal(z, amount, bookingType) {
@@ -693,7 +679,7 @@ function openPaymentModal(z, amount, bookingType) {
     document.getElementById('pay-modal-title').innerHTML = 'Complete <span class="text-sm font-normal text-slate-400">(' + zonePrefix + '-' + String(slotNum).padStart(2,'0') + ')</span>';
     var method = bookingType === 'meter' ? document.getElementById('book-payment-meter').value : document.getElementById('book-payment').value;
     document.getElementById('pay-method-label').textContent = method;
-    document.getElementById('pay-amount-modal').textContent = '৳' + amount.toFixed(2);
+    document.getElementById('pay-amount-modal').textContent = 'à§³' + amount.toFixed(2);
     document.getElementById('pay-customer-number').value = '';
     document.getElementById('pay-trx-id').value = '';
     var modal = document.getElementById('payment-modal');
@@ -739,7 +725,7 @@ function confirmPaymentFromBooking() {
     renderZones();
     closePaymentModal();
     window.dispatchEvent(new StorageEvent('storage', { key: 'smartParkPayments_by_user' }));
-    showToast('success', 'Booking confirmed! ৳' + cost.toFixed(2) + ' paid via ' + booking.paymentMethod + '.');
+    showToast('success', 'Booking confirmed! à§³' + cost.toFixed(2) + ' paid via ' + booking.paymentMethod + '.');
 }
 
 function getAISuggestions() {
@@ -754,7 +740,7 @@ function getAISuggestions() {
     if (bestZone) {
         sessionStorage.setItem('ai_recommended_zone', bestZone.id);
         var banner = document.getElementById('ai-suggestion-banner');
-        document.getElementById('ai-suggestion-text').innerHTML = '<strong>' + bestZone.name + '</strong> at ' + bestZone.location + ' offers the best value right now — <span class="text-sp-emerald font-bold">' + bestZone.free + ' free spots</span> at ৳' + bestZone.rate.toFixed(2) + '/hr. Tap to book!';
+        document.getElementById('ai-suggestion-text').innerHTML = '<strong>' + bestZone.name + '</strong> at ' + bestZone.location + ' offers the best value right now â€” <span class="text-sp-emerald font-bold">' + bestZone.free + ' free spots</span> at à§³' + bestZone.rate.toFixed(2) + '/hr. Tap to book!';
         banner.classList.remove('hidden');
         renderZones();
         showToast('info', 'AI Recommendation: ' + bestZone.name);
@@ -817,7 +803,7 @@ function toggle2FASettings() {
             <button onclick="toggleAIChat()" class="ml-auto text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="ai-chat-body" id="ai-chat-messages">
-            <div class="ai-chat-msg ai">Hi! I'm your SmartPark AI assistant. I can help you find the best parking spot, estimate costs, or answer questions about your booking. What would you like to know? 🚗</div>
+            <div class="ai-chat-msg ai">Hi! I'm your SmartPark AI assistant. I can help you find the best parking spot, estimate costs, or answer questions about your booking. What would you like to know? ðŸš—</div>
         </div>
         <div class="ai-quick-actions">
             <button class="ai-quick-btn" onclick="sendAIQuick('Find best parking zone')">Find best zone</button>
@@ -856,6 +842,10 @@ function toggle2FASettings() {
 </div>
 </body>
 </html>
+
+
+
+
 
 
 

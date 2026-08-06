@@ -1,27 +1,14 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartPark — AI-Powered Smart Parking System</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>SmartPark â€” AI-Powered Smart Parking System</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/tailwind.css">
     <link rel="stylesheet" href="css/style.css">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Inter', 'Poppins', 'sans-serif'] },
-                    colors: {
-                        brand: { 50:'#eff6ff', 100:'#dbeafe', 200:'#bfdbfe', 500:'#3b82f6', 600:'#2563eb', 700:'#1d4ed8', 900:'#1e3a8a', 950:'#172554' },
-                        sp: { primary:'#0B1426', secondary:'#111B33', card:'#152238', accent:'#3B82F6', emerald:'#10B981', purple:'#8B5CF6', cyan:'#06B6D4', red:'#EF4444', amber:'#F59E0B' }
-                    }
-                }
-            }
-        }
-    </script>
-</head>
+    </head>
 <body class="bg-sp-primary text-slate-100 font-sans min-h-screen overflow-x-hidden">
 
 <!-- Background Effects -->
@@ -213,7 +200,7 @@
                         <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
                             <i class="fa-solid fa-key"></i>
                         </div>
-                        <input type="password" id="login-password" required class="form-input pl-11 pr-12" placeholder="••••••••">
+                        <input type="password" id="login-password" required class="form-input pl-11 pr-12" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢">
                         <button type="button" onclick="togglePassword('login-password', this)" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors">
                             <i class="fa-solid fa-eye"></i>
                         </button>
@@ -297,7 +284,7 @@
                     <label class="form-label">Password</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500"><i class="fa-solid fa-key"></i></div>
-                        <input type="password" id="reg-password" required class="form-input pl-11 pr-12" placeholder="••••••••">
+                        <input type="password" id="reg-password" required class="form-input pl-11 pr-12" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢">
                         <button type="button" onclick="togglePassword('reg-password', this)" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors">
                             <i class="fa-solid fa-eye"></i>
                         </button>
@@ -481,7 +468,7 @@
         </div>
         <div class="ai-chat-body" id="ai-chat-messages">
             <div class="ai-chat-msg ai">
-                Hi! I'm your SmartPark AI assistant. I can help you find the best parking spot, estimate costs, or answer questions about your booking. What would you like to know? 🚗
+                Hi! I'm your SmartPark AI assistant. I can help you find the best parking spot, estimate costs, or answer questions about your booking. What would you like to know? ðŸš—
             </div>
         </div>
         <div class="ai-quick-actions">
@@ -524,6 +511,7 @@
 
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="js/config.js"></script>
     <script src="js/env.js"></script>
     <script src="js/totp.js"></script>
     <script src="js/firebase-auth.js"></script>
@@ -536,6 +524,8 @@
     </script>
 </body>
 </html>
+
+
 
 
 

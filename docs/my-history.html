@@ -1,16 +1,13 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartPark — My History</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>SmartPark â€” My History</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/tailwind.css">
     <link rel="stylesheet" href="css/style.css">
-    <script>
-        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter','Poppins','sans-serif'] }, colors: { sp: { primary:'#0B1426', secondary:'#111B33', card:'#152238', accent:'#3B82F6', emerald:'#10B981', purple:'#8B5CF6', cyan:'#06B6D4' } } } } }
-    </script>
     <style>
         body { font-family: 'Inter', 'Poppins', sans-serif; background: #0B1426; }
         .filter-chip { padding: 6px 16px; border-radius: 9999px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; border: 1.5px solid transparent; user-select: none; }
@@ -41,13 +38,7 @@
 <body class="font-sans bg-sp-primary text-slate-100">
 
 <!-- Auth Guard -->
-<script>
-(function() {
-    const token = localStorage.getItem('token_customer');
-    if (!token) { window.location.href = 'index.html'; return; }
-    try { if (token.startsWith('static-')) { const u = JSON.parse(localStorage.getItem('loggedInUser_customer')||'{}'); if(u.role!=='customer'&&u.role!=='user'){window.location.href='index.html';} } } catch(e){window.location.href='index.html';}
-})();
-</script>
+<script>(function() { if (!window.SmartParkConfig || !window.SmartParkConfig.validateCustomerToken()) { window.location.href = 'index.html'; return; } })();</script>
 
 <!-- ===================== TOP NAVBAR ===================== -->
 <header class="bg-sp-secondary/90 backdrop-blur-xl border-b border-sp-accent/10 sticky top-0 z-30">
@@ -136,7 +127,7 @@
             <div class="flex items-center gap-2">
                 <input type="date" id="date-from" onchange="applyFilters()"
                     class="text-xs bg-sp-secondary/50 border border-sp-accent/10 rounded-lg px-3 py-2.5 text-slate-200 outline-none focus:border-sp-accent transition-all">
-                <span class="text-xs text-slate-500 font-medium">—</span>
+                <span class="text-xs text-slate-500 font-medium">â€”</span>
                 <input type="date" id="date-to" onchange="applyFilters()"
                     class="text-xs bg-sp-secondary/50 border border-sp-accent/10 rounded-lg px-3 py-2.5 text-slate-200 outline-none focus:border-sp-accent transition-all">
             </div>
@@ -185,7 +176,7 @@
 <!-- TOAST -->
 <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
 
-<script src="js/env.js"></script>
+<script src="js/config.js"></script>`n    `<script src="js/env.js"></script>
 <script src="js/script.js"></script>
 <script>
 var historyData = [];
@@ -559,7 +550,7 @@ function toggleMobileMenu() {
             <button onclick="toggleAIChat()" class="ml-auto text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="ai-chat-body" id="ai-chat-messages">
-            <div class="ai-chat-msg ai">Hi! I can help you analyze your parking history, find patterns, and suggest smarter booking habits. What would you like to know? 📊</div>
+            <div class="ai-chat-msg ai">Hi! I can help you analyze your parking history, find patterns, and suggest smarter booking habits. What would you like to know? ðŸ“Š</div>
         </div>
         <div class="ai-quick-actions">
             <button class="ai-quick-btn" onclick="sendAIQuick('Analyze my parking patterns')">Analyze patterns</button>
@@ -598,6 +589,10 @@ function toggleMobileMenu() {
 </div>
 </body>
 </html>
+
+
+
+
 
 
 

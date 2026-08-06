@@ -1,5 +1,8 @@
 // SmartPark - AI-Powered JavaScript v2.0
 const API_BASE = (() => {
+    if (window.SmartParkConfig && window.SmartParkConfig.API_BASE) {
+        return window.SmartParkConfig.API_BASE;
+    }
     const urlParams = new URLSearchParams(window.location.search);
     const apiParam = urlParams.get('api');
     if (apiParam) return apiParam.replace(/\/$/, '');

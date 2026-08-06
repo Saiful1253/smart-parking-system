@@ -1,19 +1,16 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartPark — Customer Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>SmartPark â€” Customer Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/tailwind.css">
     <link rel="stylesheet" href="css/style.css">
-    <script>
-        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter','Poppins','sans-serif'] }, colors: { sp: { primary:'#0B1426', secondary:'#111B33', card:'#152238', accent:'#3B82F6', emerald:'#10B981', purple:'#8B5CF6', cyan:'#06B6D4' } } } } }
-    </script>
-</head>
+    </head>
 <body class="font-sans bg-sp-primary text-slate-100 min-h-screen">
-<script>const token = localStorage.getItem('token_customer'); if(!token){window.location.href='index.html';} try{if(token.startsWith('static-')){const u=JSON.parse(localStorage.getItem('loggedInUser_customer')||'{}'); if(u.role!=='customer'&&u.role!=='user'){window.location.href='index.html';}} }catch(e){window.location.href='index.html';}</script>
+<script>(function() { if (!window.SmartParkConfig || !window.SmartParkConfig.validateCustomerToken()) { window.location.href = 'index.html'; return; } })();</script>
 <header class="bg-sp-secondary/90 backdrop-blur-xl border-b border-sp-accent/10 sticky top-0 z-30">
     <div class="max-w-7xl mx-auto px-4 sm:px-6"><div class="flex items-center justify-between h-16">
         <div class="flex items-center gap-3">
@@ -41,7 +38,7 @@
     </div>
 </main>
 
-<script src="js/env.js"></script>
+<script src="js/config.js"></script>`n    `<script src="js/env.js"></script>
 <script src="js/script.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -84,7 +81,7 @@ function renderCustomerAnomalies() {
             <button onclick="toggleAIChat()" class="ml-auto text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="ai-chat-body" id="ai-chat-messages">
-            <div class="ai-chat-msg ai">Hi! I can help you find parking spots, manage bookings, and answer questions. What would you like to know? 🚗</div>
+            <div class="ai-chat-msg ai">Hi! I can help you find parking spots, manage bookings, and answer questions. What would you like to know? ðŸš—</div>
         </div>
         <div class="ai-quick-actions">
             <button class="ai-quick-btn" onclick="sendAIQuick('Find best parking zone')">Find best zone</button>
@@ -102,6 +99,10 @@ function renderCustomerAnomalies() {
 </div>
 </body>
 </html>
+
+
+
+
 
 
 
