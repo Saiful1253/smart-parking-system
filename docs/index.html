@@ -357,6 +357,92 @@
     </div>
 </div>
 
+<!-- 2FA VERIFICATION MODAL -->
+<div id="mfa-verify-modal" class="modal-overlay">
+    <div class="modal-content" id="mfa-verify-card">
+        <div class="p-6">
+            <div class="flex justify-between items-start mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-sp-purple/10 text-sp-purple flex items-center justify-center">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white">Two-Factor Authentication</h3>
+                        <p class="text-xs text-slate-400">Enter the 6-digit code sent to your phone</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('mfa-verify-modal')" class="text-slate-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <div class="bg-sp-purple/10 border border-sp-purple/20 rounded-xl p-3 flex items-center gap-3">
+                    <i class="fa-solid fa-shield-halved text-sp-purple"></i>
+                    <span class="text-xs text-slate-300">Verifying account: <strong class="text-white" id="mfa-email-hint">user@example.com</strong></span>
+                </div>
+                <div class="space-y-2">
+                    <label class="form-label">Authenticator Code</label>
+                    <input type="text" id="mfa-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required class="form-input text-center text-2xl tracking-[0.5em] font-mono" placeholder="000000">
+                </div>
+                <button type="button" onclick="handleTOTPVerify()" class="btn-primary w-full py-3">
+                    <i class="fa-solid fa-check-circle"></i> Verify & Sign In
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 2FA ENROLLMENT MODAL -->
+<div id="mfa-enroll-modal" class="modal-overlay">
+    <div class="modal-content" id="mfa-enroll-card">
+        <div class="p-6">
+            <div class="flex justify-between items-start mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-sp-emerald/10 text-sp-emerald flex items-center justify-center">
+                        <i class="fa-solid fa-user-shield"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white">Enable 2FA</h3>
+                        <p class="text-xs text-slate-400">Add an extra layer of security</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('mfa-enroll-modal')" class="text-slate-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <div class="bg-sp-emerald/10 border border-sp-emerald/20 rounded-xl p-4">
+                    <p class="text-xs font-bold text-sp-emerald uppercase tracking-wider mb-1">Why enable 2FA?</p>
+                    <ul class="text-xs text-slate-400 space-y-1 list-disc list-inside">
+                        <li>Protects your account even if password is leaked</li>
+                        <li>Use Google Authenticator or any TOTP app</li>
+                        <li>Required for admin accounts</li>
+                    </ul>
+                </div>
+                <div id="totp-setup" class="space-y-3">
+                    <div class="bg-sp-secondary border border-sp-accent/10 rounded-xl p-4 text-center">
+                        <p class="text-xs font-semibold text-slate-300 mb-2">Scan this QR code with Google Authenticator</p>
+                        <img id="totp-qr" src="" alt="TOTP QR Code" class="mx-auto bg-white p-2 rounded-lg" style="width:160px;height:160px;">
+                        <p class="text-[10px] text-slate-500 mt-2">Or enter this secret manually:</p>
+                        <p id="totp-secret" class="text-xs font-mono text-sp-accent break-all select-all"></p>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="form-label">Enter 6-digit code from app</label>
+                        <input type="text" id="mfa-enroll-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required class="form-input text-center text-2xl tracking-[0.5em] font-mono" placeholder="000000">
+                        <input type="hidden" id="mfa-enroll-email">
+                    </div>
+                    <button type="button" onclick="handleTOTPEnroll()" class="btn-primary w-full py-3">
+                        <i class="fa-solid fa-shield-halved"></i> Enable 2FA
+                    </button>
+                    <button type="button" onclick="closeModal('mfa-enroll-modal')" class="w-full py-2 text-xs text-slate-400 hover:text-white font-semibold transition-colors">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- TOAST CONTAINER -->
 <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
 
@@ -437,9 +523,18 @@
     </button>
 </div>
 
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="js/env.js"></script>
+    <script src="js/totp.js"></script>
+    <script src="js/firebase-auth.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="js/script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.spFirebase) spFirebase.init();
+        });
+    </script>
 </body>
 </html>
 

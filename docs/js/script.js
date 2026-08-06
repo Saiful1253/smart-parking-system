@@ -343,6 +343,7 @@ function savePaymentForUser(paymentRecord) { const user = getLoggedInUser(); if 
 function getPaymentsForUser() { const user = getLoggedInUser(); if (!user) return []; const allPayments = JSON.parse(localStorage.getItem('smartParkPayments_by_user')) || {}; return allPayments[user.email] || []; }
 
 let currentRole = 'customer';
+var pendingMFALogin = null;
 
 function setRole(role) {
     const customerBtn = document.getElementById('role-customer');
@@ -461,7 +462,7 @@ function closeModal(modalId) { const modal = document.getElementById(modalId); c
 
 async function handleLogin(event) {
     event.preventDefault();
-    const email = document.getElementById('login-email').value;
+    const email = document.getElementById('login-email').value.trim();
     const password = document.getElementById('login-password').value;
     const rememberMe = document.getElementById('remember-me').checked;
     const submitBtn = document.getElementById('login-submit-btn');
@@ -473,6 +474,41 @@ async function handleLogin(event) {
 
     const requestBody = { email, password, role: currentRole };
     if (currentRole === 'admin') { const adminKeyInput = document.getElementById('login-admin-key'); if (adminKeyInput && adminKeyInput.value.trim()) requestBody.adminKey = adminKeyInput.value.trim(); }
+
+    if (window.spFirebase && spFirebase.isReady()) {
+        try {
+            const firebaseResult = await spFirebase.signInWithEmailAndPassword(email, password);
+            if (firebaseResult.requiresTOTP) {
+                pendingMFALogin = { email: email, role: currentRole };
+                spFirebase.setPendingTOTPUser(email);
+                document.getElementById('mfa-email-hint').textContent = email;
+                openModal('mfa-verify-modal');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalContent;
+                return;
+            }
+            const idToken = await firebaseResult.user.getIdToken();
+            setStoredAuth(currentRole, idToken || 'firebase-token', { email: email, role: currentRole });
+            showToast('success', 'Login successful! Redirecting...');
+            setTimeout(function() {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalContent;
+                if (currentRole === 'customer') showTOTPEnrollmentPrompt();
+                window.location.href = currentRole === 'admin' ? 'admin.html' : 'book-parking.html';
+            }, 1500);
+            return;
+        } catch (firebaseErr) {
+            console.warn('Firebase login failed, falling back to local auth:', firebaseErr);
+            if (firebaseErr.code === 'auth/user-not-found' || firebaseErr.code === 'auth/wrong-password' || firebaseErr.code === 'auth/invalid-credential') {
+                // fall through to local auth below
+            } else {
+                showToast('error', firebaseErr.message || 'Firebase login failed. Please try again.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalContent;
+                return;
+            }
+        }
+    }
 
     try {
         const res = await fetch(`${API_BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody) });
@@ -517,7 +553,12 @@ async function handleLogin(event) {
         }
         setStoredAuth(currentRole, 'static-token', { email: emailLower, role: currentRole, name: userName });
         showToast('success', 'Login successful!');
-        setTimeout(() => { submitBtn.disabled = false; submitBtn.innerHTML = originalContent; window.location.href = currentRole === 'admin' ? 'admin.html' : 'book-parking.html'; }, 1500);
+        setTimeout(function() {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalContent;
+            if (currentRole === 'customer') showTOTPEnrollmentPrompt();
+            window.location.href = currentRole === 'admin' ? 'admin.html' : 'book-parking.html';
+        }, 1500);
     }
 }
 
@@ -532,8 +573,29 @@ async function handleRegister(event) {
     const originalContent = submitBtn.innerHTML;
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin mr-2"></i> Creating account...';
+
+    var firebaseCreated = false;
+    if (window.spFirebase && spFirebase.isReady()) {
+        try {
+            await spFirebase.signInWithEmailAndPassword(emailLower, passwordTrim);
+            firebaseCreated = true;
+        } catch (fbErr) {
+            if (fbErr.code === 'auth/user-not-found') {
+                try {
+                    var fbAuth = spFirebase.getAuth();
+                    await fbAuth.createUserWithEmailAndPassword(emailLower, passwordTrim);
+                    firebaseCreated = true;
+                } catch (createErr) {
+                    console.warn('Firebase create user failed:', createErr);
+                }
+            } else {
+                console.warn('Firebase sign-in check failed:', fbErr);
+            }
+        }
+    }
+
     try {
-        const res = await fetch(`${API_BASE}/api/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, role: currentRole, name: name }) });
+        const res = await fetch(`${API_BASE}/api/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: emailLower, password: passwordTrim, role: currentRole, name: name }) });
         const contentType = res.headers.get('content-type') || '';
         const isJson = contentType.includes('application/json');
         const data = isJson ? await res.json() : { msg: await res.text() };
@@ -549,9 +611,153 @@ async function handleRegister(event) {
     }
 }
 
+function handleTOTPVerify() {
+    const code = document.getElementById('mfa-code').value.trim();
+    if (!code || code.length !== 6 || !/^\d{6}$/.test(code)) {
+        showToast('error', 'Please enter a valid 6-digit code.');
+        return;
+    }
+    const submitBtn = document.querySelector('#mfa-verify-card button[type="button"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin mr-2"></i> Verifying...';
+
+    const email = pendingMFALogin ? pendingMFALogin.email : (spFirebase.getPendingTOTPUser ? spFirebase.getPendingTOTPUser() : '');
+    if (!email) {
+        showToast('error', 'Verification session expired. Please try logging in again.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+        closeModal('mfa-verify-modal');
+        return;
+    }
+
+    if (window.spFirebase && spFirebase.isReady()) {
+        spFirebase.verifyTOTP(email, code)
+            .then(function() {
+                const role = pendingMFALogin ? pendingMFALogin.role : 'customer';
+                const userEmail = pendingMFALogin ? pendingMFALogin.email : email;
+                pendingMFALogin = null;
+                if (spFirebase.setPendingTOTPUser) spFirebase.setPendingTOTPUser(null);
+                const auth = spFirebase.getAuth();
+                const idPromise = auth.currentUser ? auth.currentUser.getIdToken() : Promise.resolve(null);
+                idPromise.then(function(idToken) {
+                    setStoredAuth(role, idToken || 'firebase-token', { email: userEmail, role: role });
+                    showToast('success', '2FA verified! Redirecting...');
+                    setTimeout(function() {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalText;
+                        closeModal('mfa-verify-modal');
+                        window.location.href = role === 'admin' ? 'admin.html' : 'book-parking.html';
+                    }, 1200);
+                });
+            })
+            .catch(function(err) {
+                console.error('TOTP verify error:', err);
+                showToast('error', 'Invalid verification code. Please try again.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+                const codeInput = document.getElementById('mfa-code');
+                if (codeInput) { codeInput.value = ''; codeInput.focus(); }
+            });
+    } else {
+        showToast('error', 'Firebase is not configured. Cannot verify 2FA.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    }
+}
+
+function handleTOTPEnroll() {
+    const code = document.getElementById('mfa-enroll-code').value.trim();
+    if (!code || code.length !== 6 || !/^\d{6}$/.test(code)) {
+        showToast('error', 'Please enter the 6-digit code from your authenticator app.');
+        return;
+    }
+    const submitBtn = document.querySelector('#mfa-enroll-card button[type="button"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin mr-2"></i> Verifying...';
+
+    const email = document.getElementById('mfa-enroll-email').value.trim();
+    if (!email) {
+        showToast('error', 'Email missing. Please try again.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+        return;
+    }
+
+    if (window.spFirebase && spFirebase.isReady()) {
+        spFirebase.verifyTOTP(email, code)
+            .then(function() {
+                document.getElementById('mfa-enroll-code').value = '';
+                closeModal('mfa-enroll-modal');
+                showToast('success', '2FA enabled successfully! Your account is now more secure.');
+            })
+            .catch(function(err) {
+                console.error('TOTP enroll error:', err);
+                showToast('error', 'Failed to enable 2FA: ' + err.message);
+            })
+            .finally(function() {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            });
+    } else {
+        showToast('error', 'Firebase is not configured. Cannot enable 2FA.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    }
+}
+
+function showTOTPEnrollmentPrompt() {
+    const user = getLoggedInUser();
+    if (!user) return;
+    const enrolled = sessionStorage.getItem('totp_enrolled_' + user.email);
+    if (enrolled) return;
+    if (confirm('Would you like to enable Two-Factor Authentication (2FA) for added security?')) {
+        openTOTPEnrollModal(user.email);
+    }
+    sessionStorage.setItem('totp_enrolled_' + user.email, 'prompted');
+}
+
+function openTOTPEnrollModal(email) {
+    document.getElementById('mfa-enroll-email').value = email || '';
+    document.getElementById('totp-setup').classList.remove('hidden');
+    var promptEl = document.getElementById('totp-prompt');
+    if (promptEl) promptEl.classList.add('hidden');
+    if (window.spFirebase && spFirebase.isReady() && email) {
+        try {
+            var secret = spFirebase.generateTOTPSecret(email);
+            var otpUrl = TOTP.getOtpAuthUrl(email, secret);
+            document.getElementById('totp-qr').src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(otpUrl);
+            document.getElementById('totp-secret').textContent = secret;
+        } catch (err) {
+            showToast('error', 'Failed to initialize 2FA: ' + err.message);
+        }
+    }
+    openModal('mfa-enroll-modal');
+}
+
 function handleForgotPassword(event) {
-    event.preventDefault(); const email = document.getElementById('forgot-email').value;
-    closeModal('forgot-modal'); showToast('success', `Password reset link sent to ${email}`); event.target.reset();
+    event.preventDefault();
+    const email = document.getElementById('forgot-email').value.trim();
+    if (!email) { showToast('error', 'Please enter your email address.'); return; }
+
+    if (window.spFirebase && spFirebase.isReady()) {
+        spFirebase.sendPasswordResetEmail(email)
+            .then(function(result) {
+                closeModal('forgot-modal');
+                showToast('success', result.message);
+                event.target.reset();
+            })
+            .catch(function(err) {
+                console.error('Firebase password reset error:', err);
+                showToast('error', err.message || 'Failed to send reset link. Please try again.');
+            });
+    } else {
+        const fallbackMsg = 'Password reset link sent to ' + email;
+        closeModal('forgot-modal');
+        showToast('success', fallbackMsg);
+        event.target.reset();
+    }
 }
 
 function socialLogin(provider) {
@@ -649,6 +855,16 @@ function handleGoogleCredentialResponse(response) {
         const email = payload.email;
         const name = payload.name || email.split('@')[0];
         if (!email) { showToast('error', 'Google authentication failed: no email found.'); return; }
+
+        const enrolled = window.spFirebase && spFirebase.isReady() ? spFirebase.isTOTPEnrolled(email) : false;
+        if (enrolled) {
+            pendingMFALogin = { email: email, role: 'customer' };
+            spFirebase.setPendingTOTPUser(email);
+            document.getElementById('mfa-email-hint').textContent = email;
+            openModal('mfa-verify-modal');
+            return;
+        }
+
         const users = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
         const emailLower = email.toLowerCase();
         let user = users.find(function(u) { return (u.email || '').toLowerCase() === emailLower; });
@@ -659,7 +875,10 @@ function handleGoogleCredentialResponse(response) {
         }
         setStoredAuth('customer', 'static-token', { email: emailLower, role: 'customer', name: name });
         showToast('success', 'Google login successful! Redirecting...');
-        setTimeout(() => { window.location.href = 'book-parking.html'; }, 1500);
+        setTimeout(function() {
+            showTOTPEnrollmentPrompt();
+            window.location.href = 'book-parking.html';
+        }, 1500);
     } catch (e) {
         showToast('error', 'Failed to process Google authentication.');
     }

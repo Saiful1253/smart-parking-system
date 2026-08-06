@@ -2218,6 +2218,7 @@ function updateAccount() {
     const nameInput = document.getElementById('settings-admin-name');
     const emailInput = document.getElementById('settings-admin-email');
     const passwordInput = document.getElementById('settings-admin-password');
+    const oldPasswordInput = document.getElementById('settings-admin-old-password');
 
     if (!nameInput || !emailInput) { showToast('error', 'Account form not found.'); return; }
 
@@ -2248,7 +2249,41 @@ function updateAccount() {
             users.push({ email: emailLower, password: passwordInput.value, role: 'admin', name: name });
         }
         localStorage.setItem('smartParkUsers', JSON.stringify(users));
+
+        var newPassword = passwordInput.value;
+        var oldPassword = oldPasswordInput ? oldPasswordInput.value.trim() : '';
         passwordInput.value = '';
+        if (oldPasswordInput) oldPasswordInput.value = '';
+
+        if (window.spFirebase && spFirebase.isReady()) {
+            var fbAuth = spFirebase.getAuth();
+            console.log('Updating Firebase password for:', emailLower, 'Firebase ready:', spFirebase.isReady());
+
+            fbAuth.signInWithEmailAndPassword(emailLower, oldPassword)
+                .then(function(result) {
+                    console.log('Firebase sign-in success, updating password...');
+                    return result.user.updatePassword(newPassword);
+                })
+                .then(function() {
+                    console.log('Firebase password updated successfully');
+                    showToast('success', 'Password updated in Firebase! Old password is now invalid.');
+                })
+                .catch(function(err) {
+                    console.error('Firebase password update error:', err.code, err.message);
+                    if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+                        showToast('error', 'Current password is incorrect. Password updated locally only.');
+                    } else if (err.code === 'auth/user-not-found') {
+                        showToast('error', 'User not found in Firebase. Password updated locally only.');
+                    } else if (err.code === 'auth/requires-recent-login') {
+                        showToast('error', 'Session expired. Please log out and log in again, then change password.');
+                    } else {
+                        showToast('error', 'Firebase update failed: ' + err.message + '. Password updated locally.');
+                    }
+                });
+        } else {
+            console.log('Firebase not ready, skipping Firebase password update');
+        }
+
         showToast('success', 'Account updated! Password has been changed.');
     } else {
         showToast('success', 'Account updated successfully!');
