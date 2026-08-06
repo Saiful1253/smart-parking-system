@@ -8,19 +8,14 @@
 # Dependencies
 node_modules/
 
-# Backend
-backend/
-
-# Build outputs
-dist/
-build/
-
-# Test/generated local files
-test-output.html
-test-server.js
-test-settings.js
-test-results/
-
 # Sensitive local data files
 data/users.json
+backend/data/users.json
+
+# Backend sensitive files
+backend/.env
+backend/.secret
+backend/.adminkey
+backend/node_modules/
+backend/*.log
 
