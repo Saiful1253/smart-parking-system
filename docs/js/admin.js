@@ -43,6 +43,9 @@ function isValidVehiclePlate(vehicle) {
     return true;
 }
 
+let zonesData = {};
+let ZONE_ORDER = [];
+
 async function loadZonesFromAPI() {
     loadZonesFromLocalStorage();
     try {
@@ -65,28 +68,14 @@ function loadZonesFromLocalStorage() {
             zonesData = newZonesData;
             ZONE_ORDER = order;
         } else {
-            initDemoZones();
+            zonesData = {};
+            ZONE_ORDER = [];
         }
-    } catch (e) { console.error('Failed to load zones from local storage:', e); initDemoZones(); }
+    } catch (e) { console.error('Failed to load zones from local storage:', e); }
 }
 
 function initDemoZones() {
-    if (Object.keys(zonesData).length > 0) return;
-    const demoZones = [
-        { id: 'Zone-A', name: 'Zone A - Central', location: 'Main Market Area', spots: 6, rate: 40, status: 'Active', lat: 23.8103, lng: 90.4125 },
-        { id: 'Zone-B', name: 'Zone B - Riverside', location: 'River View Road', spots: 5, rate: 50, status: 'Active', lat: 23.815, lng: 90.405 },
-        { id: 'Zone-C', name: 'Zone C - Tech Park', location: 'IT Campus Road', spots: 4, rate: 60, status: 'Active', lat: 23.808, lng: 90.418 },
-        { id: 'Zone-D', name: 'Zone D - Mall Area', location: 'City Center Mall', spots: 7, rate: 70, status: 'Active', lat: 23.812, lng: 90.408 }
-    ];
-    const newZonesData = {};
-    const order = [];
-    demoZones.forEach(function(z) {
-        newZonesData[z.id] = { ...z, occupied: 0, free: z.spots, spotStatus: Array.from({length: z.spots}, (_, i) => ({ id: z.id.replace('Zone-','') + '-' + String(i+1).padStart(2,'0'), index: i, occupied: false, plate: null, sessionId: null })) };
-        order.push(z.id);
-    });
-    zonesData = newZonesData;
-    ZONE_ORDER = order;
-    localStorage.setItem('smartParkZones_local', JSON.stringify(demoZones));
+    // Demo data removed for local deployment.
 }
 
 function calculateTotalRevenue() {
@@ -162,7 +151,8 @@ function updateDashboardStatsFromLocal() {
     if (anomaliesEl) {
         var computed = getLocalAnomalies();
         try { localStorage.setItem('smartpark_anomalies', JSON.stringify(computed)); } catch (e) {}
-        anomaliesEl.textContent = computed.length;
+        var activeCount = getSystemActiveSessionCount();
+        anomaliesEl.textContent = activeCount > 0 ? activeCount : computed.length;
     }
     if (activeSessionsEl) {
         activeSessionsEl.textContent = getSystemActiveSessionCount();
@@ -218,7 +208,8 @@ setInterval(async () => {
         if (document.getElementById('stat-anomalies')) {
             var computed = getLocalAnomalies();
             try { localStorage.setItem('smartpark_anomalies', JSON.stringify(computed)); } catch (e) {}
-            document.getElementById('stat-anomalies').textContent = computed.length;
+            var activeCount = getSystemActiveSessionCount();
+            document.getElementById('stat-anomalies').textContent = activeCount > 0 ? activeCount : computed.length;
         }
     }
 }, 5000);
@@ -311,6 +302,7 @@ function toggleSidebar() { const sidebar = document.getElementById('sidebar'); i
 document.addEventListener('click', (e) => { const sidebar = document.getElementById('sidebar'); if (window.innerWidth < 768 && sidebar && !sidebar.contains(e.target) && !e.target.closest('header button')) sidebar.classList.add('-translate-x-full'); });
 
 function switchAdminTab(tabId, element) {
+    console.log('switchAdminTab called with:', tabId, 'element:', !!element);
     const navItems = document.querySelectorAll('.admin-nav-item'); navItems.forEach(item => { item.className = "admin-nav-item relative flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all duration-300"; });
     if (element) { element.className = "admin-nav-item active relative flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl bg-sp-accent/10 text-sp-accent transition-all duration-300"; }
     const views = ['dashboard-view', 'zones-view', 'sessions-view', 'history-view', 'map-view', 'lpr-camera-view', 'customer-view', 'cash-view', 'revenue-view', 'anomalies-view', 'settings-view'];
@@ -318,8 +310,20 @@ function switchAdminTab(tabId, element) {
     const activeView = document.getElementById(`${tabId}-view`);
     if (activeView) {
         activeView.classList.remove('hidden');
-        if (tabId === 'map') setTimeout(() => initAdminMap(), 100);
-        if (tabId === 'customer') { loadUnregisteredVehicles(); updateCustomerPageAnomalyCount(); }
+        console.log('Activated view:', tabId, 'hidden?', activeView.classList.contains('hidden'));
+        if (tabId === 'map') {
+            setTimeout(() => {
+                console.log('Map timeout fired, adminMap:', adminMap);
+                if (!adminMap) {
+                    console.log('Calling initAdminMap...');
+                    initAdminMap();
+                }
+                setTimeout(() => { if (adminMap) adminMap.invalidateSize(); }, 100);
+                setTimeout(() => { if (adminMap) adminMap.invalidateSize(); }, 300);
+                setTimeout(() => { if (adminMap) adminMap.invalidateSize(); }, 600);
+            }, 400);
+        }
+        if (tabId === 'customer') { loadUnregisteredVehicles(); loadAnomalies(); }
         if (tabId === 'cash') loadCashVerifications();
         if (tabId === 'revenue') loadRevenueHistory();
         if (tabId === 'history') { syncHistoryFromAllCustomers(); renderHistoryTable(); }
@@ -469,24 +473,31 @@ async function triggerRefresh() {
     showToast('info', 'Refreshing system data...');
     try {
         migrateRejectedSessions();
-        var zonesLoaded = await loadZonesFromAPI(); await loadDashboardStats(); await loadAnomalies();
+        var zonesLoaded = false;
+        try { zonesLoaded = await loadZonesFromAPI(); } catch (e) { console.error('Refresh: loadZonesFromAPI failed', e); }
+        try { await loadDashboardStats(); } catch (e) { console.error('Refresh: loadDashboardStats failed', e); }
+        try { await loadAnomalies(); } catch (e) { console.error('Refresh: loadAnomalies failed', e); }
         if (!zonesLoaded) {
-            const allData = getAllCustomerParkingData();
-            recalculateZoneOccupancy(allData.sessions);
+            try {
+                const allData = getAllCustomerParkingData();
+                recalculateZoneOccupancy(allData.sessions);
+            } catch (e) { console.error('Refresh: recalculateZoneOccupancy failed', e); }
         }
-        if (document.getElementById('zones-grid')) { renderZonesGrid(); }
-        updateChartFromZones();
-        if (document.getElementById('sessions-table-body')) renderSessionsTable();
-        if (document.getElementById('history-table-body')) { syncHistoryFromAllCustomers(); renderHistoryTable(); }
-        if (document.getElementById('sensor-log')) renderSensorLog();
-        if (document.getElementById('cash-table-body')) loadCashVerifications();
-        if (document.getElementById('stat-free')) {
-            const zones = Object.values(zonesData);
-            const totalSpots = zones.reduce(function(sum, z) { return sum + (z.spots || 0); }, 0);
-            const totalOccupied = zones.reduce(function(sum, z) { return sum + (z.occupied || 0); }, 0);
-            document.getElementById('stat-free').textContent = Math.max(0, totalSpots - totalOccupied);
-        }
-        if (document.getElementById('bookingTrendChart')) loadBookingTrend(currentBookingTrendPeriod);
+        try {
+            if (document.getElementById('zones-grid')) { renderZonesGrid(); }
+            updateChartFromZones();
+            if (document.getElementById('sessions-table-body')) renderSessionsTable();
+            if (document.getElementById('history-table-body')) { syncHistoryFromAllCustomers(); renderHistoryTable(); }
+            if (document.getElementById('sensor-log')) renderSensorLog();
+            if (document.getElementById('cash-table-body')) loadCashVerifications();
+            if (document.getElementById('stat-free')) {
+                const zones = Object.values(zonesData);
+                const totalSpots = zones.reduce(function(sum, z) { return sum + (z.spots || 0); }, 0);
+                const totalOccupied = zones.reduce(function(sum, z) { return sum + (z.occupied || 0); }, 0);
+                document.getElementById('stat-free').textContent = Math.max(0, totalSpots - totalOccupied);
+            }
+            if (document.getElementById('bookingTrendChart')) loadBookingTrend(currentBookingTrendPeriod);
+        } catch (e) { console.error('Refresh: UI render failed', e); }
         if (refreshIcon) refreshIcon.classList.remove('fa-spin');
         showToast('success', 'System data refreshed!');
     } catch (err) { if (refreshIcon) refreshIcon.classList.remove('fa-spin'); showToast('error', 'Failed to refresh data.'); }
@@ -522,11 +533,13 @@ async function loadAnomalies() {
         renderAnomalies(anomalies);
         populateAnomalyCustomerFilter();
         renderActiveCustomersTable();
+        updateCustomerPageAnomalyCount(anomalies);
     } catch (err) {
         unregisteredVehicles = [];
         renderAnomalies(getLocalAnomalies());
         populateAnomalyCustomerFilter();
         renderActiveCustomersTable();
+        updateCustomerPageAnomalyCount();
     }
 }
 
@@ -755,7 +768,39 @@ function renderAnomalies(anomalies) {
     updateAnomalyNav(anomalies);
     const tbody = document.getElementById('anomalies-table-body');
     if (!tbody) return;
-    if (!anomalies || anomalies.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="py-10 text-center text-slate-500"><i class="fa-solid fa-circle-check text-2xl mb-2 text-sp-emerald"></i><p class="text-xs font-semibold text-slate-400">No active anomalies</p><p class="text-[10px] text-slate-500 mt-1">System is operating normally</p></td></tr>'; return; }
+    if (!anomalies || anomalies.length === 0) {
+        const allData = getAllCustomerParkingData();
+        const sessions = allData.sessions || [];
+        const activeSessions = sessions.filter(isAdminActiveSession);
+        if (activeSessions.length > 0) {
+            const allUsers = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
+            const userMap = {};
+            allUsers.forEach(function(u) { userMap[(u.email || '').toLowerCase()] = u.name || u.email; });
+            const rawData = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+            const plateToCustomer = {};
+            Object.keys(rawData).forEach(function(email) {
+                const userData = rawData[email];
+                if (userData && userData.sessions) {
+                    userData.sessions.forEach(function(s) {
+                        const plate = (s.vehicle || '').toUpperCase();
+                        if (plate && !plateToCustomer[plate]) {
+                            plateToCustomer[plate] = { email: email, name: userMap[email.toLowerCase()] || email };
+                        }
+                    });
+                }
+            });
+            tbody.innerHTML = activeSessions.map(function(s) {
+                const plate = (s.vehicle || '').toUpperCase();
+                const info = plateToCustomer[plate] || { name: 'Unknown', email: '' };
+                const customerName = info.name || 'Unknown';
+                const time = s.createdAt ? new Date(s.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-';
+                return '<tr class="hover:bg-white/5 transition-colors"><td class="py-3.5 text-slate-300 text-xs font-medium">' + customerName + '</td><td class="py-3.5 text-slate-400 font-medium">' + (s.zone || 'N/A') + '</td><td class="py-3.5 text-slate-300 text-xs">Active booking for vehicle ' + (s.vehicle || 'N/A') + ' in ' + (s.zone || 'Unknown') + ' - Slot ' + (s.slot || '?') + '</td><td class="py-3.5"><span class="inline-flex items-center gap-1 text-[10px] font-mono bg-white/5 border border-sp-accent/10 rounded-full px-2 py-1 mr-1 mb-1"><i class="fa-solid fa-car text-sp-cyan"></i><span class="font-bold text-white">' + (s.vehicle || 'N/A') + '</span></span></td><td class="py-3.5 text-slate-500 text-xs">' + time + '</td><td class="py-3.5 text-right"><button class="px-2 py-1 text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-colors" onclick="endAdminSession(' + s.id + ')">End</button></td></tr>';
+            }).join('');
+            return;
+        }
+        tbody.innerHTML = '<tr><td colspan="6" class="py-10 text-center text-slate-500"><i class="fa-solid fa-circle-check text-2xl mb-2 text-sp-emerald"></i><p class="text-xs font-semibold text-slate-400">No active anomalies</p><p class="text-[10px] text-slate-500 mt-1">System is operating normally</p></td></tr>';
+        return;
+    }
     tbody.innerHTML = anomalies.map(function(a) {
         var plates = (a.vehicles || []).map(function(v) { return (v.plate || '').toUpperCase(); }).filter(Boolean);
         var deleteHtml = '';
@@ -881,12 +926,13 @@ function redetectAnomalies() { showToast('info', 'Rescanning sensors...'); loadA
 function clearAnomalies() { if (confirm('Clear all anomaly history?')) { try { localStorage.removeItem('smartpark_anomalies'); } catch (e) {} renderAnomalies([]); showToast('success', 'Anomaly history cleared.'); } }
 function loadStoredAnomalies() { try { var data = JSON.parse(localStorage.getItem('smartpark_anomalies') || '[]'); renderAnomalies(data); } catch (e) { renderAnomalies([]); } }
 function getLocalAnomalyCount() { try { return (JSON.parse(localStorage.getItem('smartpark_anomalies') || '[]')).length; } catch (e) { return 0; } }
-function updateCustomerPageAnomalyCount() {
+function updateCustomerPageAnomalyCount(anomalies) {
     const anomaliesEl = document.getElementById('stat-anomalies');
     if (!anomaliesEl) return;
-    var computed = getLocalAnomalies();
+    var computed = anomalies || getLocalAnomalies();
     try { localStorage.setItem('smartpark_anomalies', JSON.stringify(computed)); } catch (e) {}
-    anomaliesEl.textContent = computed.length;
+    var activeCount = getSystemActiveSessionCount();
+    anomaliesEl.textContent = activeCount > 0 ? activeCount : computed.length;
 }
 
 function clearSensorLog() { const sensorLog = document.getElementById('sensor-log'); if (sensorLog) { sensorLog.setAttribute('data-empty', 'true'); sensorLog.innerHTML = '<div class="flex flex-col items-center justify-center py-8 text-center text-slate-500"><i class="fa-solid fa-satellite-dish text-2xl mb-2"></i><p class="text-xs font-medium">No recent sensor activity</p></div>'; showToast('info', 'Sensor log cleared.'); } }
@@ -913,7 +959,9 @@ function loadUnregisteredVehicles() {
         try { localStorage.setItem('smartpark_anomalies', JSON.stringify(computed)); } catch (e) {}
         localAnomalies = computed.length;
     }
-    if (anomaliesEl) anomaliesEl.textContent = localAnomalies + (unregistered.length > 0 ? ' + ' + unregistered.length + ' unregistered' : '');
+    var activeCount = getSystemActiveSessionCount();
+    var displayCount = activeCount > 0 ? activeCount : localAnomalies;
+    if (anomaliesEl) anomaliesEl.textContent = displayCount + (unregistered.length > 0 ? ' + ' + unregistered.length + ' unregistered' : '');
     if (unregistered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-500"><i class="fa-solid fa-circle-check text-2xl mb-2 text-sp-emerald"></i><p class="text-xs font-medium">No unregistered vehicles detected</p></td></tr>';
         return;
@@ -1197,16 +1245,10 @@ let currentPage = 1; let recordsPerPage = 25; let totalPages = 1;
 
 function syncHistoryFromAllCustomers() {
     const stored = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
-    if (Object.keys(stored).length === 0) {
-        initDemoHistory();
-    }
     const allByUser = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
     const allUsers = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
     const userMap = {};
     allUsers.forEach(function(u) { userMap[(u.email || '').toLowerCase()] = u.name || u.email; });
-    if (Object.keys(userMap).length === 0) {
-        userMap['demo@smartpark.com'] = 'Demo User';
-    }
     historyData = [];
     Object.keys(allByUser).forEach(function(email) {
         const userData = allByUser[email];
@@ -1241,26 +1283,7 @@ function syncHistoryFromAllCustomers() {
 }
 
 function initDemoHistory() {
-    const stored = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
-    const demoHistory = [
-        { id: 1, vehicle: 'DHK-1234', zone: 'Zone A - Central', slot: 'A-01', slotIndex: 0, date: '2026-07-27', startTime: '08:30', endTime: '10:45', duration: '2h 15m', cost: 95, payment: 'bKash', paymentStatus: 'Paid', status: 'Completed', name: 'Demo User', customerNumber: '018XXXXXXX', trxId: 'TRX-DEMO-001' },
-        { id: 2, vehicle: 'DHK-5678', zone: 'Zone B - Riverside', slot: 'B-03', slotIndex: 2, date: '2026-07-27', startTime: '09:00', endTime: '12:00', duration: '3h', cost: 150, payment: 'Nagad', paymentStatus: 'Paid', status: 'Completed', name: 'Demo User 2', customerNumber: '019XXXXXXX', trxId: 'TRX-DEMO-002' },
-        { id: 3, vehicle: 'DHK-9012', zone: 'Zone C - Tech Park', slot: 'C-02', slotIndex: 1, date: '2026-07-26', startTime: '14:00', endTime: '16:30', duration: '2h 30m', cost: 180, payment: 'Cash', paymentStatus: 'Paid', status: 'Completed', name: 'Demo User 3', customerNumber: '018XXXXXXX', trxId: 'TRX-DEMO-003' },
-        { id: 4, vehicle: 'DHK-3456', zone: 'Zone D - Mall Area', slot: 'D-04', slotIndex: 3, date: '2026-07-26', startTime: '10:00', endTime: '11:00', duration: '1h', cost: 70, payment: 'Visa Card', paymentStatus: 'Paid', status: 'Completed', name: 'Demo User 4', customerNumber: '017XXXXXXX', trxId: 'TRX-DEMO-004' },
-        { id: 5, vehicle: 'DHK-7890', zone: 'Zone A - Central', slot: 'A-05', slotIndex: 4, date: '2026-07-25', startTime: '07:00', endTime: '09:30', duration: '2h 30m', cost: 100, payment: 'bKash', paymentStatus: 'Paid', status: 'Completed', name: 'Demo User 5', customerNumber: '016XXXXXXX', trxId: 'TRX-DEMO-005' }
-    ];
-    const allUsers = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
-    const userEmails = allUsers.map(function(u) { return (u.email || '').toLowerCase(); });
-    userEmails.forEach(function(email) {
-        if (!stored[email] || !stored[email].history || stored[email].history.length === 0) {
-            stored[email] = stored[email] || { sessions: [], nextId: 1000, nextHistId: 2005, zoneSlots: {} };
-            stored[email].history = demoHistory.slice();
-        }
-    });
-    if (userEmails.length === 0) {
-        stored['demo@smartpark.com'] = { sessions: [], history: demoHistory, nextId: 1000, nextHistId: 2005, zoneSlots: {} };
-    }
-    localStorage.setItem('customerParkingData_by_user', JSON.stringify(stored));
+    // Demo data removed for local deployment.
 }
 
 function renderHistoryTable(data) {
@@ -2201,12 +2224,22 @@ function logout() { localStorage.removeItem('token_admin'); localStorage.removeI
 
 let adminMap = null;
 function initAdminMap() {
+    console.log('initAdminMap called, zonesData:', zonesData, 'L:', typeof L);
     if (!document.getElementById('admin-map')) return;
     if (typeof L === 'undefined') return;
-    if (adminMap) { adminMap.invalidateSize(); return; }
+    if (adminMap) { console.log('adminMap already exists, invalidating size'); adminMap.invalidateSize(); return; }
+    var mapEl = document.getElementById('admin-map');
+    var rect = mapEl.getBoundingClientRect();
+    console.log('Map container size:', rect.width, 'x', rect.height);
+    if (rect.width === 0 || rect.height === 0) {
+        console.log('Map container has zero size, retrying in 200ms...');
+        setTimeout(initAdminMap, 200);
+        return;
+    }
     var zones = Object.values(zonesData);
     var lat = zones.length > 0 ? zones.reduce(function(s,z){return s+z.lat;},0)/zones.length : 23.81000;
     var lng = zones.length > 0 ? zones.reduce(function(s,z){return s+z.lng;},0)/zones.length : 90.40000;
+    console.log('Creating map with lat:', lat, 'lng:', lng, 'zones count:', zones.length);
     adminMap = L.map('admin-map', { scrollWheelZoom: true }).setView([lat, lng], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(adminMap);
     zones.forEach(function(z) {
@@ -2217,6 +2250,7 @@ function initAdminMap() {
         });
         L.marker([z.lat, z.lng], { icon: icon }).addTo(adminMap);
     });
+    console.log('Map initialized successfully');
     setTimeout(function() { adminMap.invalidateSize(); }, 200);
 }
 
@@ -2454,12 +2488,18 @@ function fallbackLocalBooking(sessionData, freeSlot, zone) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOMContentLoaded fired, hash:', window.location.hash);
     const hash = window.location.hash;
     if (hash) {
         const tabId = hash.replace('#tab-', '');
+        console.log('Hash tabId:', tabId);
         if (tabId) { setTimeout(() => switchAdminTab(tabId, null), 100); }
     }
-    if (document.getElementById('admin-map')) initAdminMap();
+    if (document.getElementById('admin-map')) {
+        const mapView = document.getElementById('map-view');
+        console.log('admin-map exists, map-view hidden?', mapView ? mapView.classList.contains('hidden') : 'null');
+        if (mapView && !mapView.classList.contains('hidden')) initAdminMap();
+    }
     window.addEventListener('resize', function() { if (adminMap) setTimeout(() => adminMap.invalidateSize(), 200); });
     window.addEventListener('storage', function(e) {
         if (e.key === 'smartParkZones_local') {
@@ -2472,6 +2512,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === 'smartParkPayments_by_user') {
             if (document.getElementById('cash-table-body')) loadCashVerifications();
             triggerRefresh();
+        }
+    });
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            loadAnomalies();
         }
     });
     window.addEventListener('beforeunload', function() {

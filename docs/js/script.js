@@ -306,25 +306,12 @@ function loadZonesFromLocalStorage() {
             zones.forEach(function(z) {
                 zonesData[z.id] = { ...z, occupied: 0, free: z.spots || 0, spotStatus: Array.from({length: z.spots || 0}, (_, i) => ({ id: (z.id || '').replace('Zone-','') + '-' + String(i+1).padStart(2,'0'), index: i, occupied: false, plate: null, sessionId: null })) };
             });
-        } else {
-            initDemoZones();
         }
-    } catch (e) { console.error('Failed to load zones from local storage:', e); initDemoZones(); }
+    } catch (e) { console.error('Failed to load zones from local storage:', e); }
 }
 
 function initDemoZones() {
-    if (Object.keys(zonesData).length > 0) return;
-    const demoZones = [
-        { id: 'Zone-A', name: 'Zone A - Central', location: 'Main Market Area', spots: 6, rate: 40, status: 'Active', lat: 23.8103, lng: 90.4125 },
-        { id: 'Zone-B', name: 'Zone B - Riverside', location: 'River View Road', spots: 5, rate: 50, status: 'Active', lat: 23.815, lng: 90.405 },
-        { id: 'Zone-C', name: 'Zone C - Tech Park', location: 'IT Campus Road', spots: 4, rate: 60, status: 'Active', lat: 23.808, lng: 90.418 },
-        { id: 'Zone-D', name: 'Zone D - Mall Area', location: 'City Center Mall', spots: 7, rate: 70, status: 'Active', lat: 23.812, lng: 90.408 }
-    ];
-    zonesData = {};
-    demoZones.forEach(function(z) {
-        zonesData[z.id] = { ...z, occupied: 0, free: z.spots, spotStatus: Array.from({length: z.spots}, (_, i) => ({ id: z.id.replace('Zone-','') + '-' + String(i+1).padStart(2,'0'), index: i, occupied: false, plate: null, sessionId: null })) };
-    });
-    localStorage.setItem('smartParkZones_local', JSON.stringify(demoZones));
+    // Demo data removed for local deployment.
 }
 window.addEventListener('storage', function(e) {
     if (e.key === 'smartParkZones_local') {
