@@ -303,7 +303,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   font-size: 0.875rem;
   line-height: 1.5;
   color: var(--sp-text-primary);
-  background: var(--sp-bg-secondary);
+  background: #1E293B;
   border: 1px solid var(--sp-border);
   border-radius: var(--sp-radius-lg);
   transition: var(--sp-transition);
@@ -311,9 +311,14 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .form-input:focus {
   border-color: var(--sp-accent-blue);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-  background: var(--sp-bg-card);
+  background: #1A2744;
 }
 .form-input::placeholder { color: var(--sp-text-muted); }
+.form-input.icon-left { padding-left: 3rem !important; }
+.form-input.icon-right { padding-right: 3.5rem !important; }
+.form-input.icon-left.icon-right { padding-left: 3rem !important; padding-right: 3.5rem !important; }
+.icon-pos-right { right: 3.5rem; }
+.icon-pos-left { left: 0.875rem; }
 
 .form-label {
   display: block;

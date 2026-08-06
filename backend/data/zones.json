@@ -1,0 +1,14 @@
+[
+  {
+    "id": "Zone-01",
+    "name": "Zone A",
+    "location": "Main Entrance - North Side",
+    "spots": 20,
+    "rate": 50,
+    "type": "Covered",
+    "status": "Active",
+    "lat": 23.81,
+    "lng": 90.4,
+    "evCharger": true
+  }
+]

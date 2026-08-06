@@ -242,14 +242,8 @@ router.get('/dashboard-stats', auth, authorize('admin'), async (req, res) => {
     const totalZones = zones.length;
     const totalSpots = zones.reduce((sum, z) => sum + (parseInt(z.spots, 10) || 0), 0);
     const activeSessions = sessions.filter(s => (s.status === 'Active' || s.status === 'Parked') && s.paymentStatus !== 'Rejected').length;
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
     const revenue = sessions
-      .filter(s => {
-        const created = new Date(s.createdAt);
-        return created >= startOfDay && created <= endOfDay && s.paymentStatus !== 'Rejected';
-      })
+      .filter(s => s.paymentStatus !== 'Rejected')
       .reduce((sum, s) => sum + (parseFloat(s.cost || 0)), 0);
 
     const activeZoneSessions = sessions.filter(s => (s.status === 'Active' || s.status === 'Parked') && s.paymentStatus !== 'Rejected');

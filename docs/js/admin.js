@@ -137,7 +137,7 @@ async function loadDashboardStats() {
         const response = await fetch(`${API_BASE}/api/admin/dashboard-stats`, { method: 'GET', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
         const contentType = response.headers.get('content-type') || ''; const isJson = contentType.includes('application/json'); const data = isJson ? await response.json() : {};
         if (response.status === 401) { localStorage.removeItem('token_admin'); localStorage.removeItem('loggedInUser_admin'); updateDashboardStatsFromLocal(); updateRevenueUI(); return; }
-        if (response.ok) { updateSpottedVehiclesUI(data); updateZonesSpotsUI(data); if (data.activeSessions !== undefined && document.getElementById('active-sessions-count')) { document.getElementById('active-sessions-count').textContent = data.activeSessions; } if (data.revenue !== undefined && document.getElementById('stat-revenue')) { document.getElementById('stat-revenue').textContent = 'BDT ' + parseFloat(data.revenue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } }
+        if (response.ok) { updateSpottedVehiclesUI(data); updateZonesSpotsUI(data); if (data.activeSessions !== undefined && document.getElementById('active-sessions-count')) { document.getElementById('active-sessions-count').textContent = data.activeSessions; } if (data.revenue !== undefined && document.getElementById('stat-revenue')) { var rev = parseFloat(data.revenue) || 0; var localRev = calculateTotalRevenue(); if (localRev > rev) rev = localRev; document.getElementById('stat-revenue').textContent = 'BDT ' + rev.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } if (data.free !== undefined && document.getElementById('stat-free')) { document.getElementById('stat-free').textContent = data.free; } }
         else { updateDashboardStatsFromLocal(); updateRevenueUI(); }
     } catch (error) { 
         updateDashboardStatsFromLocal(); 
@@ -2286,35 +2286,6 @@ function updateAccount() {
         var oldPassword = oldPasswordInput ? oldPasswordInput.value.trim() : '';
         passwordInput.value = '';
         if (oldPasswordInput) oldPasswordInput.value = '';
-
-        if (window.spFirebase && spFirebase.isReady()) {
-            var fbAuth = spFirebase.getAuth();
-            console.log('Updating Firebase password for:', emailLower, 'Firebase ready:', spFirebase.isReady());
-
-            fbAuth.signInWithEmailAndPassword(emailLower, oldPassword)
-                .then(function(result) {
-                    console.log('Firebase sign-in success, updating password...');
-                    return result.user.updatePassword(newPassword);
-                })
-                .then(function() {
-                    console.log('Firebase password updated successfully');
-                    showToast('success', 'Password updated in Firebase! Old password is now invalid.');
-                })
-                .catch(function(err) {
-                    console.error('Firebase password update error:', err.code, err.message);
-                    if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-                        showToast('error', 'Current password is incorrect. Password updated locally only.');
-                    } else if (err.code === 'auth/user-not-found') {
-                        showToast('error', 'User not found in Firebase. Password updated locally only.');
-                    } else if (err.code === 'auth/requires-recent-login') {
-                        showToast('error', 'Session expired. Please log out and log in again, then change password.');
-                    } else {
-                        showToast('error', 'Firebase update failed: ' + err.message + '. Password updated locally.');
-                    }
-                });
-        } else {
-            console.log('Firebase not ready, skipping Firebase password update');
-        }
 
         showToast('success', 'Account updated! Password has been changed.');
     } else {

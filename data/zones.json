@@ -1,1 +1,38 @@
-[]
+[
+  {
+    "id": "Zone-01",
+    "name": "Zone A",
+    "location": "Main Entrance - North Side",
+    "spots": 20,
+    "rate": 50,
+    "type": "Covered",
+    "status": "Active",
+    "lat": 23.81000,
+    "lng": 90.40000,
+    "evCharger": true
+  },
+  {
+    "id": "Zone-02",
+    "name": "Zone B",
+    "location": "Central Plaza - Open Air",
+    "spots": 30,
+    "rate": 40,
+    "type": "Open Air",
+    "status": "Active",
+    "lat": 23.81100,
+    "lng": 90.40100,
+    "evCharger": false
+  },
+  {
+    "id": "Zone-03",
+    "name": "Zone C",
+    "location": "Underground Level 1",
+    "spots": 50,
+    "rate": 60,
+    "type": "Underground",
+    "status": "Active",
+    "lat": 23.80900,
+    "lng": 90.39900,
+    "evCharger": true
+  }
+]
