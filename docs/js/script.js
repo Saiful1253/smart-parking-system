@@ -488,9 +488,34 @@ async function handleLogin(event) {
         var users = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
         var emailLower = (email || '').toString().trim().toLowerCase();
         var passwordTrim = (password || '').toString().trim();
-        var user = users.find(function(u) { return (u.email || '').toString().trim().toLowerCase() === emailLower && u.password === passwordTrim; });
-        if (!user) { if (currentRole === 'admin') { users.push({ email: emailLower, password: passwordTrim, role: 'admin', name: 'Admin User' }); localStorage.setItem('smartParkUsers', JSON.stringify(users)); user = users[users.length - 1]; } else { showToast('error', 'Invalid email or password.'); submitBtn.disabled = false; submitBtn.innerHTML = originalContent; return; } }
-        setStoredAuth(currentRole, 'static-token', { email: emailLower, role: currentRole });
+        var user = users.find(function(u) { return (u.email || '').toString().trim().toLowerCase() === emailLower; });
+        if (!user) {
+            if (currentRole === 'admin') {
+                users.push({ email: emailLower, password: passwordTrim, role: 'admin', name: 'Admin User' });
+                localStorage.setItem('smartParkUsers', JSON.stringify(users));
+                user = users[users.length - 1];
+            } else {
+                showToast('error', 'Invalid email or password.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalContent;
+                return;
+            }
+        } else if (user.password !== passwordTrim) {
+            showToast('error', 'Invalid email or password.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalContent;
+            return;
+        }
+        var userName = user.name || 'Admin User';
+        var duplicateCount = users.filter(function(u) { return (u.email || '').toString().trim().toLowerCase() === emailLower; }).length;
+        if (duplicateCount > 1) {
+            var cleaned = users.filter(function(u, idx) {
+                if ((u.email || '').toString().trim().toLowerCase() !== emailLower) return true;
+                return idx === users.indexOf(user);
+            });
+            localStorage.setItem('smartParkUsers', JSON.stringify(cleaned));
+        }
+        setStoredAuth(currentRole, 'static-token', { email: emailLower, role: currentRole, name: userName });
         showToast('success', 'Login successful!');
         setTimeout(() => { submitBtn.disabled = false; submitBtn.innerHTML = originalContent; window.location.href = currentRole === 'admin' ? 'admin.html' : 'book-parking.html'; }, 1500);
     }

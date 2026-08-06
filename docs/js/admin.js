@@ -8,6 +8,7 @@ const API_BASE = (() => {
     if (meta) return (meta.getAttribute('content') || '').replace(/\/$/, '');
     const hostname = window.location.hostname;
     if (hostname === 'localhost' || hostname === '127.0.0.1') { const p = window.location.port; return (p === '3000' || !p) ? window.location.origin : 'http://localhost:3000'; }
+    if (window.location.protocol === 'file:') return 'http://localhost:3000';
     return '';
 })();
 
@@ -45,6 +46,7 @@ function isValidVehiclePlate(vehicle) {
 
 let zonesData = {};
 let ZONE_ORDER = [];
+let unregisteredVehicles = [];
 
 async function loadZonesFromAPI() {
     loadZonesFromLocalStorage();
@@ -250,6 +252,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (document.getElementById('sensor-log')) renderSensorLog();
     if (document.getElementById('zones-grid')) renderZonesGrid();
     updateChartFromZones();
+    updateHeaderAdminName(getAccount().name);
 });
 
 function renderZonesGrid() {
@@ -330,6 +333,7 @@ function switchAdminTab(tabId, element) {
         if (tabId === 'dashboard') {}
         if (tabId === 'anomalies') { loadAnomalies(); populateAnomalyCustomerFilter(); renderActiveCustomersTable(); }
         if (tabId === 'lpr-camera') { populateLprZoneSelect(); }
+        if (tabId === 'settings') { loadSettings(); loadAccountSettings(); loadSensorConfig(); }
     }
     const pageTitle = document.getElementById('page-title'); const pageSubtitle = document.getElementById('page-subtitle');
     const titles = { dashboard: { title: 'Dashboard', subtitle: 'AI-powered parking management overview' }, zones: { title: 'Parking Zones', subtitle: 'Configure and monitor parking zones and rates' }, sessions: { title: 'Active Sessions', subtitle: 'Real-time list of vehicles currently parked' }, history: { title: 'Parking History', subtitle: 'Historical log of completed sessions and payments' }, map: { title: 'Live Parking Map', subtitle: 'Visual representation of parking lot occupancy' }, 'lpr-camera': { title: 'AI Camera — License Plate Recognition', subtitle: 'Live camera feed with automatic plate detection and vehicle identification' }, customer: { title: 'Customer Management', subtitle: 'Registered customers and unregistered vehicle registration' }, cash: { title: 'Payment Verification', subtitle: 'Verify manual cash payments' }, revenue: { title: 'Revenue History', subtitle: 'Historical revenue analytics and trends' }, anomalies: { title: 'Anomaly Detection', subtitle: 'Sensor mismatches, invalid slots, or suspicious bookings' }, settings: { title: 'System Settings', subtitle: 'Configure system parameters and accounts' } };
@@ -2094,121 +2098,214 @@ function exportRevenueCSV() {
 }
 
 // Settings Functions
-async function saveSettings() {
+function getSettings() {
+    try {
+        const local = JSON.parse(localStorage.getItem('smartpark_settings') || '{}');
+        return {
+            parkingLotName: local.parkingLotName || 'SmartPark Main Lot',
+            currency: local.currency || 'BDT (৳)',
+            timezone: local.timezone || 'Asia/Dhaka (UTC+6)'
+        };
+    } catch (e) {
+        return { parkingLotName: 'SmartPark Main Lot', currency: 'BDT (৳)', timezone: 'Asia/Dhaka (UTC+6)' };
+    }
+}
+
+function saveSettingsToStorage(settings) {
+    localStorage.setItem('smartpark_settings', JSON.stringify(settings));
+}
+
+function loadSettings() {
     const nameInput = document.getElementById('settings-parking-lot-name');
     const currencySelect = document.getElementById('settings-currency');
     const timezoneSelect = document.getElementById('settings-timezone');
-    
+    if (!nameInput) return;
+
+    const settings = getSettings();
+    nameInput.value = settings.parkingLotName;
+    if (currencySelect) {
+        const options = Array.from(currencySelect.options).map(o => o.value);
+        if (options.includes(settings.currency)) {
+            currencySelect.value = settings.currency;
+        } else {
+            const opt = document.createElement('option');
+            opt.value = settings.currency;
+            opt.textContent = settings.currency;
+            currencySelect.appendChild(opt);
+            currencySelect.value = settings.currency;
+        }
+    }
+    if (timezoneSelect) {
+        const options = Array.from(timezoneSelect.options).map(o => o.value);
+        if (options.includes(settings.timezone)) {
+            timezoneSelect.value = settings.timezone;
+        } else {
+            const opt = document.createElement('option');
+            opt.value = settings.timezone;
+            opt.textContent = settings.timezone;
+            timezoneSelect.appendChild(opt);
+            timezoneSelect.value = settings.timezone;
+        }
+    }
+}
+
+function saveSettings() {
+    const nameInput = document.getElementById('settings-parking-lot-name');
+    const currencySelect = document.getElementById('settings-currency');
+    const timezoneSelect = document.getElementById('settings-timezone');
+
     if (!nameInput) { showToast('error', 'Settings form not found.'); return; }
-    
+
     const settings = {
-        parkingLotName: nameInput.value,
+        parkingLotName: nameInput.value.trim() || 'SmartPark Main Lot',
         currency: currencySelect ? currencySelect.value : 'BDT (৳)',
         timezone: timezoneSelect ? timezoneSelect.value : 'Asia/Dhaka (UTC+6)'
     };
-    
-    // Try API first
-    try {
-        const token = localStorage.getItem('token_admin');
-        const response = await fetch(`${API_BASE}/api/admin/settings`, {
-            method: 'POST',
-            headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
-            body: JSON.stringify(settings)
-        });
-        if (response.ok) {
-            showToast('success', 'Settings saved successfully!');
-            return;
-        }
-    } catch (e) { console.log('API not available, saving locally.'); }
-    
-    // Fallback: save to localStorage
-    localStorage.setItem('smartpark_settings', JSON.stringify(settings));
-    showToast('success', 'Settings saved locally!');
+
+    saveSettingsToStorage(settings);
+    showToast('success', 'Settings saved successfully!');
 }
 
-async function updateAccount() {
+function getAccount() {
+    try {
+        const loggedInUserStr = localStorage.getItem('loggedInUser_admin');
+        if (loggedInUserStr) {
+            const userObj = JSON.parse(loggedInUserStr);
+            return {
+                name: userObj.name || 'Admin User',
+                email: userObj.email || 'admin@smartpark.com'
+            };
+        }
+    } catch (e) {}
+    return { name: 'Admin User', email: 'admin@smartpark.com' };
+}
+
+function saveAccountToStorage(account) {
+    const loggedInUserStr = localStorage.getItem('loggedInUser_admin');
+    if (loggedInUserStr) {
+        try {
+            const userObj = JSON.parse(loggedInUserStr);
+            userObj.name = account.name;
+            userObj.email = account.email;
+            localStorage.setItem('loggedInUser_admin', JSON.stringify(userObj));
+        } catch (e) {
+            localStorage.setItem('loggedInUser_admin', JSON.stringify(account));
+        }
+    } else {
+        localStorage.setItem('loggedInUser_admin', JSON.stringify(account));
+    }
+    updateHeaderAdminName(account.name);
+}
+
+function updateHeaderAdminName(name) {
+    const headerName = document.getElementById('header-admin-name');
+    if (headerName && name) {
+        headerName.textContent = name;
+    }
+}
+
+function loadAccountSettings() {
+    const nameInput = document.getElementById('settings-admin-name');
+    const emailInput = document.getElementById('settings-admin-email');
+    if (!nameInput || !emailInput) return;
+
+    const account = getAccount();
+    nameInput.value = account.name;
+    emailInput.value = account.email;
+}
+
+function updateAccount() {
     const nameInput = document.getElementById('settings-admin-name');
     const emailInput = document.getElementById('settings-admin-email');
     const passwordInput = document.getElementById('settings-admin-password');
-    
+
     if (!nameInput || !emailInput) { showToast('error', 'Account form not found.'); return; }
-    
-    const accountData = {
-        name: nameInput.value,
-        email: emailInput.value,
-        password: passwordInput ? passwordInput.value : ''
-    };
-    
-    if (!accountData.name || !accountData.email) {
-        showToast('error', 'Name and email are required.');
-        return;
-    }
-    
-    // Try API first
-    try {
-        const token = localStorage.getItem('token_admin');
-        const response = await fetch(`${API_BASE}/api/admin/account`, {
-            method: 'PUT',
-            headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
-            body: JSON.stringify(accountData)
-        });
-        if (response.ok) {
-            const loggedInUserStr = localStorage.getItem('loggedInUser_admin');
-            if (loggedInUserStr) {
-                const userObj = JSON.parse(loggedInUserStr);
-                userObj.name = accountData.name;
-                userObj.email = accountData.email;
-                localStorage.setItem('loggedInUser_admin', JSON.stringify(userObj));
-            }
-            showToast('success', 'Account updated successfully!');
-            if (passwordInput) passwordInput.value = '';
-            return;
+
+    const name = nameInput.value.trim();
+    const email = emailInput.value.trim();
+
+    if (!name || !email) { showToast('error', 'Name and email are required.'); return; }
+
+    const account = { name, email };
+    saveAccountToStorage(account);
+
+    if (passwordInput && passwordInput.value) {
+        var users = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
+        var emailLower = email.toLowerCase();
+        var existingUser = users.find(function(u) { return (u.email || '').toString().trim().toLowerCase() === emailLower; });
+        if (existingUser) {
+            existingUser.password = passwordInput.value;
+            existingUser.name = name;
+            existingUser.email = emailLower;
+            var duplicateIndexes = [];
+            users.forEach(function(u, idx) {
+                if (idx !== users.indexOf(existingUser) && (u.email || '').toString().trim().toLowerCase() === emailLower) {
+                    duplicateIndexes.push(idx);
+                }
+            });
+            duplicateIndexes.reverse().forEach(function(idx) { users.splice(idx, 1); });
+        } else {
+            users.push({ email: emailLower, password: passwordInput.value, role: 'admin', name: name });
         }
-    } catch (e) { console.log('API not available, saving locally.'); }
-    
-    // Fallback: save to localStorage
-    const loggedInUserStr = localStorage.getItem('loggedInUser_admin');
-    if (loggedInUserStr) {
-        const userObj = JSON.parse(loggedInUserStr);
-        userObj.name = accountData.name;
-        userObj.email = accountData.email;
-        if (accountData.password) {
-            userObj.passwordChanged = true;
-        }
-        localStorage.setItem('loggedInUser_admin', JSON.stringify(userObj));
+        localStorage.setItem('smartParkUsers', JSON.stringify(users));
+        passwordInput.value = '';
+        showToast('success', 'Account updated! Password has been changed.');
+    } else {
+        showToast('success', 'Account updated successfully!');
     }
-    if (passwordInput) passwordInput.value = '';
-    showToast('success', 'Account updated locally!');
 }
 
-async function saveSensorConfig() {
+function getSensorConfig() {
+    try {
+        const local = JSON.parse(localStorage.getItem('smartpark_sensor_config') || '{}');
+        return {
+            plateReaderSensitivity: local.plateReaderSensitivity || 80,
+            ultrasonicRange: local.ultrasonicRange || 200
+        };
+    } catch (e) {
+        return { plateReaderSensitivity: 80, ultrasonicRange: 200 };
+    }
+}
+
+function saveSensorConfigToStorage(config) {
+    localStorage.setItem('smartpark_sensor_config', JSON.stringify(config));
+}
+
+function loadSensorConfig() {
     const sensitivityInput = document.getElementById('settings-sensor-sensitivity');
     const ultrasonicInput = document.getElementById('settings-ultrasonic-range');
-    
+    const sensitivityDisplay = document.getElementById('settings-sensor-sensitivity-display');
+    if (!sensitivityInput || !ultrasonicInput) return;
+
+    const config = getSensorConfig();
+    sensitivityInput.value = config.plateReaderSensitivity;
+    ultrasonicInput.value = config.ultrasonicRange;
+    if (sensitivityDisplay) {
+        sensitivityDisplay.textContent = 'Current: ' + config.plateReaderSensitivity + '%';
+    }
+}
+
+function saveSensorConfig() {
+    const sensitivityInput = document.getElementById('settings-sensor-sensitivity');
+    const ultrasonicInput = document.getElementById('settings-ultrasonic-range');
+
     if (!sensitivityInput || !ultrasonicInput) { showToast('error', 'Sensor form not found.'); return; }
-    
-    const sensorConfig = {
-        plateReaderSensitivity: parseInt(sensitivityInput.value),
-        ultrasonicRange: parseInt(ultrasonicInput.value)
-    };
-    
-    // Try API first
-    try {
-        const token = localStorage.getItem('token_admin');
-        const response = await fetch(`${API_BASE}/api/admin/sensor-config`, {
-            method: 'POST',
-            headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
-            body: JSON.stringify(sensorConfig)
-        });
-        if (response.ok) {
-            showToast('success', 'Sensor configuration saved!');
-            return;
-        }
-    } catch (e) { console.log('API not available, saving locally.'); }
-    
-    // Fallback: save to localStorage
-    localStorage.setItem('smartpark_sensor_config', JSON.stringify(sensorConfig));
-    showToast('success', 'Sensor config saved locally!');
+
+    const sensitivity = parseInt(sensitivityInput.value, 10);
+    const ultrasonic = parseInt(ultrasonicInput.value, 10);
+
+    if (isNaN(sensitivity) || sensitivity < 1 || sensitivity > 100) {
+        showToast('error', 'Plate reader sensitivity must be between 1 and 100.');
+        return;
+    }
+    if (isNaN(ultrasonic) || ultrasonic < 10 || ultrasonic > 1000) {
+        showToast('error', 'Ultrasonic range must be between 10 and 1000 cm.');
+        return;
+    }
+
+    const config = { plateReaderSensitivity: sensitivity, ultrasonicRange: ultrasonic };
+    saveSensorConfigToStorage(config);
+    showToast('success', 'Sensor configuration saved!');
 }
 
 function clearAllParkingData() {
@@ -2784,6 +2881,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const tabId = hash.replace('#tab-', '');
         console.log('Hash tabId:', tabId);
         if (tabId) { setTimeout(() => switchAdminTab(tabId, null), 100); }
+    } else {
+        loadSettings();
+        loadAccountSettings();
+        loadSensorConfig();
     }
     if (document.getElementById('admin-map')) {
         const mapView = document.getElementById('map-view');
