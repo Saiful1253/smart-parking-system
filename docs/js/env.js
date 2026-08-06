@@ -1,7 +1,7 @@
 window.env = {
-  GOOGLE_CLIENT_ID: '348562821543-lfcg1mju1c420n1cv756r2cgrg857bvj.apps.googleusercontent.com',
+  GOOGLE_CLIENT_ID: 'YOUR_GOOGLE_CLIENT_ID',
   FIREBASE_CONFIG: {
-    apiKey: "AIzaSyDLWrsvJSsEnHa53VXG_184ebZvaofQQP0",
+    apiKey: "YOUR_API_KEY",
     authDomain: "smart-parking-system-df1f0.firebaseapp.com",
     projectId: "smart-parking-system-df1f0",
     storageBucket: "smart-parking-system-df1f0.firebasestorage.app",
