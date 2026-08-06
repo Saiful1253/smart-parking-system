@@ -851,39 +851,80 @@ function handleGoogleCredentialResponse(response) {
         showToast('error', 'Google authentication failed: no credential received.');
         return;
     }
-    try {
-        const base64Url = response.credential.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const payload = JSON.parse(window.atob(base64));
-        const email = payload.email;
-        const name = payload.name || email.split('@')[0];
-        if (!email) { showToast('error', 'Google authentication failed: no email found.'); return; }
+    const credential = response.credential;
+    const emailLower = (function() {
+        try {
+            const base64Url = credential.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const payload = JSON.parse(window.atob(base64));
+            return (payload.email || '').toLowerCase();
+        } catch (e) { return ''; }
+    })();
 
-        const enrolled = window.spFirebase && spFirebase.isReady() ? spFirebase.isTOTPEnrolled(email) : false;
-        if (enrolled) {
-            pendingMFALogin = { email: email, role: 'customer' };
-            spFirebase.setPendingTOTPUser(email);
-            document.getElementById('mfa-email-hint').textContent = email;
-            openModal('mfa-verify-modal');
-            return;
-        }
+    if (!emailLower) {
+        showToast('error', 'Google authentication failed: no email found.');
+        return;
+    }
 
+    const enrolled = window.spFirebase && spFirebase.isReady() ? spFirebase.isTOTPEnrolled(emailLower) : false;
+    if (enrolled) {
+        pendingMFALogin = { email: emailLower, role: 'customer' };
+        spFirebase.setPendingTOTPUser(emailLower);
+        document.getElementById('mfa-email-hint').textContent = emailLower;
+        openModal('mfa-verify-modal');
+        return;
+    }
+
+    if (API_BASE) {
+        fetch(`${API_BASE}/api/auth/google`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ credential })
+        })
+        .then(async (res) => {
+            const contentType = res.headers.get('content-type') || '';
+            const data = contentType.includes('application/json') ? await res.json() : { msg: await res.text() };
+            if (res.ok && data.token) {
+                setStoredAuth('customer', data.token, { email: emailLower, role: 'customer', name: data.name || emailLower.split('@')[0] });
+                showToast('success', 'Google login successful! Redirecting...');
+                setTimeout(function() {
+                    showTOTPEnrollmentPrompt();
+                    window.location.href = 'book-parking.html';
+                }, 1500);
+            } else {
+                showToast('error', data.msg || 'Google authentication failed.');
+            }
+        })
+        .catch((err) => {
+            console.error('Google OAuth backend error:', err);
+            const users = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
+            let user = users.find(function(u) { return (u.email || '').toLowerCase() === emailLower; });
+            if (!user) {
+                user = { email: emailLower, password: 'google-oauth', role: 'customer', name: emailLower.split('@')[0] };
+                users.push(user);
+                localStorage.setItem('smartParkUsers', JSON.stringify(users));
+            }
+            setStoredAuth('customer', 'static-token', { email: emailLower, role: 'customer', name: user.name || emailLower.split('@')[0] });
+            showToast('success', 'Google login successful (offline mode)! Redirecting...');
+            setTimeout(function() {
+                showTOTPEnrollmentPrompt();
+                window.location.href = 'book-parking.html';
+            }, 1500);
+        });
+    } else {
         const users = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
-        const emailLower = email.toLowerCase();
         let user = users.find(function(u) { return (u.email || '').toLowerCase() === emailLower; });
         if (!user) {
-            user = { email: emailLower, password: 'google-oauth', role: 'customer', name: name };
+            user = { email: emailLower, password: 'google-oauth', role: 'customer', name: emailLower.split('@')[0] };
             users.push(user);
             localStorage.setItem('smartParkUsers', JSON.stringify(users));
         }
-        setStoredAuth('customer', 'static-token', { email: emailLower, role: 'customer', name: name });
+        setStoredAuth('customer', 'static-token', { email: emailLower, role: 'customer', name: user.name || emailLower.split('@')[0] });
         showToast('success', 'Google login successful! Redirecting...');
         setTimeout(function() {
             showTOTPEnrollmentPrompt();
             window.location.href = 'book-parking.html';
         }, 1500);
-    } catch (e) {
-        showToast('error', 'Failed to process Google authentication.');
     }
 }
 

@@ -116,9 +116,59 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// @route   GET /api/auth/logout (This would typically be handled on the client-side by deleting the token)
-// @desc    Logout user (client-side token removal)
+// @route   POST /api/auth/google
+// @desc    Authenticate with Google OAuth
 // @access  Public
+router.post('/google', async (req, res) => {
+  const { credential } = req.body;
+  if (!credential) return res.status(400).json({ msg: 'Google credential is required' });
+
+  try {
+    const { OAuth2Client } = require('google-auth-library');
+    const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    const email = (payload.email || '').toLowerCase();
+    if (!email) return res.status(400).json({ msg: 'Google authentication failed: no email found' });
+
+    let user = await User.findOne({ email });
+    if (!user) {
+      user = new User({
+        email,
+        password: await bcrypt.hash('google-oauth-' + Date.now(), 10),
+        role: 'customer',
+      });
+      await user.save();
+    }
+
+    const payloadJwt = {
+      user: {
+        id: user._id,
+        role: user.role,
+      },
+    };
+
+    jwt.sign(
+      payloadJwt,
+      process.env.JWT_SECRET,
+      { expiresIn: 360000 },
+      (err, token) => {
+        if (err) {
+          console.error(err.message);
+          return res.status(500).send('Server error');
+        }
+        res.json({ token, email, role: user.role, name: payload.name || email.split('@')[0] });
+      }
+    );
+  } catch (err) {
+    console.error('Google OAuth error:', err.message);
+    res.status(401).json({ msg: 'Invalid Google token' });
+  }
+});
+
 router.get('/logout', (req, res) => {
   res.json({ msg: 'Logout successful (token should be removed client-side)' });
 });

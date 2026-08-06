@@ -26,8 +26,8 @@
 
     spFirebase.init = function() {
         if (firebaseReady) return;
-        if (!window.env || !window.env.FIREBASE_CONFIG) {
-            console.warn('Firebase not configured. Set FIREBASE_CONFIG in env.js.');
+        if (!window.env || !window.env.FIREBASE_CONFIG || !window.env.FIREBASE_CONFIG.apiKey || window.env.FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY') {
+            console.warn('Firebase not configured with a real API key. Skipping Firebase init.');
             return;
         }
         try {
