@@ -1253,8 +1253,11 @@ function syncHistoryFromAllCustomers() {
     Object.keys(allByUser).forEach(function(email) {
         const userData = allByUser[email];
         const customerName = userMap[email.toLowerCase()] || email;
+        const historyIds = new Set();
         if (userData.history) {
             userData.history.forEach(function(h) {
+                if (h.id) historyIds.add(h.id);
+                if (h.bookingId) historyIds.add(h.bookingId);
                 historyData.push({
                     id: h.id || nextHistoryId++,
                     email: email,
@@ -1274,6 +1277,36 @@ function syncHistoryFromAllCustomers() {
                 });
             });
         }
+        if (userData.sessions) {
+            userData.sessions.forEach(function(s) {
+                if (s.status === 'Completed' || s.status === 'Expired') {
+                    var sessionId = s.id || s.bookingId;
+                    if (!historyIds.has(sessionId)) {
+                        var startTime = s.startTime || s.createdAt || '';
+                        var endTime = s.endedAt || '';
+                        var duration = calculateDuration(startTime, endTime);
+                        var dateStr = startTime ? startTime.split('T')[0] : new Date().toISOString().split('T')[0];
+                        historyData.push({
+                            id: nextHistoryId++,
+                            email: email,
+                            plate: s.vehicle || s.plateNumber || 'N/A',
+                            customer: customerName,
+                            zone: s.zone || 'N/A',
+                            spot: s.slot || s.spot || 'N/A',
+                            date: dateStr,
+                            startTime: startTime ? startTime.split('T')[1]?.substring(0,5) || '' : '',
+                            endTime: endTime ? endTime.split('T')[1]?.substring(0,5) || '' : '',
+                            duration: duration,
+                            fee: s.cost || 0,
+                            payment: s.payment || 'Cash',
+                            paymentStatus: s.paymentStatus || 'Paid',
+                            customerNumber: s.customerNumber || '',
+                            trxId: s.trxId || ''
+                        });
+                    }
+                }
+            });
+        }
     });
     if (historyData.length > 0) {
         const maxId = historyData.reduce(function(max, r) { return (r.id || 0) > max ? (r.id || 0) : max; }, 0);
@@ -1284,6 +1317,51 @@ function syncHistoryFromAllCustomers() {
 
 function initDemoHistory() {
     // Demo data removed for local deployment.
+}
+
+function addSessionToHistory(session, email) {
+    var allRaw = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+    var userData = allRaw[email];
+    if (!userData) return;
+    userData.history = userData.history || [];
+    var nextHistId = userData.nextHistId || 2000;
+    var endTime = session.endedAt || new Date().toISOString();
+    var startTime = session.startTime || session.createdAt || '';
+    var duration = calculateDuration(startTime, endTime);
+    var dateStr = startTime ? startTime.split('T')[0] : new Date().toISOString().split('T')[0];
+    userData.history.unshift({
+        id: nextHistId++,
+        bookingId: session.id,
+        vehicle: session.vehicle || session.plateNumber || 'N/A',
+        zone: session.zone || 'N/A',
+        slot: session.slot || session.spot || 'N/A',
+        date: dateStr,
+        startTime: startTime ? startTime.split('T')[1]?.substring(0,5) || '' : '',
+        endTime: endTime ? endTime.split('T')[1]?.substring(0,5) || '' : '',
+        duration: duration,
+        cost: session.cost || 0,
+        payment: session.payment || 'Cash',
+        paymentStatus: session.paymentStatus || 'Paid',
+        customerNumber: session.customerNumber || '',
+        trxId: session.trxId || ''
+    });
+    userData.nextHistId = nextHistId;
+    allRaw[email] = userData;
+    localStorage.setItem('customerParkingData_by_user', JSON.stringify(allRaw));
+}
+
+function calculateDuration(startTime, endTime) {
+    if (!startTime || !endTime) return '1h';
+    try {
+        var start = new Date(startTime);
+        var end = new Date(endTime);
+        var diffMs = end - start;
+        var diffMins = Math.floor(diffMs / 60000);
+        if (diffMins < 60) return diffMins + 'm';
+        var hours = Math.floor(diffMins / 60);
+        var mins = diffMins % 60;
+        return mins > 0 ? hours + 'h ' + mins + 'm' : hours + 'h';
+    } catch (e) { return '1h'; }
 }
 
 function renderHistoryTable(data) {
@@ -1515,6 +1593,9 @@ async function endAdminSession(bookingId) {
                     }
                 });
             }
+            if (found && localSession) {
+                addSessionToHistory(localSession, email);
+            }
         });
         if (found) {
             localStorage.setItem('customerParkingData_by_user', JSON.stringify(allRaw));
@@ -1572,6 +1653,9 @@ async function verifyExpiredSession(bookingId) {
                         });
                     }
                 });
+            }
+            if (found && localSession) {
+                addSessionToHistory(localSession, email);
             }
         });
         if (found) {
@@ -2007,6 +2091,212 @@ function exportRevenueCSV() {
     link.click();
     URL.revokeObjectURL(url);
     showToast('success', 'Revenue history exported as CSV!');
+}
+
+// Settings Functions
+async function saveSettings() {
+    const nameInput = document.getElementById('settings-parking-lot-name');
+    const currencySelect = document.getElementById('settings-currency');
+    const timezoneSelect = document.getElementById('settings-timezone');
+    
+    if (!nameInput) { showToast('error', 'Settings form not found.'); return; }
+    
+    const settings = {
+        parkingLotName: nameInput.value,
+        currency: currencySelect ? currencySelect.value : 'BDT (৳)',
+        timezone: timezoneSelect ? timezoneSelect.value : 'Asia/Dhaka (UTC+6)'
+    };
+    
+    // Try API first
+    try {
+        const token = localStorage.getItem('token_admin');
+        const response = await fetch(`${API_BASE}/api/admin/settings`, {
+            method: 'POST',
+            headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings)
+        });
+        if (response.ok) {
+            showToast('success', 'Settings saved successfully!');
+            return;
+        }
+    } catch (e) { console.log('API not available, saving locally.'); }
+    
+    // Fallback: save to localStorage
+    localStorage.setItem('smartpark_settings', JSON.stringify(settings));
+    showToast('success', 'Settings saved locally!');
+}
+
+async function updateAccount() {
+    const nameInput = document.getElementById('settings-admin-name');
+    const emailInput = document.getElementById('settings-admin-email');
+    const passwordInput = document.getElementById('settings-admin-password');
+    
+    if (!nameInput || !emailInput) { showToast('error', 'Account form not found.'); return; }
+    
+    const accountData = {
+        name: nameInput.value,
+        email: emailInput.value,
+        password: passwordInput ? passwordInput.value : ''
+    };
+    
+    if (!accountData.name || !accountData.email) {
+        showToast('error', 'Name and email are required.');
+        return;
+    }
+    
+    // Try API first
+    try {
+        const token = localStorage.getItem('token_admin');
+        const response = await fetch(`${API_BASE}/api/admin/account`, {
+            method: 'PUT',
+            headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
+            body: JSON.stringify(accountData)
+        });
+        if (response.ok) {
+            const loggedInUserStr = localStorage.getItem('loggedInUser_admin');
+            if (loggedInUserStr) {
+                const userObj = JSON.parse(loggedInUserStr);
+                userObj.name = accountData.name;
+                userObj.email = accountData.email;
+                localStorage.setItem('loggedInUser_admin', JSON.stringify(userObj));
+            }
+            showToast('success', 'Account updated successfully!');
+            if (passwordInput) passwordInput.value = '';
+            return;
+        }
+    } catch (e) { console.log('API not available, saving locally.'); }
+    
+    // Fallback: save to localStorage
+    const loggedInUserStr = localStorage.getItem('loggedInUser_admin');
+    if (loggedInUserStr) {
+        const userObj = JSON.parse(loggedInUserStr);
+        userObj.name = accountData.name;
+        userObj.email = accountData.email;
+        if (accountData.password) {
+            userObj.passwordChanged = true;
+        }
+        localStorage.setItem('loggedInUser_admin', JSON.stringify(userObj));
+    }
+    if (passwordInput) passwordInput.value = '';
+    showToast('success', 'Account updated locally!');
+}
+
+async function saveSensorConfig() {
+    const sensitivityInput = document.getElementById('settings-sensor-sensitivity');
+    const ultrasonicInput = document.getElementById('settings-ultrasonic-range');
+    
+    if (!sensitivityInput || !ultrasonicInput) { showToast('error', 'Sensor form not found.'); return; }
+    
+    const sensorConfig = {
+        plateReaderSensitivity: parseInt(sensitivityInput.value),
+        ultrasonicRange: parseInt(ultrasonicInput.value)
+    };
+    
+    // Try API first
+    try {
+        const token = localStorage.getItem('token_admin');
+        const response = await fetch(`${API_BASE}/api/admin/sensor-config`, {
+            method: 'POST',
+            headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
+            body: JSON.stringify(sensorConfig)
+        });
+        if (response.ok) {
+            showToast('success', 'Sensor configuration saved!');
+            return;
+        }
+    } catch (e) { console.log('API not available, saving locally.'); }
+    
+    // Fallback: save to localStorage
+    localStorage.setItem('smartpark_sensor_config', JSON.stringify(sensorConfig));
+    showToast('success', 'Sensor config saved locally!');
+}
+
+function clearAllParkingData() {
+    if (!confirm('This will permanently delete ALL parking data (sessions and history) for ALL users. This cannot be undone. Are you sure?')) {
+        showToast('info', 'Action cancelled.');
+        return;
+    }
+    
+    // Clear all customer parking data
+    const allData = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+    Object.keys(allData).forEach(function(email) {
+        allData[email].sessions = [];
+        allData[email].history = [];
+        allData[email].zoneSlots = {};
+    });
+    localStorage.setItem('customerParkingData_by_user', JSON.stringify(allData));
+    
+    // Try API if available
+    const token = localStorage.getItem('token_admin');
+    fetch(`${API_BASE}/api/admin/parking-data`, { method: 'DELETE', headers: { 'x-auth-token': token } })
+        .then(r => { if (!r.ok) throw new Error('API not available'); })
+        .catch(() => {});
+    
+    // Reset zones
+    Object.values(zonesData).forEach(function(z) {
+        z.occupied = 0;
+        z.free = z.spots || 0;
+        if (z.spotStatus) {
+            z.spotStatus.forEach(function(slot) {
+                slot.occupied = false;
+                slot.plate = null;
+                slot.sessionId = null;
+            });
+        }
+    });
+    
+    renderZonesGrid();
+    renderSessionsTable();
+    renderHistoryTable();
+    updateDashboardStats();
+    updateChartFromZones();
+    
+    showToast('success', 'All parking data cleared successfully!');
+}
+
+async function resetAllZones() {
+    if (!confirm('This will delete ALL zones and reset them to empty. This cannot be undone. Are you sure?')) {
+        showToast('info', 'Action cancelled.');
+        return;
+    }
+    
+    // Try API first
+    try {
+        const token = localStorage.getItem('token_admin');
+        const response = await fetch(`${API_BASE}/api/zones`, { method: 'GET', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
+        if (response.ok) {
+            const zones = await response.json();
+            if (Array.isArray(zones)) {
+                const promises = zones.map(z => fetch(`${API_BASE}/api/zones/${z.id}`, { method: 'DELETE', headers: { 'x-auth-token': token } }));
+                await Promise.all(promises);
+                showToast('success', 'All zones deleted.');
+                await refreshZones();
+                return;
+            }
+        }
+    } catch (e) { console.log('API not available, clearing locally.'); }
+    
+    // Fallback: clear zones from localStorage
+    localStorage.removeItem('smartParkZones_local');
+    zonesData = {};
+    ZONE_ORDER = [];
+    
+    // Clear all customer zone references
+    const allData = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+    Object.keys(allData).forEach(function(email) {
+        if (allData[email].zoneSlots) {
+            allData[email].zoneSlots = {};
+        }
+    });
+    localStorage.setItem('customerParkingData_by_user', JSON.stringify(allData));
+    
+    renderZonesGrid();
+    renderSessionsTable();
+    renderHistoryTable();
+    updateDashboardStats();
+    updateChartFromZones();
+    
+    showToast('success', 'All zones have been reset.');
 }
 
 function showToast(type, message) {
