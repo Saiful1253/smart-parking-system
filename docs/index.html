@@ -343,6 +343,56 @@
     </div>
 </div>
 
+<!-- RESET PASSWORD MODAL -->
+<div id="reset-modal" class="modal-overlay">
+    <div class="modal-content" id="reset-modal-card">
+        <div class="p-6">
+            <div class="flex justify-between items-start mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-sp-emerald/10 text-sp-emerald flex items-center justify-center">
+                        <i class="fa-solid fa-lock"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white">Set New Password</h3>
+                </div>
+                <button onclick="closeModal('reset-modal')" class="text-slate-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <p class="text-sm text-slate-400 mb-5">Enter your email and set a new password for your account.</p>
+            <form onsubmit="handleResetPassword(event)" class="space-y-4">
+                <div class="space-y-2">
+                    <label class="form-label">Email Address</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                            <i class="fa-solid fa-envelope"></i>
+                        </div>
+                        <input type="email" id="reset-email" required class="form-input icon-left" placeholder="name@example.com">
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="form-label">New Password</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                            <i class="fa-solid fa-lock"></i>
+                        </div>
+                        <input type="password" id="reset-password" required minlength="4" class="form-input icon-left" placeholder="Enter new password">
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="form-label">Confirm New Password</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                            <i class="fa-solid fa-check-double"></i>
+                        </div>
+                        <input type="password" id="reset-confirm" required minlength="4" class="form-input icon-left" placeholder="Confirm new password">
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary w-full py-3">Reset Password</button>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- 2FA VERIFICATION MODAL -->
 <div id="mfa-verify-modal" class="modal-overlay">
     <div class="modal-content" id="mfa-verify-card">

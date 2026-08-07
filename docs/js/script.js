@@ -611,8 +611,40 @@ function handleForgotPassword(event) {
     const email = document.getElementById('forgot-email').value.trim();
     if (!email) { showToast('error', 'Please enter your email address.'); return; }
 
-    showToast('success', 'Password reset link sent to ' + email);
+    var users = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
+    var emailLower = email.toString().trim().toLowerCase();
+    var user = users.find(function(u) { return (u.email || '').toString().trim().toLowerCase() === emailLower; });
+    if (!user) {
+        showToast('error', 'No account found with this email address.');
+        return;
+    }
+
+    document.getElementById('reset-email').value = email;
+    document.getElementById('reset-password').value = '';
+    document.getElementById('reset-confirm').value = '';
     closeModal('forgot-modal');
+    openModal('reset-modal');
+}
+
+function handleResetPassword(event) {
+    event.preventDefault();
+    var email = document.getElementById('reset-email').value.trim();
+    var password = document.getElementById('reset-password').value;
+    var confirm = document.getElementById('reset-confirm').value;
+
+    if (!email || !password || !confirm) { showToast('error', 'Please fill in all fields.'); return; }
+    if (password !== confirm) { showToast('error', 'Passwords do not match.'); return; }
+    if (password.length < 4) { showToast('error', 'Password must be at least 4 characters.'); return; }
+
+    var users = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
+    var emailLower = email.toString().trim().toLowerCase();
+    var userIndex = users.findIndex(function(u) { return (u.email || '').toString().trim().toLowerCase() === emailLower; });
+    if (userIndex === -1) { showToast('error', 'Account not found.'); return; }
+
+    users[userIndex].password = password;
+    localStorage.setItem('smartParkUsers', JSON.stringify(users));
+    showToast('success', 'Password reset successfully! You can now log in.');
+    closeModal('reset-modal');
     event.target.reset();
 }
 
