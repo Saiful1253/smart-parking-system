@@ -128,6 +128,11 @@ window.onGoogleSignIn = function(response) {
 window.firebaseGoogleSignIn = function(role) {
   role = role || 'customer';
   window.__googleSignInRole = role;
+  if (window.__googleSignInReady && window.google && google.accounts && google.accounts.id) {
+    google.accounts.id.prompt();
+  } else {
+    showToast('error', 'Google Sign-In is not ready yet. Please wait a moment and try again.');
+  }
 };
 
 window.initializeGoogleSignIn = function() {
@@ -141,6 +146,10 @@ window.initializeGoogleSignIn = function() {
     window.__googleSignInReady = true;
     window.renderGoogleButtons();
   }
+};
+
+window.__gisOnLoad = function() {
+  window.initializeGoogleSignIn();
 };
 
 // Auto-initialize if Google API is already loaded
