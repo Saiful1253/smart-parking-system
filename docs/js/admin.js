@@ -1750,6 +1750,8 @@ function updatePaymentStatus(paymentId, status) {
 function updateCustomerPaymentStatus(bookingId, status) {
     try {
         const allData = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+        let autoEndedSession = null;
+        let autoEndedEmail = null;
         Object.keys(allData).forEach(function(email) {
             const userData = allData[email];
             if (userData && userData.history) {
@@ -1759,11 +1761,65 @@ function updateCustomerPaymentStatus(bookingId, status) {
             }
             if (userData && userData.sessions) {
                 userData.sessions.forEach(function(s) {
-                    if (Number(s.id) === Number(bookingId)) { s.paymentStatus = status; if (status === 'Rejected') { s.status = 'Rejected'; } }
+                    if (Number(s.id) === Number(bookingId)) {
+                        s.paymentStatus = status;
+                        if (status === 'Rejected') { s.status = 'Rejected'; }
+                        if (status === 'Verified') {
+                            var isExpired = s.status === 'Expired';
+                            var isTimerExpired = false;
+                            if (s.status === 'Active') {
+                                var createdAt = s.createdAt ? new Date(s.createdAt).getTime() : Date.now();
+                                var isFixed = (s.bookingType || 'Fixed') !== 'meter';
+                                var fixedDurationSecs = isFixed ? ((s.durationHours || 1) * 3600) : null;
+                                var elapsedSecs = Math.floor((Date.now() - createdAt) / 1000);
+                                isTimerExpired = isFixed && fixedDurationSecs !== null && elapsedSecs >= fixedDurationSecs;
+                            }
+                            if (isExpired || isTimerExpired || s.status === 'Active' || s.status === 'Parked') {
+                                s.status = 'Completed';
+                                s.endedAt = new Date().toISOString();
+                                autoEndedSession = s;
+                                autoEndedEmail = email;
+                            }
+                        }
+                    }
                 });
             }
         });
         localStorage.setItem('customerParkingData_by_user', JSON.stringify(allData));
+
+        if (autoEndedSession && autoEndedEmail) {
+            const userData = allData[autoEndedEmail];
+            if (userData && userData.zoneSlots) {
+                Object.keys(userData.zoneSlots).forEach(function(zoneId) {
+                    if (Array.isArray(userData.zoneSlots[zoneId])) {
+                        userData.zoneSlots[zoneId].forEach(function(slot) {
+                            if (slot && slot.sessionId === Number(bookingId)) {
+                                slot.occupied = false;
+                                slot.plate = null;
+                                slot.sessionId = null;
+                            }
+                        });
+                    }
+                });
+            }
+            addSessionToHistory(autoEndedSession, autoEndedEmail);
+
+            var token = localStorage.getItem('token_admin');
+            if (token && autoEndedSession) {
+                (async function() {
+                    try {
+                        const sessionsResponse = await fetch(API_BASE + '/api/admin/sessions', { method: 'GET', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
+                        if (sessionsResponse.ok) {
+                            const allSessions = await sessionsResponse.json();
+                            const match = allSessions.find(function(bs) { return bs.plateNumber === autoEndedSession.vehicle && bs.zone === autoEndedSession.zone && (bs.status === 'Active' || bs.status === 'Parked' || bs.status === 'Expired'); });
+                            if (match) {
+                                await fetch(API_BASE + '/api/parking/' + match._id, { method: 'PUT', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'Completed', endTime: new Date().toISOString(), paymentStatus: 'Verified', payment: autoEndedSession.payment || 'Cash', cost: autoEndedSession.cost || 0 }) });
+                            }
+                        }
+                    } catch (e) {}
+                })();
+            }
+        }
     } catch (e) { console.error('Failed to update customer payment status:', e); }
 }
 // Admin Cash Verification Pagination
@@ -1855,6 +1911,7 @@ function verifyCashPayment(paymentId, status) {
         showToast('success', 'Payment marked as ' + status);
         loadCashVerifications();
         updateRevenueUI();
+        renderSessionsTable();
         triggerRefresh();
     } else {
         showToast('error', 'Failed to update payment status.');
