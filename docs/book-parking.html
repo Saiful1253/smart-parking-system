@@ -395,6 +395,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function refreshData() { renderZones(); if (map) { refreshMapMarkers(); map.invalidateSize(); } showToast('info', 'Data refreshed!'); }
 
+function loadAllSessions() {
+    try {
+        var allData = JSON.parse(localStorage.getItem('customerParkingData_by_user')) || {};
+        var allSessions = [];
+        Object.keys(allData).forEach(function(email) {
+            if (allData[email] && allData[email].sessions) {
+                allSessions = allSessions.concat(allData[email].sessions);
+            }
+        });
+        return allSessions;
+    } catch(e) { return []; }
+}
+
 function initZoneSlots() {
     Object.keys(zonesData).forEach(function(key) {
         var z = zonesData[key];
@@ -402,7 +415,8 @@ function initZoneSlots() {
             zoneSlots[key] = new Array(z.spots).fill(false);
         }
     });
-    sessions.forEach(function(s) {
+    var allSessions = loadAllSessions();
+    allSessions.forEach(function(s) {
         if (s.status === 'Active' && s.slotIndex !== undefined && s.zoneId && zoneSlots[s.zoneId]) {
             if (s.slotIndex >= 0 && s.slotIndex < zoneSlots[s.zoneId].length) {
                 zoneSlots[s.zoneId][s.slotIndex] = true;
@@ -430,7 +444,8 @@ function saveData() {
 }
 function syncZoneOccupancy() {
     Object.values(zonesData).forEach(function(z) { z.occupied = 0; });
-    sessions.forEach(function(s) {
+    var allSessions = loadAllSessions();
+    allSessions.forEach(function(s) {
         if (s.status === 'Active' && (s.paymentStatus || '') !== 'Rejected') {
             var zone = Object.values(zonesData).find(function(z) { return z.name === s.zone; });
             if (zone) zone.occupied = (zone.occupied || 0) + 1;

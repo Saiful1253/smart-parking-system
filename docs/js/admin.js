@@ -781,19 +781,16 @@ function getLocalAnomalies() {
 
     for (const plate in vehicleSessionMap) {
         const vehicleSessions = vehicleSessionMap[plate];
-        if (vehicleSessions.length > 1) {
-            const hasActive = vehicleSessions.some(function(s) { return s.status === 'Active'; });
-            const hasCompleted = vehicleSessions.some(function(s) { return s.status === 'Completed'; });
-            if (hasActive && hasCompleted) {
-                anomalies.push({
-                    zone: vehicleSessions.find(function(s) { return s.status === 'Active'; })?.zone || 'Multiple Zones',
-                    type: 'duplicate_sessions',
-                    message: `Vehicle ${plate} has both active and completed sessions (${vehicleSessions.length} total entries detected).`,
-                    severity: 'warning',
-                    vehicles: vehicleSessions.map(function(s) { return { plate: s.vehicle || 'N/A', spot: s.slot || '?', status: s.status.toLowerCase() }; }),
-                    customers: getCustomersForPlates([plate])
-                });
-            }
+        const activeOrExpiredSessions = vehicleSessions.filter(function(s) { return s.status === 'Active' || s.status === 'Expired'; });
+        if (activeOrExpiredSessions.length > 1) {
+            anomalies.push({
+                zone: activeOrExpiredSessions.find(function(s) { return s.status === 'Active'; })?.zone || 'Multiple Zones',
+                type: 'duplicate_sessions',
+                message: `Vehicle ${plate} has ${activeOrExpiredSessions.length} active/expired sessions. Only one active session per vehicle is allowed.`,
+                severity: 'warning',
+                vehicles: activeOrExpiredSessions.map(function(s) { return { plate: s.vehicle || 'N/A', spot: s.slot || '?', status: s.status.toLowerCase() }; }),
+                customers: getCustomersForPlates([plate])
+            });
         }
     }
 
