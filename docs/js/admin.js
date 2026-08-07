@@ -12,7 +12,11 @@ const API_BASE = (() => {
     const hostname = window.location.hostname;
     if (hostname === 'localhost' || hostname === '127.0.0.1') { const p = window.location.port; return (p === '3000' || !p) ? window.location.origin : 'http://localhost:3000'; }
     if (window.location.protocol === 'file:') return 'http://localhost:3000';
-    return '';
+    if (window.SmartParkConfig && window.SmartParkConfig.API_BASE) return window.SmartParkConfig.API_BASE;
+    if (hostname.endsWith('.github.io') || hostname.includes('.github.io')) {
+        return (window.location.protocol === 'https:' ? 'https://' : 'http://') + 'smartpark-backend.onrender.com';
+    }
+    return window.location.origin;
 })();
 
 (function() {
@@ -137,7 +141,7 @@ async function loadDashboardStats() {
         const response = await fetch(`${API_BASE}/api/admin/dashboard-stats`, { method: 'GET', headers: { 'x-auth-token': token, 'Content-Type': 'application/json' } });
         const contentType = response.headers.get('content-type') || ''; const isJson = contentType.includes('application/json'); const data = isJson ? await response.json() : {};
         if (response.status === 401) { localStorage.removeItem('token_admin'); localStorage.removeItem('loggedInUser_admin'); updateDashboardStatsFromLocal(); updateRevenueUI(); return; }
-        if (response.ok) { updateSpottedVehiclesUI(data); updateZonesSpotsUI(data); if (data.activeSessions !== undefined && document.getElementById('active-sessions-count')) { document.getElementById('active-sessions-count').textContent = data.activeSessions; } if (data.revenue !== undefined && document.getElementById('stat-revenue')) { var rev = parseFloat(data.revenue) || 0; var localRev = calculateTotalRevenue(); if (localRev > rev) rev = localRev; document.getElementById('stat-revenue').textContent = 'BDT ' + rev.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } if (data.free !== undefined && document.getElementById('stat-free')) { document.getElementById('stat-free').textContent = data.free; } }
+        if (response.ok) { updateSpottedVehiclesUI(data); updateZonesSpotsUI(data); if (document.getElementById('active-sessions-count')) { var apiActiveSessions = data.activeSessions; var localActiveCount = getSystemActiveSessionCount(); if (apiActiveSessions !== undefined) { document.getElementById('active-sessions-count').textContent = Math.max(apiActiveSessions, localActiveCount); } else { document.getElementById('active-sessions-count').textContent = localActiveCount; } } if (data.revenue !== undefined && document.getElementById('stat-revenue')) { var rev = parseFloat(data.revenue) || 0; var localRev = calculateTotalRevenue(); if (localRev > rev) rev = localRev; document.getElementById('stat-revenue').textContent = 'BDT ' + rev.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } if (data.free !== undefined && document.getElementById('stat-free')) { document.getElementById('stat-free').textContent = data.free; } }
         else { updateDashboardStatsFromLocal(); updateRevenueUI(); }
     } catch (error) { 
         updateDashboardStatsFromLocal(); 
@@ -631,7 +635,7 @@ function getLocalAnomalies() {
     });
 
     Object.keys(zoneOccupancy).forEach(function(zoneId) {
-        const zone = zonesData[zoneId] || Object.values(zonesData).find(function(z) { return z.id === zoneId || z.name === (zoneId.replace('Zone-', 'Zone ') + ' - Central'); });
+        const zone = zonesData[zoneId] || Object.values(zonesData).find(function(z) { return z.id === zoneId || z.name === zoneId || z.name === (zoneId.replace('Zone-', 'Zone ') + ' - Central'); });
         if (!zone) return;
         const occupied = zoneOccupancy[zoneId].length;
         if (occupied > zone.spots) {
@@ -651,7 +655,7 @@ function getLocalAnomalies() {
     // Detect invalid / mismatched slots
     activeSessions.forEach(function(s) {
         const zoneId = s.zoneId || (s.zone ? s.zone.replace(/ - .*$/, '').replace('Zone ', 'Zone-') : null);
-        const zone = zonesData[zoneId] || Object.values(zonesData).find(function(z) { return z.id === zoneId || z.name === s.zone; });
+        const zone = zonesData[zoneId] || Object.values(zonesData).find(function(z) { return z.id === zoneId || z.name === zoneId || z.name === s.zone; });
         if (!zone) return;
         const spotIndex = s.slotIndex;
         if (spotIndex !== undefined && spotIndex !== null && (spotIndex < 0 || spotIndex >= zone.spots)) {
@@ -674,7 +678,7 @@ function getLocalAnomalies() {
         const plate = (s.vehicle || '').toUpperCase();
         const slot = s.slot || (spotIndex !== undefined && spotIndex !== null ? String(spotIndex + 1).padStart(2, '0') : '');
         if (!zoneId || spotIndex === undefined || spotIndex === null || !plate) return;
-        const zone = zonesData[zoneId] || Object.values(zonesData).find(function(z) { return z.id === zoneId || z.name === (zoneId.replace('Zone-', 'Zone ') + ' - Central'); });
+        const zone = zonesData[zoneId] || Object.values(zonesData).find(function(z) { return z.id === zoneId || z.name === zoneId || z.name === (zoneId.replace('Zone-', 'Zone ') + ' - Central'); });
         if (!zone) return;
         if (spotIndex < 0 || spotIndex >= zone.spots) return;
         const key = zoneId + ':' + spotIndex;
@@ -693,7 +697,7 @@ function getLocalAnomalies() {
 
     Object.values(slotMap).forEach(function(entry) {
         if (entry.uniquePlates.length > 1) {
-            const zone = zonesData[entry.zoneId] || Object.values(zonesData).find(function(z) { return z.id === entry.zoneId || z.name === (entry.zoneId.replace('Zone-', 'Zone ') + ' - Central'); });
+            const zone = zonesData[entry.zoneId] || Object.values(zonesData).find(function(z) { return z.id === entry.zoneId || z.name === entry.zoneId || z.name === (entry.zoneId.replace('Zone-', 'Zone ') + ' - Central'); });
             if (!zone) return;
             anomalies.push({
                 zone: zone.name,
@@ -1774,7 +1778,7 @@ function updateCustomerPaymentStatus(bookingId, status) {
                                 var elapsedSecs = Math.floor((Date.now() - createdAt) / 1000);
                                 isTimerExpired = isFixed && fixedDurationSecs !== null && elapsedSecs >= fixedDurationSecs;
                             }
-                            if (isExpired || isTimerExpired || s.status === 'Active' || s.status === 'Parked') {
+                            if (isExpired || isTimerExpired) {
                                 s.status = 'Completed';
                                 s.endedAt = new Date().toISOString();
                                 autoEndedSession = s;

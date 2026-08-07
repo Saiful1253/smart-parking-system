@@ -26,15 +26,14 @@ exports.getZones = async (req, res) => {
     const zoneSessionsMap = {};
     sessions.forEach(s => {
       if (s.status === 'Active' || s.status === 'Parked') {
-        const zoneKey = (s.zone || '').replace('-', ' ');
-        if (!zoneSessionsMap[zoneKey]) zoneSessionsMap[zoneKey] = [];
-        zoneSessionsMap[zoneKey].push(s);
+        const zoneName = (s.zone || '').trim();
+        if (!zoneSessionsMap[zoneName]) zoneSessionsMap[zoneName] = [];
+        zoneSessionsMap[zoneName].push(s);
       }
     });
 
     const zonesWithOccupancy = zones.map(zone => {
-      const zoneKey = zone.id.replace('-', ' ');
-      const zoneSessions = zoneSessionsMap[zoneKey] || [];
+      const zoneSessions = zoneSessionsMap[zone.name] || [];
       const occupied = zoneSessions.length;
       
       const spotStatus = [];
@@ -42,7 +41,7 @@ exports.getZones = async (req, res) => {
       for (let i = 0; i < zone.spots; i++) {
         const spotNum = String(i + 1).padStart(2, '0');
         const spotLabel = prefix + '-' + spotNum;
-        const session = zoneSessions.find(s => s.spot === spotLabel);
+        const session = zoneSessions.find(function(s) { return s.spot === spotLabel || (s.spot || '').endsWith('-' + spotNum); });
         spotStatus.push({
           id: spotLabel,
           index: i,
@@ -139,8 +138,7 @@ exports.getAnomalies = async (req, res) => {
     const activeSessions = sessions.filter(s => s.status === 'Active' || s.status === 'Parked');
 
     zones.forEach(zone => {
-      const zoneKey = zone.id.replace('-', ' ');
-      const zoneSessions = activeSessions.filter(s => (s.zone || '').replace('-', ' ') === zoneKey);
+      const zoneSessions = activeSessions.filter(function(s) { return (s.zone || '').trim() === zone.name; });
       const occupied = zoneSessions.length;
 
       if (occupied > zone.spots) {

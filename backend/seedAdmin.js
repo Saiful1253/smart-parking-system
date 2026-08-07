@@ -15,10 +15,9 @@ async function seedAdmin() {
 
   const existing = await store.findUser({ email: adminEmail });
   if (!existing) {
-    const hashedPassword = await bcrypt.hash(adminPassword, 10);
     const admin = await store.createUser({
       email: adminEmail,
-      password: hashedPassword,
+      password: adminPassword,
       role: 'admin'
     });
     console.log('Admin user created:', adminEmail);

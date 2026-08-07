@@ -1,14 +1,14 @@
 [
   {
     "id": "Zone-01",
-    "name": "Zone A",
-    "location": "Main Entrance - North Side",
+    "name": "Kalachandpur, Gulshan, Dhaka, Dhaka Metropolitan",
+    "location": "Kalachandpur, Gulshan, Dhaka, Dhaka Metropolitan",
     "spots": 20,
     "rate": 50,
     "type": "Covered",
     "status": "Active",
-    "lat": 23.81,
-    "lng": 90.4,
+    "lat": 23.808117093906773,
+    "lng": 90.41696548461914,
     "evCharger": true
   }
 ]

@@ -768,6 +768,7 @@ async function syncBookingToBackend(booking) {
             const sessionData = {
                 plateNumber: booking.vehicle,
                 zone: booking.zone,
+                zoneId: booking.zoneId,
                 spot: booking.slot || booking.spot,
                 slotIndex: booking.slotIndex,
                 startTime: booking.entryTime || booking.createdAt,

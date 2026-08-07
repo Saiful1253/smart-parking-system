@@ -21,8 +21,13 @@ window.SmartParkConfig = window.SmartParkConfig || {};
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
         const p = window.location.port;
         window.SmartParkConfig.API_BASE = (p === '3000' || !p) ? window.location.origin : 'http://localhost:3000';
+    } else if (hostname.endsWith('.github.io') || hostname.includes('.github.io')) {
+        // GitHub Pages: point to the deployed backend
+        const backendUrl = (window.location.protocol === 'https:' ? 'https://' : 'http://') + 'smartpark-backend.onrender.com';
+        window.SmartParkConfig.API_BASE = backendUrl;
     } else {
-        window.SmartParkConfig.API_BASE = '';
+        // For other deployments, try to use the same origin (proxy) or a configured backend
+        window.SmartParkConfig.API_BASE = window.location.origin;
     }
 })();
 

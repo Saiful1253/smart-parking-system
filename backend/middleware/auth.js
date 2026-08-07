@@ -11,7 +11,8 @@ module.exports = function (req, res, next) {
 
   // Allow static test tokens for offline/testing mode
   if (typeof token === 'string' && token.startsWith('static-')) {
-    req.user = { id: 'static-test-user', role: 'admin' };
+    const tokenRole = token.replace('static-', '').trim();
+    req.user = { id: 'static-test-user', role: tokenRole === 'admin' ? 'admin' : 'customer' };
     return next();
   }
 

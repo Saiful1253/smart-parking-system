@@ -1,1 +1,26 @@
-[]
+[
+  {
+    "_id": "msj6pfqx8857ydb7i",
+    "user": "msj6ibvvy75qt2p7p",
+    "plateNumber": "ave 1",
+    "zone": "Kalachandpur, Gulshan, Dhaka, Dhaka Metropolitan",
+    "spot": "Kalachandpur, Gulshan, Dhaka, Dhaka Metropolitan-01",
+    "slotIndex": 0,
+    "startTime": "22:53",
+    "cost": 50,
+    "payment": "Cash",
+    "paymentStatus": "Verified",
+    "status": "Completed",
+    "sensorDetected": true,
+    "sensorVerified": false,
+    "sensorType": "camera",
+    "bookingType": "fixed",
+    "durationHours": 1,
+    "vehicleType": "Car",
+    "evCharger": false,
+    "chargingDuration": 0,
+    "chargingCost": 0,
+    "createdAt": "2026-08-07T16:53:57.369Z",
+    "endTime": "2026-08-07T16:59:01.346Z"
+  }
+]

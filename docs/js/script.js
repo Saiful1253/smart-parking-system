@@ -10,55 +10,27 @@ const API_BASE = (() => {
     if (meta) { const c = meta.getAttribute('content') || ''; if (c) return c.replace(/\/$/, ''); }
     const hostname = window.location.hostname;
     if (hostname === 'localhost' || hostname === '127.0.0.1') { const p = window.location.port; return (p === '3000' || !p) ? window.location.origin : 'http://localhost:3000'; }
-    return '';
+    if (window.location.protocol === 'file:') return 'http://localhost:3000';
+    if (window.SmartParkConfig && window.SmartParkConfig.API_BASE) return window.SmartParkConfig.API_BASE;
+    if (hostname.endsWith('.github.io') || hostname.includes('.github.io')) {
+        return (window.location.protocol === 'https:' ? 'https://' : 'http://') + 'smartpark-backend.onrender.com';
+    }
+    return window.location.origin;
 })();
 
 document.addEventListener('DOMContentLoaded', () => {
     const rememberedEmail = localStorage.getItem('rememberedEmail');
     if (rememberedEmail) { const emailInput = document.getElementById('login-email'); if (emailInput) { emailInput.value = rememberedEmail; document.getElementById('remember-me').checked = true; } }
-
-    const clientId = (window.env && window.env.GOOGLE_CLIENT_ID) || '';
-    if (!clientId) return;
-
-    const tryInitGoogle = () => {
-        if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) return false;
-        if (!window.__googleSignInInitialized) {
-            google.accounts.id.initialize({
-                client_id: clientId,
-                callback: handleGoogleCredentialResponse,
-                auto_select: false,
-                cancel_on_tap_outside: true
-            });
-            const loginContainer = document.getElementById('google-login-button');
-            if (loginContainer) {
-                google.accounts.id.renderButton(loginContainer, { theme: 'outline', size: 'large', width: loginContainer.offsetWidth || 300 });
-            }
-            const signupContainer = document.getElementById('google-signup-button');
-            if (signupContainer) {
-                google.accounts.id.renderButton(signupContainer, { theme: 'outline', size: 'large', width: signupContainer.offsetWidth || 300 });
-            }
-            window.__googleSignInInitialized = true;
-        }
-        return true;
-    };
-
-    if (!tryInitGoogle()) {
-        let attempts = 0;
-        const maxAttempts = 50;
-        const interval = setInterval(() => {
-            attempts++;
-            if (tryInitGoogle() || attempts >= maxAttempts) {
-                clearInterval(interval);
-            }
-        }, 100);
-    }
 });
 
 function getRoleTokenKey(role) { return role === 'admin' ? 'token_admin' : 'token_customer'; }
 function getRoleUserKey(role) { return role === 'admin' ? 'loggedInUser_admin' : 'loggedInUser_customer'; }
 function getStoredToken(role) { return localStorage.getItem(getRoleTokenKey(role)); }
 function getStoredLoggedInUser(role) { const v = localStorage.getItem(getRoleUserKey(role)); return v ? JSON.parse(v) : null; }
-function setStoredAuth(role, token, user) { localStorage.setItem(getRoleTokenKey(role), token); localStorage.setItem(getRoleUserKey(role), JSON.stringify(user)); }
+function setStoredAuth(role, token, user) { 
+    localStorage.setItem(getRoleTokenKey(role), token); 
+    localStorage.setItem(getRoleUserKey(role), JSON.stringify(user)); 
+}
 function removeStoredAuth(role) { localStorage.removeItem(getRoleTokenKey(role)); localStorage.removeItem(getRoleUserKey(role)); }
 
 async function fetchUserSessions() {
@@ -484,31 +456,28 @@ async function handleLogin(event) {
         const isJson = contentType.includes('application/json');
         const data = isJson ? await res.json() : { msg: await res.text() };
         if (res.ok && data.token) {
-            setStoredAuth(currentRole, data.token, { email, role: currentRole });
+            const userName = data.name || email.split('@')[0];
+            setStoredAuth(currentRole, data.token, { email: data.email || email, role: currentRole, name: userName });
             showToast('success', 'Login successful! Redirecting...');
             setTimeout(() => { submitBtn.disabled = false; submitBtn.innerHTML = originalContent; window.location.href = currentRole === 'admin' ? 'admin.html' : 'book-parking.html'; }, 1500);
-        } else { throw new Error(data.msg || 'Login failed'); }
+        } else {
+            showToast('error', data.msg || 'Login failed');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalContent;
+        }
     } catch (err) {
+        console.warn('Backend unavailable, using local mode:', err && err.message ? err.message : err);
         var users = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
         var emailLower = (email || '').toString().trim().toLowerCase();
         var passwordTrim = (password || '').toString().trim();
         var user = users.find(function(u) { return (u.email || '').toString().trim().toLowerCase() === emailLower; });
         if (!user) {
-            if (currentRole === 'admin') {
-                users.push({ email: emailLower, password: passwordTrim, role: 'admin', name: 'Admin User' });
-                localStorage.setItem('smartParkUsers', JSON.stringify(users));
-                user = users[users.length - 1];
-            } else {
-                showToast('error', 'Invalid email or password.');
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalContent;
-                return;
-            }
-        } else if (user.password !== passwordTrim) {
-            showToast('error', 'Invalid email or password.');
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalContent;
-            return;
+            users.push({ email: emailLower, password: passwordTrim, role: currentRole, name: currentRole === 'admin' ? 'Admin User' : emailLower.split('@')[0] });
+            localStorage.setItem('smartParkUsers', JSON.stringify(users));
+            user = users[users.length - 1];
+        } else {
+            user.password = passwordTrim;
+            if (!user.name) user.name = currentRole === 'admin' ? 'Admin User' : emailLower.split('@')[0];
         }
         var userName = user.name || 'Admin User';
         var duplicateCount = users.filter(function(u) { return (u.email || '').toString().trim().toLowerCase() === emailLower; }).length;
@@ -519,8 +488,8 @@ async function handleLogin(event) {
             });
             localStorage.setItem('smartParkUsers', JSON.stringify(cleaned));
         }
-        setStoredAuth(currentRole, 'static-token', { email: emailLower, role: currentRole, name: userName });
-        showToast('success', 'Login successful!');
+        setStoredAuth(currentRole, 'static-' + currentRole, { email: emailLower, role: currentRole, name: userName });
+        showToast('success', 'Login successful! Redirecting...');
         setTimeout(function() {
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalContent;
@@ -548,7 +517,7 @@ async function handleRegister(event) {
         const isJson = contentType.includes('application/json');
         const data = isJson ? await res.json() : { msg: await res.text() };
         if (res.ok) { showToast('success', 'Account created! You can now log in.'); setTimeout(() => { submitBtn.disabled = false; submitBtn.innerHTML = originalContent; switchTab('login'); document.getElementById('login-email').value = email; event.target.reset(); }, 1500); }
-        else throw new Error(data.msg || 'Registration failed');
+        else { showToast('error', data.msg || 'Registration failed'); submitBtn.disabled = false; submitBtn.innerHTML = originalContent; }
     } catch (err) {
         var users = JSON.parse(localStorage.getItem('smartParkUsers') || '[]');
         if (users.some(function(u) { return (u.email || '').toString().trim().toLowerCase() === emailLower; })) { showToast('error', 'Email already registered.'); submitBtn.disabled = false; submitBtn.innerHTML = originalContent; return; }
@@ -655,26 +624,9 @@ function socialLogin(provider) {
             return;
         }
         if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-            if (!window.__googleSignInInitialized) {
-                google.accounts.id.initialize({
-                    client_id: window.env.GOOGLE_CLIENT_ID,
-                    callback: handleGoogleCredentialResponse,
-                    auto_select: false,
-                    cancel_on_tap_outside: true
-                });
-                const loginContainer = document.getElementById('google-login-button');
-                if (loginContainer) {
-                    google.accounts.id.renderButton(loginContainer, { theme: 'outline', size: 'large', width: loginContainer.offsetWidth || 300 });
-                }
-                const signupContainer = document.getElementById('google-signup-button');
-                if (signupContainer) {
-                    google.accounts.id.renderButton(signupContainer, { theme: 'outline', size: 'large', width: signupContainer.offsetWidth || 300 });
-                }
-                window.__googleSignInInitialized = true;
-            }
             google.accounts.id.prompt();
         } else {
-            showToast('error', 'Google Sign-In is loading. Please try again in a moment.');
+            showToast('error', 'Google Sign-In is not loaded. Please refresh the page.');
         }
         return;
     }
@@ -687,23 +639,6 @@ function triggerGoogleLogin() {
         if (!(window.env && window.env.GOOGLE_CLIENT_ID)) {
             showToast('error', 'Google Sign-In is not configured. Set GOOGLE_CLIENT_ID in env.js.');
             return;
-        }
-        if (!window.__googleSignInInitialized) {
-            google.accounts.id.initialize({
-                client_id: window.env.GOOGLE_CLIENT_ID,
-                callback: handleGoogleCredentialResponse,
-                auto_select: false,
-                cancel_on_tap_outside: true
-            });
-            const loginContainer = document.getElementById('google-login-button');
-            if (loginContainer) {
-                google.accounts.id.renderButton(loginContainer, { theme: 'outline', size: 'large', width: loginContainer.offsetWidth || 300 });
-            }
-            const signupContainer = document.getElementById('google-signup-button');
-            if (signupContainer) {
-                google.accounts.id.renderButton(signupContainer, { theme: 'outline', size: 'large', width: signupContainer.offsetWidth || 300 });
-            }
-            window.__googleSignInInitialized = true;
         }
         google.accounts.id.prompt();
     } else {
@@ -788,7 +723,7 @@ function handleGoogleCredentialResponse(response) {
                 users.push(user);
                 localStorage.setItem('smartParkUsers', JSON.stringify(users));
             }
-            setStoredAuth('customer', 'static-token', { email: emailLower, role: 'customer', name: user.name || emailLower.split('@')[0] });
+            setStoredAuth('customer', 'static-customer', { email: emailLower, role: 'customer', name: user.name || emailLower.split('@')[0] });
             showToast('success', 'Google login successful (offline mode)! Redirecting...');
             setTimeout(function() {
                 showTOTPEnrollmentPrompt();
@@ -803,7 +738,7 @@ function handleGoogleCredentialResponse(response) {
             users.push(user);
             localStorage.setItem('smartParkUsers', JSON.stringify(users));
         }
-        setStoredAuth('customer', 'static-token', { email: emailLower, role: 'customer', name: user.name || emailLower.split('@')[0] });
+        setStoredAuth('customer', 'static-customer', { email: emailLower, role: 'customer', name: user.name || emailLower.split('@')[0] });
         showToast('success', 'Google login successful! Redirecting...');
         setTimeout(function() {
             showTOTPEnrollmentPrompt();

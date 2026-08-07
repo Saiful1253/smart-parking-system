@@ -191,23 +191,43 @@ async function loadData() {
             apiSessions.forEach(function(apiSession) {
                 var exists = merged.some(function(s) { return String(s.id) === String(apiSession.id) || String(s.backendId) === String(apiSession._id); });
                 if (!exists) {
-                    merged.push({
-                        id: apiSession._id || apiSession.id,
-                        backendId: apiSession._id,
-                        vehicle: apiSession.plateNumber || apiSession.vehicle,
-                        zone: apiSession.zone || apiSession.zoneName,
-                        slot: apiSession.slot || apiSession.slotId,
-                        zoneId: apiSession.zoneId,
-                        slotIndex: apiSession.slotIndex,
-                        bookingType: apiSession.bookingType || 'fixed',
-                        durationHours: apiSession.durationHours || 1,
-                        cost: apiSession.cost || 0,
-                        status: apiSession.status || 'Active',
-                        paymentStatus: apiSession.paymentStatus,
-                        payment: apiSession.payment,
-                        createdAt: apiSession.createdAt,
-                        paid: apiSession.paymentStatus === 'Verified' || apiSession.paymentStatus === 'Pending'
-                    });
+                    var apiVehicle = (apiSession.plateNumber || apiSession.vehicle || '').toUpperCase();
+                    var apiZone = apiSession.zone || apiSession.zoneName;
+                    var apiStatus = apiSession.status || 'Active';
+                    var matchIndex = -1;
+                    for (var i = 0; i < merged.length; i++) {
+                        var s = merged[i];
+                        if ((s.vehicle || '').toUpperCase() === apiVehicle && s.zone === apiZone && s.status === apiStatus) {
+                            matchIndex = i;
+                            break;
+                        }
+                    }
+                    if (matchIndex !== -1) {
+                        merged[matchIndex].backendId = apiSession._id;
+                        merged[matchIndex].id = apiSession._id || merged[matchIndex].id;
+                        if (apiSession.paymentStatus) merged[matchIndex].paymentStatus = apiSession.paymentStatus;
+                        if (apiSession.payment) merged[matchIndex].payment = apiSession.payment;
+                        merged[matchIndex].paid = apiSession.paymentStatus === 'Verified' || apiSession.paymentStatus === 'Pending';
+                        if (apiSession.createdAt) merged[matchIndex].createdAt = apiSession.createdAt;
+                    } else {
+                        merged.push({
+                            id: apiSession._id || apiSession.id,
+                            backendId: apiSession._id,
+                            vehicle: apiSession.plateNumber || apiSession.vehicle,
+                            zone: apiSession.zone || apiSession.zoneName,
+                            slot: apiSession.slot || apiSession.slotId,
+                            zoneId: apiSession.zoneId,
+                            slotIndex: apiSession.slotIndex,
+                            bookingType: apiSession.bookingType || 'fixed',
+                            durationHours: apiSession.durationHours || 1,
+                            cost: apiSession.cost || 0,
+                            status: apiSession.status || 'Active',
+                            paymentStatus: apiSession.paymentStatus,
+                            payment: apiSession.payment,
+                            createdAt: apiSession.createdAt,
+                            paid: apiSession.paymentStatus === 'Verified' || apiSession.paymentStatus === 'Pending'
+                        });
+                    }
                 }
             });
             sessions = merged;

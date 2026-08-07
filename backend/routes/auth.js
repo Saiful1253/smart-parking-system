@@ -9,7 +9,7 @@ const emailService = require('../services/emailService');
 // @desc    Register user
 // @access  Public
 router.post('/register', async (req, res) => {
-  const { email, password, role } = req.body;
+  const { email, password, role, name } = req.body;
 
   try {
     let user = await User.findOne({ email });
@@ -21,6 +21,7 @@ router.post('/register', async (req, res) => {
       email,
       password,
       role,
+      name,
     });
 
     const salt = await bcrypt.genSalt(10);
@@ -42,6 +43,7 @@ router.post('/register', async (req, res) => {
     const payload = {
       user: {
         id: user._id,
+        email: user.email,
         role: user.role,
       },
     };
@@ -55,7 +57,7 @@ router.post('/register', async (req, res) => {
           console.error(err.message);
           return res.status(500).send('Server error');
         }
-        res.json({ token });
+        res.json({ token, email: user.email, role: user.role, name: user.name || user.email.split('@')[0] });
       }
     );
   } catch (err) {
@@ -94,6 +96,7 @@ router.post('/login', async (req, res) => {
     const payload = {
       user: {
         id: user._id,
+        email: user.email,
         role: requestedRole,
       },
     };
@@ -107,7 +110,7 @@ router.post('/login', async (req, res) => {
           console.error(err.message);
           return res.status(500).send('Server error');
         }
-        res.json({ token });
+        res.json({ token, email: user.email, role: requestedRole, name: user.name || user.email.split('@')[0] });
       }
     );
   } catch (err) {
@@ -147,6 +150,7 @@ router.post('/google', async (req, res) => {
     const payloadJwt = {
       user: {
         id: user._id,
+        email: user.email,
         role: user.role,
       },
     };
@@ -160,7 +164,7 @@ router.post('/google', async (req, res) => {
           console.error(err.message);
           return res.status(500).send('Server error');
         }
-        res.json({ token, email, role: user.role, name: payload.name || email.split('@')[0] });
+        res.json({ token, email: user.email, role: user.role, name: payload.name || user.email.split('@')[0] });
       }
     );
   } catch (err) {
