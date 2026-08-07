@@ -108,7 +108,7 @@
             </div>
             <div class="bg-sp-emerald/10 border border-sp-emerald/20 rounded-2xl p-4 text-center">
                 <p class="text-xs font-bold text-sp-emerald uppercase tracking-wider mb-1">Amount to Pay</p>
-                <p class="text-4xl font-extrabold text-sp-emerald" id="pay-amount">à§³0.00</p>
+                <p class="text-4xl font-extrabold text-sp-emerald" id="pay-amount">৳0.00</p>
             </div>
             <div class="bg-sp-secondary border border-sp-accent/10 rounded-2xl p-4">
                 <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Customer Payment Details</p>
@@ -307,7 +307,7 @@ function renderSessions() {
                     '</div>' +
                     '<div class="text-center mb-4"><p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Time Elapsed</p><div class="font-mono text-3xl font-bold tracking-widest" id="timer-display-' + s.id + '" style="color:' + (isExpired ? '#10B981' : '#fff') + '">' + (isExpired ? 'EXPIRED' : '00:00:00') + '</div>' + (isExpired ? '<p class="text-xs text-sp-emerald font-bold mt-2">Session expired</p>' : '') + '</div>' +
                     '<hr class="border-sp-accent/10 my-4">' +
-                    '<div class="text-center"><p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Current Charge</p><p class="text-4xl font-extrabold text-sp-accent" id="cost-display-' + s.id + '">à§³' + s.cost.toFixed(2) + '</p><p class="text-xs text-slate-500 mt-1">Flat à§³' + rate.toFixed(1) + ' for 1st hour</p></div>' +
+                    '<div class="text-center"><p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Current Charge</p><p class="text-4xl font-extrabold text-sp-accent" id="cost-display-' + s.id + '">৳' + s.cost.toFixed(2) + '</p><p class="text-xs text-slate-500 mt-1">Flat ৳' + rate.toFixed(1) + ' for 1st hour</p></div>' +
                 '</div>' +
                 (s.paid ? '<div class="bg-sp-emerald/10 border border-sp-emerald/20 rounded-2xl p-4 flex items-center gap-3"><i class="fa-solid fa-circle-check text-sp-emerald text-xl"></i><div><p class="text-sm font-bold text-sp-emerald">Payment Recorded</p><p class="text-xs text-sp-emerald/80">' + (s.payment || '') + ' | BDT ' + s.cost.toFixed(2) + '</p></div></div>' : 
                 (isFixed ? '<div class="grid grid-cols-2 gap-3">' +
@@ -315,7 +315,7 @@ function renderSessions() {
                     '<button onclick="payWith(\'' + s.id + '\', \'Nagad\')" class="py-3 rounded-xl text-white font-bold text-sm" style="background:#f97316;"><i class="fa-solid fa-phone mr-1.5"></i> Nagad</button>' +
                     '<button onclick="payWith(\'' + s.id + '\', \'Rocket\')" class="py-3 rounded-xl text-white font-bold text-sm" style="background:#8b5cf6;"><i class="fa-solid fa-phone mr-1.5"></i> Rocket</button>' +
                     '<button onclick="payWith(\'' + s.id + '\', \'Cash\')" class="py-3 rounded-xl font-bold text-sm border-2" style="background:white;color:#059669;border-color:#059669;"><i class="fa-solid fa-money-bill-wave mr-1.5"></i> Cash</button>' +
-                '</div>' : '<button onclick="payWith(\'' + s.id + '\', \'' + (s.payment || 'bKash') + '\')" class="btn-primary w-full py-3"><i class="fa-solid fa-credit-card mr-2"></i> Pay Now (à§³' + s.cost.toFixed(2) + ')</button>')) +
+                '</div>' : '<button onclick="payWith(\'' + s.id + '\', \'' + (s.payment || 'bKash') + '\')" class="btn-primary w-full py-3"><i class="fa-solid fa-credit-card mr-2"></i> Pay Now (৳' + s.cost.toFixed(2) + ')</button>')) +
                 '<button onclick="endSession(\'' + s.id + '\', false); renderSessions();" class="w-full mt-3 py-3 text-sm font-bold rounded-xl border-2 border-sp-red text-sp-red hover:bg-sp-red/10 transition-all"><i class="fa-solid fa-stop-circle mr-2"></i> ' + (isExpired ? 'End Expired Session' : 'End Session') + '</button>' +
             '</div>';
         container.appendChild(card);
@@ -340,13 +340,13 @@ function renderSessions() {
                         timerEl.parentNode.appendChild(p);
                     }
                 }
-                if (costEl) costEl.textContent = 'à§³' + s.cost.toFixed(2);
+                if (costEl) costEl.textContent = '৳' + s.cost.toFixed(2);
                 return;
             }
             if (timerEl) timerEl.textContent = String(Math.floor(secs/3600)).padStart(2,'0') + ':' + String(Math.floor((secs%3600)/60)).padStart(2,'0') + ':' + String(secs%60).padStart(2,'0');
             if (costEl) {
-                if (isFixed) costEl.textContent = 'à§³' + s.cost.toFixed(2);
-                else { var runningCost = (rate / 3600) * secs; costEl.textContent = 'à§³' + runningCost.toFixed(2); }
+                if (isFixed) costEl.textContent = '৳' + s.cost.toFixed(2);
+                else { var runningCost = (rate / 3600) * secs; costEl.textContent = '৳' + runningCost.toFixed(2); }
             }
         }, 1000);
     });
@@ -367,7 +367,7 @@ function openPaymentModal(sessionId, method) {
     document.getElementById('pay-modal-title').textContent = 'Pay with ' + method;
     document.getElementById('pay-method-label').textContent = method;
     document.getElementById('pay-cust-method-label').textContent = method;
-    document.getElementById('pay-amount').textContent = 'à§³' + s.cost.toFixed(2);
+    document.getElementById('pay-amount').textContent = '৳' + s.cost.toFixed(2);
     document.getElementById('pay-customer-number').value = '';
     document.getElementById('pay-trx-id').value = '';
     var modal = document.getElementById('payment-modal');
@@ -435,7 +435,7 @@ async function endSession(sessionId, skipConfirm) {
         openPaymentModal(sessionId, pendingPaymentMethod);
         return;
     }
-    if (!skipConfirm && !confirm('End session for ' + s.vehicle + ' at ' + s.slot + '? Total: à§³' + s.cost.toFixed(2))) return;
+    if (!skipConfirm && !confirm('End session for ' + s.vehicle + ' at ' + s.slot + '? Total: ৳' + s.cost.toFixed(2))) return;
     if (liveTimers[s.id]) { clearInterval(liveTimers[s.id]); delete liveTimers[s.id]; }
     s.status = 'Completed';
     if (s.slotIndex !== undefined && s.zoneId && zoneSlots[s.zoneId]) { zoneSlots[s.zoneId][s.slotIndex] = false; }
@@ -451,7 +451,7 @@ async function endSession(sessionId, skipConfirm) {
     if (s.paymentStatus) backendUpdates.paymentStatus = s.paymentStatus;
     if (s.cost) backendUpdates.cost = s.cost;
     updateBackendSession(sessionId, backendUpdates).catch(function() {});
-    showToast('success', 'Session #' + s.id + ' ended. Paid via ' + s.payment + '. Total: à§³' + s.cost.toFixed(2));
+    showToast('success', 'Session #' + s.id + ' ended. Paid via ' + s.payment + '. Total: ৳' + s.cost.toFixed(2));
 }
 
 function toggleMobileMenu() {
